@@ -1,0 +1,32 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE, verifySession } from "@/lib/auth";
+
+/**
+ * Protege todas as rotas: sem sessão válida, redireciona para /login.
+ * Exceções: /login, /api/login e assets estáticos (tratados pelo matcher).
+ */
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  const isPublic =
+    pathname === "/login" ||
+    pathname === "/api/login" ||
+    pathname === "/api/logout" ||
+    pathname === "/icon.png" ||
+    pathname.startsWith("/brand/"); // logo e ícone da marca (acessíveis no login)
+  if (isPublic) return NextResponse.next();
+
+  const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
+  if (!session) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  // Roda em tudo, exceto assets do Next e favicon
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};

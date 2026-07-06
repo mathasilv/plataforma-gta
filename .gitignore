@@ -1,0 +1,21 @@
+/node_modules
+/.next
+/out
+/build
+.DS_Store
+*.pem
+npm-debug.log*
+.env
+.env*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Artefatos de teste dos scripts
+scripts/_out_*.docx
+
+# Dados locais (tarefas etc.)
+/data
+
+# Configurações locais do Claude Code
+.claude/settings.local.json

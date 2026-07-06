@@ -1,0 +1,107 @@
+# Guia de Deploy — Plataforma GTA (Vercel + GitHub + Vercel Postgres)
+
+Este guia coloca a plataforma no ar, de graça, acessível por login. Siga na ordem.
+Onde disser **[você]**, é uma ação sua no navegador; o resto o assistente já preparou.
+
+---
+
+## Visão geral
+
+- **GitHub** guarda o código. A cada atualização, a **Vercel** republica sozinha.
+- **Vercel** hospeda o site (plano gratuito).
+- **Vercel Postgres** guarda as tarefas (e, no futuro, o histórico de propostas).
+
+Você vai criar 2 contas gratuitas (pode usar o Google `gtaenergiago@gmail.com` nas duas):
+**GitHub** e **Vercel**.
+
+---
+
+## Passo 1 — Conta no GitHub  **[você]**
+
+1. Acesse https://github.com e crie uma conta (ou faça login).
+2. Crie um repositório novo (botão **+** → **New repository**):
+   - **Name:** `plataforma-gta`
+   - **Private** (recomendado — código interno).
+   - **NÃO** marque "Add a README" (o projeto já tem os arquivos).
+3. Copie a URL que aparece, algo como
+   `https://github.com/SEU-USUARIO/plataforma-gta.git`.
+
+## Passo 2 — Enviar o código para o GitHub
+
+O assistente já fez o `commit` local. Falta apenas conectar ao seu repositório e enviar.
+Cole a URL do Passo 1 e rode (o assistente pode fazer isso por você):
+
+```bash
+git remote add origin https://github.com/SEU-USUARIO/plataforma-gta.git
+git branch -M main
+git push -u origin main
+```
+
+> Na primeira vez o Git pedirá login no GitHub (abre uma janela do navegador). Autorize.
+
+## Passo 3 — Conta na Vercel e importar o projeto  **[você]**
+
+1. Acesse https://vercel.com e clique em **Sign Up** → **Continue with GitHub**
+   (assim a Vercel já enxerga seus repositórios).
+2. No painel, clique em **Add New… → Project**.
+3. Encontre `plataforma-gta` na lista e clique em **Import**.
+4. **NÃO clique em Deploy ainda** — antes vamos configurar o banco e as variáveis
+   (Passos 4 e 5). Se o deploy iniciar sozinho e falhar, tudo bem: corrigimos e ele
+   republica após o Passo 5.
+
+## Passo 4 — Criar o banco Vercel Postgres  **[você]**
+
+1. No projeto, aba **Storage** → **Create Database** → escolha **Postgres**.
+2. Dê um nome (ex.: `gta-db`), região **Washington, D.C. (iad1)** ou a mais próxima,
+   e conclua. Aceite vincular ao projeto `plataforma-gta`.
+3. Pronto — a Vercel injeta automaticamente a variável `POSTGRES_URL`. A tabela de
+   tarefas é criada sozinha no primeiro uso.
+
+## Passo 5 — Variáveis de ambiente  **[você]**
+
+No projeto: **Settings → Environment Variables**. Adicione as duas abaixo
+(ambiente: **Production, Preview e Development** marcados):
+
+| Nome         | Valor |
+|--------------|-------|
+| `AUTH_SECRET`| *(use o valor que o assistente gerou e te enviou no chat)* |
+| `APP_USERS`  | JSON com a equipe (exemplo abaixo) |
+
+Exemplo de `APP_USERS` (troque por nomes/senhas reais e fortes):
+
+```json
+[{"email":"tito@gta.com","password":"TROQUE-forte-1","name":"Tito"},
+ {"email":"gabriel@gta.com","password":"TROQUE-forte-2","name":"Gabriel"}]
+```
+
+> ⚠️ Em produção, **sem `AUTH_SECRET` e `APP_USERS` ninguém entra** — isso é
+> proposital, para não expor a senha de teste. Nunca use `gta123` em produção.
+
+## Passo 6 — Publicar
+
+- Se você parou antes do deploy: aba **Deployments** → **Deploy** (ou **Redeploy**).
+- Se as variáveis foram adicionadas depois de um deploy que falhou: **Redeploy**.
+- Ao terminar, a Vercel mostra a URL pública (ex.: `plataforma-gta.vercel.app`).
+
+## Passo 7 — Testar em produção  **[você]**
+
+1. Abra a URL, faça login com um usuário do `APP_USERS`.
+2. Gere uma proposta (baixa o `.docx`) e crie uma tarefa.
+3. As tarefas agora ficam no banco (persistem entre acessos e reinícios).
+
+---
+
+## Atualizações futuras
+
+Sempre que o assistente melhorar algo, basta enviar ao GitHub:
+
+```bash
+git add -A && git commit -m "descrição da mudança" && git push
+```
+
+A Vercel detecta o `push` e republica automaticamente em ~1 minuto.
+
+## Domínio próprio (opcional)
+
+Em **Settings → Domains** você pode ligar um domínio (ex.: `app.gtaenergia.com`)
+apontando o DNS conforme a Vercel indicar.

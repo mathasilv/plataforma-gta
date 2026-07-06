@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f5f6f8;
+  --foreground: #1a2f4a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Inputs padronizados */
+.field-label {
+  @apply block text-sm font-medium text-gta-navy/80 mb-1;
+}
+.field-input {
+  @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm
+         focus:border-gta-indigo focus:outline-none focus:ring-1 focus:ring-gta-indigo
+         disabled:bg-slate-100;
+}
+.field-error {
+  @apply mt-1 text-xs text-red-600;
+}
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-md bg-gta-indigo px-4 py-2
+         text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a40b3]
+         disabled:cursor-not-allowed disabled:opacity-60;
+}
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white
+         px-4 py-2 text-sm font-semibold text-gta-navy shadow-sm transition hover:bg-slate-50;
+}
