@@ -51,7 +51,6 @@ function LoginForm() {
           <div className="mb-6 text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/gta-logo.png" alt="GTA Energia" className="mx-auto h-24 w-auto" />
-            <div className="mt-2 text-sm text-slate-500">Plataforma de Propostas</div>
           </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
