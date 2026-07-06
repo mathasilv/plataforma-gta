@@ -1,15 +1,27 @@
-import { sql } from "@vercel/postgres";
+import { createPool, type VercelPool } from "@vercel/postgres";
 import crypto from "node:crypto";
 import type { Comentario, Task } from "./types";
 import type { TaskStore } from "./store";
 
 /**
- * Implementação do TaskStore em PostgreSQL (Vercel Postgres).
+ * Implementação do TaskStore em PostgreSQL (Vercel Postgres / Neon).
  *
- * Usada em produção. Lê a conexão da env `POSTGRES_URL` (injetada
- * automaticamente pela Vercel ao vincular um banco Postgres ao projeto).
+ * Usada em produção. A conexão vem de uma das variáveis de ambiente injetadas
+ * pela Vercel ao vincular o banco (o nome varia entre POSTGRES_URL e
+ * DATABASE_URL conforme o provedor) — por isso escolhemos a primeira disponível.
  * Mantém a MESMA interface do JsonTaskStore — API e UI não mudam.
  */
+
+/** Primeira URL de conexão disponível (compatível com Vercel Postgres e Neon). */
+export function getDbUrl(): string {
+  return (
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    ""
+  );
+}
 
 interface Row {
   id: string;
@@ -42,12 +54,17 @@ function rowToTask(r: Row): Task {
 }
 
 export class PostgresTaskStore implements TaskStore {
+  private pool: VercelPool;
   private ready: Promise<void> | null = null;
+
+  constructor() {
+    this.pool = createPool({ connectionString: getDbUrl() });
+  }
 
   /** Cria a tabela na primeira operação (idempotente). */
   private ensureSchema(): Promise<void> {
     if (!this.ready) {
-      this.ready = sql`
+      this.ready = this.pool.sql`
         CREATE TABLE IF NOT EXISTS tasks (
           id uuid PRIMARY KEY,
           titulo text NOT NULL,
@@ -68,13 +85,13 @@ export class PostgresTaskStore implements TaskStore {
 
   async list(): Promise<Task[]> {
     await this.ensureSchema();
-    const { rows } = await sql<Row>`SELECT * FROM tasks ORDER BY atualizado_em DESC`;
+    const { rows } = await this.pool.sql<Row>`SELECT * FROM tasks ORDER BY atualizado_em DESC`;
     return rows.map(rowToTask);
   }
 
   async get(id: string): Promise<Task | null> {
     await this.ensureSchema();
-    const { rows } = await sql<Row>`SELECT * FROM tasks WHERE id = ${id}`;
+    const { rows } = await this.pool.sql<Row>`SELECT * FROM tasks WHERE id = ${id}`;
     return rows[0] ? rowToTask(rows[0]) : null;
   }
 
@@ -84,7 +101,7 @@ export class PostgresTaskStore implements TaskStore {
     await this.ensureSchema();
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    await sql`
+    await this.pool.sql`
       INSERT INTO tasks
         (id, titulo, descricao, responsavel, status, prioridade, prazo, comentarios, criado_por, criado_em, atualizado_em)
       VALUES
@@ -102,7 +119,7 @@ export class PostgresTaskStore implements TaskStore {
     const current = await this.get(id);
     if (!current) return null;
     const next: Task = { ...current, ...patch, id, atualizadoEm: new Date().toISOString() };
-    await sql`
+    await this.pool.sql`
       UPDATE tasks SET
         titulo = ${next.titulo},
         descricao = ${next.descricao},
@@ -118,7 +135,7 @@ export class PostgresTaskStore implements TaskStore {
 
   async remove(id: string): Promise<boolean> {
     await this.ensureSchema();
-    const { rowCount } = await sql`DELETE FROM tasks WHERE id = ${id}`;
+    const { rowCount } = await this.pool.sql`DELETE FROM tasks WHERE id = ${id}`;
     return (rowCount ?? 0) > 0;
   }
 
@@ -126,7 +143,7 @@ export class PostgresTaskStore implements TaskStore {
     await this.ensureSchema();
     const novo: Comentario = { ...comentario, id: crypto.randomUUID(), em: new Date().toISOString() };
     // Append atômico no jsonb + atualiza timestamp
-    const { rows } = await sql<Row>`
+    const { rows } = await this.pool.sql<Row>`
       UPDATE tasks SET
         comentarios = comentarios || ${JSON.stringify([novo])}::jsonb,
         atualizado_em = ${novo.em}

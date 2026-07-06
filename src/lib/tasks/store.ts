@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import type { Comentario, Task } from "./types";
-import { PostgresTaskStore } from "./postgres-store";
+import { PostgresTaskStore, getDbUrl } from "./postgres-store";
 
 /**
  * Camada de dados das Tarefas.
@@ -127,7 +127,7 @@ const g = globalThis as unknown as { __gtaTaskStore?: TaskStore };
  */
 export function getTaskStore(): TaskStore {
   if (!g.__gtaTaskStore) {
-    if (process.env.POSTGRES_URL) {
+    if (getDbUrl()) {
       g.__gtaTaskStore = new PostgresTaskStore();
     } else {
       g.__gtaTaskStore = new JsonTaskStore(path.join(process.cwd(), "data", "tasks.json"));
