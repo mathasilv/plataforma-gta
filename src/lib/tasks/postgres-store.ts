@@ -12,15 +12,29 @@ import type { TaskStore } from "./store";
  * Mantém a MESMA interface do JsonTaskStore — API e UI não mudam.
  */
 
+/**
+ * Remove o parâmetro `channel_binding` da URL. O Neon o inclui por padrão, mas o
+ * driver serverless (@vercel/postgres) pode falhar com `channel_binding=require`.
+ * Tirá-lo torna a conexão TLS opcional para binding — mais compatível, sem perda
+ * de segurança (a conexão continua por SSL).
+ */
+function sanitize(url: string): string {
+  return url
+    .replace(/([?&])channel_binding=[^&]*/gi, "$1")
+    .replace(/\?&/, "?")
+    .replace(/&&/g, "&")
+    .replace(/[?&]$/, "");
+}
+
 /** Primeira URL de conexão disponível (compatível com Vercel Postgres e Neon). */
 export function getDbUrl(): string {
-  return (
+  const url =
     process.env.POSTGRES_URL ||
     process.env.POSTGRES_PRISMA_URL ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL_NON_POOLING ||
-    ""
-  );
+    "";
+  return url ? sanitize(url) : "";
 }
 
 interface Row {
