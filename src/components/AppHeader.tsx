@@ -8,9 +8,11 @@ const NAV = [
   { href: "/tarefas", label: "Tarefas" },
 ];
 
-export function AppHeader({ userName }: { userName?: string }) {
+export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const nav = isAdmin ? [...NAV, { href: "/admin/usuarios", label: "Usuários" }] : NAV;
 
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
@@ -32,7 +34,7 @@ export function AppHeader({ userName }: { userName?: string }) {
             <span className="text-lg font-bold tracking-tight">GTA Energia</span>
           </Link>
           <nav className="flex items-center gap-1 text-sm">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -48,7 +50,11 @@ export function AppHeader({ userName }: { userName?: string }) {
           </nav>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          {userName && <span className="hidden text-slate-300 sm:inline">{userName}</span>}
+          {userName && (
+            <Link href="/conta" className="hidden text-slate-300 hover:text-white sm:inline" title="Minha conta">
+              {userName}
+            </Link>
+          )}
           <button onClick={logout} className="rounded border border-white/30 px-3 py-1 hover:bg-white/10">
             Sair
           </button>

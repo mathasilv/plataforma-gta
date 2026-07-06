@@ -1,18 +1,11 @@
 /**
- * Autenticação simples e fechada para uso interno.
+ * Sessão e assinatura de cookie (edge-safe).
  *
- * - Usuários autorizados vêm da env APP_USERS (JSON) ou de um padrão de desenvolvimento.
  * - A sessão é um cookie httpOnly assinado com HMAC-SHA256 (AUTH_SECRET).
- * - Funciona tanto no Node (rotas) quanto no Edge (middleware), pois usa Web Crypto.
- *
- * Estruturado para ser substituído por Supabase Auth no futuro sem tocar nas telas.
+ * - Usa Web Crypto, então funciona no Node (rotas) e no Edge (middleware).
+ * - NÃO importa banco de dados aqui (o middleware roda no Edge). A validação de
+ *   credenciais fica em `src/lib/users/authenticate.ts` (Node).
  */
-
-export interface AppUser {
-  email: string;
-  password: string;
-  name?: string;
-}
 
 export const SESSION_COOKIE = "gta_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12; // 12h
@@ -27,33 +20,6 @@ function getSecret(): string {
     throw new Error("AUTH_SECRET não configurado. Defina-o nas variáveis de ambiente.");
   }
   return "dev-secret-troque-em-producao";
-}
-
-/**
- * Usuários autorizados. Em desenvolvimento cai num usuário padrão para facilitar
- * testes; em produção, sem `APP_USERS` configurado, retorna lista vazia
- * (ninguém entra) — evita expor credenciais de teste na internet.
- */
-export function getConfiguredUsers(): AppUser[] {
-  const raw = process.env.APP_USERS;
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as AppUser[];
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-    } catch {
-      // ignora JSON inválido e cai no padrão (apenas em dev)
-    }
-  }
-  if (IS_PROD) return [];
-  return [{ email: "admin@gta.com", password: "gta123", name: "Administrador" }];
-}
-
-export function validateCredentials(email: string, password: string): AppUser | null {
-  const users = getConfiguredUsers();
-  const found = users.find(
-    (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
-  );
-  return found ?? null;
 }
 
 // ----- assinatura de cookie (HMAC-SHA256) ----------------------------------
@@ -90,7 +56,7 @@ export interface SessionPayload {
   exp: number;
 }
 
-export async function signSession(user: AppUser): Promise<string> {
+export async function signSession(user: { email: string; name?: string }): Promise<string> {
   const payload: SessionPayload = {
     email: user.email,
     name: user.name,

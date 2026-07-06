@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { getConfiguredUsers } from "@/lib/auth";
-import { getSessionUser } from "@/lib/session";
+import { getCurrentUser } from "@/lib/session";
+import { users } from "@/lib/users/store";
 
 export const runtime = "nodejs";
 
-/** Lista os usuários cadastrados na plataforma (sem expor senhas). */
+/** Lista usuários ATIVOS (email + nome) — usado no seletor de responsáveis. */
 export async function GET() {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const me = await getCurrentUser();
+  if (!me) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-  const usuarios = getConfiguredUsers().map((u) => ({
-    email: u.email,
-    name: u.name ?? u.email,
-  }));
+  const store = await users();
+  const usuarios = (await store.list())
+    .filter((u) => u.active)
+    .map((u) => ({ email: u.email, name: u.name }));
   return NextResponse.json({ usuarios });
 }

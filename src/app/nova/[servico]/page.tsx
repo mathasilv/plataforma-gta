@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 import { getService } from "@/services/registry";
 import { AppHeader } from "@/components/AppHeader";
 import { DynamicForm } from "@/components/DynamicForm";
+import { requirePageUser } from "@/lib/session";
 
 export default async function NovaPropostaPage({
   params,
@@ -15,12 +14,11 @@ export default async function NovaPropostaPage({
   const service = getService(servico);
   if (!service) notFound();
 
-  const store = await cookies();
-  const session = await verifySession(store.get(SESSION_COOKIE)?.value);
+  const user = await requirePageUser();
 
   return (
     <div className="min-h-screen">
-      <AppHeader userName={session?.name ?? session?.email} />
+      <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6">
           <Link href="/" className="text-sm text-gta-indigo hover:underline">

@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 import { SERVICES } from "@/services/registry";
 import { AppHeader } from "@/components/AppHeader";
+import { requirePageUser } from "@/lib/session";
 
 export default async function DashboardPage() {
-  const store = await cookies();
-  const session = await verifySession(store.get(SESSION_COOKIE)?.value);
+  const user = await requirePageUser();
 
   return (
     <div className="min-h-screen">
-      <AppHeader userName={session?.name ?? session?.email} />
+      <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="text-2xl font-bold text-gta-navy">Nova proposta</h1>
         <p className="mt-1 text-sm text-slate-500">

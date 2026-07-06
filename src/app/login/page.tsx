@@ -29,11 +29,12 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Falha ao entrar.");
       }
-      router.replace(params.get("next") || "/");
+      // Primeiro acesso (ou senha resetada): força a definição de nova senha.
+      router.replace(data.mustChangePassword ? "/trocar-senha" : params.get("next") || "/");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao entrar.");
