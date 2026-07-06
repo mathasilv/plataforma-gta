@@ -50,7 +50,7 @@ function LoginForm() {
         <div className="p-8">
           <div className="mb-6 text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/gta-logo.png" alt="GTA Energia" className="mx-auto h-24 w-auto" />
+            <img src="/brand/gta-logo.png" alt="GTA Energia" className="mx-auto h-32 w-auto" />
           </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
