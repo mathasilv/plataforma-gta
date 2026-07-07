@@ -61,41 +61,8 @@ export const execucaoSubestacaoService = criarServicoCpq({
   prazoPadrao: "60 a 90 dias",
 });
 
-// --------------------------------------------------------------- SPDA
-
-export const spdaService = criarServicoCpq({
-  key: "spda",
-  label: "SPDA e Gerenciamento de Risco",
-  description: "Gerenciamento de risco, projeto e/ou execução de SPDA conforme ABNT NBR 5419.",
-  icon: "🌩️",
-  referencePrefix: "SPDA",
-  titulo: () => "PROPOSTA TÉCNICA E COMERCIAL — SPDA E GERENCIAMENTO DE RISCO",
-  descricaoServicoSecao: "Base histórica: gerenciamento de risco ~R$ 1.000–7.380; projeto SPDA ~R$ 7.000–12.000; execução por verba (deixe 0 quando não fizer parte).",
-  camposServico: [
-    moeda("valorRisco", "Gerenciamento de risco (R$)", 3000, `NBR 5419 + ART. Sugestão ${hint(3000)}.`),
-    moeda("valorProjeto", "Projeto de SPDA (R$)", 7000, `Pranchas, memoriais e lista de materiais. Sugestão ${hint(7000)}.`),
-    { name: "valorExecucao", label: "Execução (R$, 0 = não incluir)", type: "currency", width: "third", defaultValue: "0", help: "Mão de obra de instalação; deixe 0 se for só projeto." },
-  ],
-  zodServico: {
-    valorRisco: moedaZod,
-    valorProjeto: moedaZod,
-    valorExecucao: z.string().optional().default("0"),
-  },
-  montarItens: (f): ItemProposta[] => {
-    const itens: ItemProposta[] = [];
-    if (num(f.valorRisco) > 0) itens.push({ descricao: "Análise de gerenciamento de risco (ABNT NBR 5419) com laudo técnico e ART", valor: num(f.valorRisco), condicao: "" });
-    if (num(f.valorProjeto) > 0) itens.push({ descricao: "Projeto de SPDA: captação, descidas e aterramento, com pranchas, memoriais e lista de materiais", valor: num(f.valorProjeto), condicao: "" });
-    if (num(f.valorExecucao) > 0) itens.push({ descricao: "Execução do SPDA (mão de obra, ensaios e relatório) — materiais conforme escopo", valor: num(f.valorExecucao), condicao: "30% de entrada e saldo na entrega" });
-    return itens;
-  },
-  objetoPadrao:
-    "Serviços de proteção contra descargas atmosféricas (SPDA) conforme a ABNT NBR 5419, contemplando o gerenciamento de risco e o projeto (e execução, quando aplicável).",
-  observacoesPadrao: [
-    "Serviços conforme a ABNT NBR 5419.",
-    "Emissão de ART inclusa.",
-  ],
-  prazoPadrao: "15 a 30 dias",
-});
+// SPDA e Gerenciamento de Risco tem configurador próprio (preço por bloco +
+// por m², com piso e painel de margem): ver src/services/spda.
 
 // --------------------------------------------------------------- Laudo / Inspeção
 

@@ -2,11 +2,11 @@ import type { ServiceModule } from "./types";
 import { solarService } from "./solar";
 import { subestacaoService } from "./subestacao";
 import { carregadorService } from "./carregador";
+import { spdaService } from "./spda";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
 import {
   execucaoSubestacaoService,
-  spdaService,
   laudoInspecaoService,
   redeMtService,
   projetoEletricoBtService,
