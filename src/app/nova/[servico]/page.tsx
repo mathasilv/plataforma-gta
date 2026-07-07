@@ -11,6 +11,7 @@ import { SpdaConfigurator } from "@/components/spda/SpdaConfigurator";
 import { ExecucaoSubestacaoConfigurator } from "@/components/execucao-subestacao/ExecucaoSubestacaoConfigurator";
 import { RedeMtConfigurator } from "@/components/rede-mt/RedeMtConfigurator";
 import { QgbtConfigurator } from "@/components/qgbt/QgbtConfigurator";
+import { ServicoSimplesConfigurator } from "@/components/ServicoSimplesConfigurator";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { requirePageUser } from "@/lib/session";
 
@@ -67,6 +68,8 @@ export default async function NovaPropostaPage({
           <RedeMtConfigurator propostaId={proposta} />
         ) : service.key === "qgbt" ? (
           <QgbtConfigurator propostaId={proposta} />
+        ) : ["conexao", "analisador", "laudo-inspecao", "limpeza"].includes(service.key) ? (
+          <ServicoSimplesConfigurator serviceKey={service.key} propostaId={proposta} />
         ) : (
           <DynamicForm serviceKey={service.key} serviceLabel={service.label} formSchema={service.formSchema} />
         )}

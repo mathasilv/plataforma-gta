@@ -6,13 +6,11 @@ import { spdaService } from "./spda";
 import { execucaoSubestacaoService } from "./execucao-subestacao";
 import { redeMtService } from "./rede-mt";
 import { qgbtService } from "./qgbt";
+import { laudoInspecaoService } from "./laudo-inspecao";
+import { limpezaPlacasService } from "./limpeza";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
-import {
-  laudoInspecaoService,
-  projetoEletricoBtService,
-  limpezaPlacasService,
-} from "./_cpq/catalog";
+import { projetoEletricoBtService } from "./_cpq/catalog";
 
 /**
  * Registro central de serviços da plataforma.

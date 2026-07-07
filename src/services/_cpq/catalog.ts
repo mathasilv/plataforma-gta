@@ -31,42 +31,8 @@ const moedaZod = z.string().min(1, "Informe o valor");
 // SPDA e Gerenciamento de Risco tem configurador próprio (preço por bloco +
 // por m², com piso e painel de margem): ver src/services/spda.
 
-// --------------------------------------------------------------- Laudo / Inspeção
-
-export const laudoInspecaoService = criarServicoCpq({
-  key: "laudo-inspecao",
-  label: "Laudo e Inspeção Técnica",
-  description: "Vistoria, laudo e ART (instalações, SPDA, iluminação de emergência) por edificação/torre.",
-  referencePrefix: "LAUDO",
-  titulo: () => "PROPOSTA TÉCNICA E COMERCIAL — LAUDO E INSPEÇÃO TÉCNICA",
-  descricaoServicoSecao: "Base histórica: ~R$ 2.000–2.500 por edificação/torre; inspeção de subestação com termografia ~R$ 15.000.",
-  camposServico: [
-    { name: "qtdUnidades", label: "Nº de unidades (torres/edificações)", type: "number", width: "third", defaultValue: 1 },
-    moeda("valorUnidade", "Valor por unidade (R$)", 2500, `Sugestão ${hint(2500)}/unidade (vistoria + laudo + ART).`),
-    { name: "escopoLaudo", label: "Escopo do laudo", type: "text", width: "third", defaultValue: "instalações elétricas, SPDA e iluminação de emergência" },
-  ],
-  zodServico: {
-    qtdUnidades: z.coerce.number().int().min(1).default(1),
-    valorUnidade: moedaZod,
-    escopoLaudo: z.string().optional().default("instalações elétricas, SPDA e iluminação de emergência"),
-  },
-  montarItens: (f): ItemProposta[] => {
-    const qtd = Number(f.qtdUnidades) || 1;
-    return [{
-      descricao: `Vistoria técnica, laudo e ART (${f.escopoLaudo}) — ${qtd} ${qtd > 1 ? "unidades" : "unidade"}`,
-      valor: num(f.valorUnidade) * qtd,
-      condicao: "",
-    }];
-  },
-  objetoPadrao:
-    "Vistoria técnica das instalações com emissão de laudo e ART, atestando as condições de conformidade conforme as normas técnicas aplicáveis.",
-  observacoesPadrao: [
-    "Serviços conforme normas técnicas vigentes.",
-    "Emissão de ART inclusa.",
-    "Correções apontadas no laudo são orçadas à parte.",
-  ],
-  prazoPadrao: "10 a 15 dias após a vistoria",
-});
+// Laudo e Inspeção Técnica tem configurador próprio (preço por unidade):
+// ver src/services/laudo-inspecao.
 
 // Carregador Veicular (EV) tem configurador próprio (dimensionamento NBR 5410
 // + lista de materiais + preço por custo): ver src/services/carregador.
@@ -111,40 +77,5 @@ export const projetoEletricoBtService = criarServicoCpq({
 // Fornecimento de QGBT tem configurador próprio (custo × Fator K):
 // ver src/services/qgbt.
 
-// --------------------------------------------------------------- Limpeza de placas
-
-export const limpezaPlacasService = criarServicoCpq({
-  key: "limpeza",
-  label: "Limpeza de Placas Solares",
-  description: "Limpeza de módulos fotovoltaicos com inspeção e relatório, por nº de placas.",
-  referencePrefix: "LIMPEZA",
-  titulo: () => "PROPOSTA TÉCNICA E COMERCIAL — LIMPEZA DE PLACAS FOTOVOLTAICAS",
-  descricaoServicoSecao: "Base histórica por placa: ~R$ 50 (poucas placas) · ~R$ 24,50 (≈100) · ~R$ 4–10 (usinas com milhares). Ajuste o valor/placa conforme o volume.",
-  camposServico: [
-    { name: "qtdPlacas", label: "Nº de placas", type: "number", required: true, width: "third", placeholder: "Ex.: 94" },
-    moeda("valorPorPlaca", "Valor por placa (R$)", 25, `Sugestão ${hint(25)}/placa — reduza para grandes volumes.`),
-    { name: "valorMinimo", label: "Valor mínimo (R$)", type: "currency", width: "third", defaultValue: "900", help: "Piso da visita, independentemente do nº de placas." },
-  ],
-  zodServico: {
-    qtdPlacas: z.coerce.number().int().min(1),
-    valorPorPlaca: moedaZod,
-    valorMinimo: z.string().optional().default("0"),
-  },
-  montarItens: (f): ItemProposta[] => {
-    const n = Number(f.qtdPlacas) || 0;
-    const calc = num(f.valorPorPlaca) * n;
-    const valor = Math.max(calc, num(f.valorMinimo));
-    return [{
-      descricao: `Limpeza de ${n} ${n > 1 ? "painéis" : "painel"} fotovoltaico(s), com inspeção prévia e relatório fotográfico`,
-      valor,
-      condicao: "",
-    }];
-  },
-  objetoPadrao:
-    "Limpeza técnica de módulos fotovoltaicos, com inspeção prévia, procedimento de segurança (NR-10/NR-35) e relatório fotográfico do antes e depois.",
-  observacoesPadrao: [
-    "Acesso especial (plataformas/andaimes), quando necessário, é orçado à parte.",
-    "Serviço executado com equipe e equipamentos de segurança conforme NR-10 e NR-35.",
-  ],
-  prazoPadrao: "A combinar conforme agenda",
-});
+// Limpeza de Placas Solares tem configurador próprio (preço por placa, com
+// piso mínimo): ver src/services/limpeza.
