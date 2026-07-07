@@ -3,7 +3,7 @@
  * Rio Doce). O serviço tem DOIS componentes independentes, cada um com sua
  * fórmula (um job pode ter só projeto, só execução, ou os dois):
  *
- *   PROJETO  = (custo × Fator K) / (1 − NF)   (Fator K 2,125, NF 15% "por dentro") → margem ~40%
+ *   PROJETO  = (custo × Fator K) / (1 − NF)   (Fator K 1,889, NF 15% "por dentro") → margem 40%
  *   EXECUÇÃO = custo × Fator K                (Fator K 1,7, NF 6% sobre o faturamento) → margem ~35%
  *
  * Materiais e equipamentos principais da execução são faturados à parte.

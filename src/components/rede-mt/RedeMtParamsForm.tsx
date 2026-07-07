@@ -7,7 +7,7 @@ type Params = Record<ParamKey, number>;
 interface CampoDef { key: ParamKey; label: string; help: string; kind: "dec" | "pct" }
 
 const CAMPOS: CampoDef[] = [
-  { key: "fatorKProjeto", label: "Projeto — Fator K", help: "Markup do projeto (padrão 2,125; NF por dentro)", kind: "dec" },
+  { key: "fatorKProjeto", label: "Projeto — Fator K", help: "Markup do projeto (padrão 1,889 → margem 40%; NF por dentro)", kind: "dec" },
   { key: "nfProjeto", label: "Projeto — NF (%)", help: "Alíquota do projeto, por dentro (padrão 15%)", kind: "pct" },
   { key: "fatorKExecucao", label: "Execução — Fator K", help: "Markup da execução (padrão 1,7)", kind: "dec" },
   { key: "nfExecucao", label: "Execução — NF (%)", help: "Alíquota da execução (padrão 6%)", kind: "pct" },

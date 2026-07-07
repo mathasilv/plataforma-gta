@@ -2,8 +2,10 @@ import { z } from "zod";
 import { getSettingsStore } from "@/lib/settings/store";
 
 /**
- * Parâmetros de preço da Rede MT/BT (ver pricing.ts). Defaults das planilhas
- * reais (Rio Doce): projeto Fator K 2,125 / NF 15%; execução Fator K 1,7 / NF 6%.
+ * Parâmetros de preço da Rede MT/BT (ver pricing.ts).
+ * - Projeto: Fator K 1,889 / NF 15% → margem 40% (K calibrado p/ mirar 40%
+ *   líquidos com a NF por dentro; decisão de gestão 07/2026).
+ * - Execução: Fator K 1,7 / NF 6% → margem ~35% (planilhas Rio Doce/Francefarma).
  * Ajustáveis por qualquer usuário (settings key `rede-mt:parametros`).
  */
 
@@ -23,7 +25,7 @@ export const redeMtParamsSchema = z.object({
 export type RedeMtParams = z.infer<typeof redeMtParamsSchema>;
 
 export const REDEMT_PARAMS_DEFAULT: RedeMtParams = {
-  fatorKProjeto: 2.125,
+  fatorKProjeto: 1.889, // → margem 40% com NF 15% "por dentro"
   nfProjeto: 0.15,
   fatorKExecucao: 1.7,
   nfExecucao: 0.06,

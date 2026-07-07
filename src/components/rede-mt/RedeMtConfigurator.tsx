@@ -282,7 +282,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
       {/* Parâmetros */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Parâmetros de preço (Fator K e NF de projeto e execução)</summary>
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Padrão GTA: projeto Fator K 2,125 / NF 15% (margem ~40%); execução Fator K 1,7 / NF 6% (margem ~35%).</p>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Padrão GTA: projeto Fator K 1,889 / NF 15% (margem 40%); execução Fator K 1,7 / NF 6% (margem ~35%).</p>
         <div className="mt-4"><RedeMtParamsForm onSaved={aplicarParams} /></div>
       </details>
 
