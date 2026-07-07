@@ -24,8 +24,7 @@ export function identFields(opts: {
   formaPagamento?: string;
 }): FieldDef[] {
   return [
-    { name: "clienteNome", label: "Nome do cliente", type: "text", required: true, width: "half", placeholder: "Ex.: Residencial Espanha" },
-    { name: "clienteSigla", label: "Sigla do cliente (p/ referência)", type: "text", width: "half", placeholder: "Ex.: RESPANHA", help: "Opcional — usada no código GTA-ANO-SIGLA-SERVIÇO-00N." },
+    { name: "clienteNome", label: "Nome do cliente", type: "text", required: true, width: "full", placeholder: "Ex.: Residencial Espanha" },
     { name: "cidadeUf", label: "Cidade/UF", type: "text", required: true, width: "third", placeholder: "Ex.: Anápolis/GO" },
     { name: "referenciaSeq", label: "Nº sequencial", type: "number", required: true, width: "third", defaultValue: 1 },
     { name: "dataEmissao", label: "Data de emissão", type: "date", required: true, width: "third" },
@@ -37,7 +36,6 @@ export function identFields(opts: {
 /** Fragmento Zod dos campos de identificação. */
 export const identZod = {
   clienteNome: naoVazio("Informe o nome do cliente"),
-  clienteSigla: z.string().optional().default(""),
   cidadeUf: naoVazio("Informe a cidade/UF"),
   referenciaSeq: z.coerce.number().int().min(1).default(1),
   dataEmissao: naoVazio("Informe a data de emissão"),
@@ -47,7 +45,6 @@ export const identZod = {
 
 export interface IdentForm {
   clienteNome: string;
-  clienteSigla?: string;
   cidadeUf: string;
   referenciaSeq: number;
   dataEmissao: string;
@@ -63,12 +60,7 @@ export function identData(form: IdentForm, referencePrefix: string) {
     clienteNome: form.clienteNome,
     clienteNomeUpper: form.clienteNome.toUpperCase(),
     cidadeUf: form.cidadeUf,
-    referencia: buildReference(
-      referencePrefix,
-      form.clienteSigla?.trim() || form.clienteNome,
-      form.referenciaSeq,
-      ano,
-    ),
+    referencia: buildReference(referencePrefix, form.clienteNome, form.referenciaSeq, ano),
     dataEmissao: formatDateLong(emissao),
     validade: `${formatDateShort(addDays(emissao, form.validadeDias))} (${form.validadeDias} dias corridos)`,
     formaPagamento: form.formaPagamento,
