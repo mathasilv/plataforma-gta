@@ -342,7 +342,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || parseBR(form.valorServico) <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
-        <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver orçamentos</button>
+        <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
     </div>

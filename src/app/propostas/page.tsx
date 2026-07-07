@@ -12,7 +12,7 @@ export default async function PropostasPage() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gta-navy dark:text-slate-100">Orçamentos gerados</h1>
+            <h1 className="text-2xl font-bold text-gta-navy dark:text-slate-100">Propostas geradas</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Todas as propostas geradas na plataforma, de qualquer serviço. Filtre por cliente, serviço,
               criador ou status; as de Solar podem ser reabertas para continuar.

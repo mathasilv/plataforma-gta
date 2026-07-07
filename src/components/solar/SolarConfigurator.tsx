@@ -481,7 +481,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          A referência (nº do orçamento) é gerada automaticamente ao salvar.
+          A referência (nº da proposta) é gerada automaticamente ao salvar.
         </p>
       </section>
 
@@ -869,7 +869,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           {gerando ? "Gerando..." : "Gerar .docx"}
         </button>
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>
-          Ver orçamentos
+          Ver propostas
         </button>
         {!calc?.pricing && <span className="text-xs text-slate-400 dark:text-slate-500">Informe o valor do kit para habilitar a geração.</span>}
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}

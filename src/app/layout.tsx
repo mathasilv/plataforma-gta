@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Plataforma GTA",
-  description: "Plataforma interna da GTA Energia — propostas comerciais, orçamentos e gestão de tarefas",
+  description: "Plataforma interna da GTA Energia — criação e histórico de propostas comerciais e gestão de tarefas",
 };
 
 // Aplica o tema salvo antes da primeira pintura (evita "flash" de tema claro).

@@ -2,7 +2,7 @@
 
 Plataforma web interna da **GTA Energia** (engenharia elétrica, Goiânia/GO). Reúne,
 num só lugar, as ferramentas do dia a dia da equipe: montagem e geração de propostas
-comerciais, histórico de orçamentos e gestão de tarefas — com tema claro/escuro e
+comerciais, histórico de propostas e gestão de tarefas — com tema claro/escuro e
 controle de acesso por usuário.
 
 ## Módulos
@@ -13,7 +13,7 @@ controle de acesso por usuário.
   Projeto de Subestação (NT.002 da Equatorial) e Carregador Veicular EV (NBR 5410 /
   NBR 17019 → lista de materiais → preço pelo Fator K). Os demais usam o formulário
   dinâmico com precificação base derivada das propostas reais.
-- **Orçamentos** (`/propostas`) — histórico de **todas** as propostas geradas, de
+- **Propostas** (`/propostas`) — histórico de **todas** as propostas geradas, de
   qualquer serviço, com filtros (serviço, status, cliente), referência automática e
   a coluna de quem criou.
 - **Tarefas** (`/tarefas`) — lista com filtros por status/responsável, busca,
@@ -51,7 +51,7 @@ Acesse http://localhost:3000. Login padrão de desenvolvimento:
 2. Em **Nova proposta**, escolha o serviço.
 3. Preencha o configurador ou o formulário. Nos configuradores, o dimensionamento,
    os totais, o valor total e o **valor por extenso** são calculados automaticamente.
-4. Clique em **Gerar .docx** — o documento é baixado e registrado em **Orçamentos**.
+4. Clique em **Gerar .docx** — o documento é baixado e registrado em **Propostas**.
 
 ## Arquitetura (modular)
 
@@ -77,7 +77,7 @@ src/
     format.ts           moeda, datas, referência, valor por extenso
     docx/generate.ts    preenche o molde (docxtemplater)
     docx/patchChart.ts  atualiza o gráfico nativo do Solar (Geração × Consumo)
-    propostas/          store do histórico de orçamentos
+    propostas/          store do histórico de propostas
     tasks/ · users/ · settings/   stores dos demais módulos
   services/
     types.ts            contrato ServiceModule
@@ -101,7 +101,7 @@ Pronto — o dashboard, o formulário/configurador e a geração passam a reconh
 
 Os módulos usam stores com a mesma interface e dois backends: **Postgres**
 (`@vercel/postgres`) em produção e **arquivo JSON local** em desenvolvimento
-(`data/*.json`, fora do git). Cobrem orçamentos, tarefas, usuários e os parâmetros
+(`data/*.json`, fora do git). Cobrem propostas, tarefas, usuários e os parâmetros
 editáveis dos configuradores (`settings`).
 
 ## Deploy

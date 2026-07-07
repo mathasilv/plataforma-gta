@@ -334,7 +334,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
             <input type="date" className={inputCls} value={form.dataEmissao} onChange={(e) => set("dataEmissao", e.target.value)} />
           </div>
         </div>
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">A referência (nº do orçamento) é gerada automaticamente ao salvar.</p>
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">A referência (nº da proposta) é gerada automaticamente ao salvar.</p>
       </section>
 
       {/* Dados da subestação */}
@@ -504,7 +504,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || sizing.trafoKva === 0 || parseBR(form.valorProjeto) <= 0}>
           {gerando ? "Gerando..." : "Gerar .docx"}
         </button>
-        <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver orçamentos</button>
+        <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
     </div>
