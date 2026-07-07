@@ -25,41 +25,8 @@ const moedaZod = z.string().min(1, "Informe o valor");
 // Projeto de Subestação tem configurador próprio (dimensionamento automático):
 // ver src/services/subestacao.
 
-// --------------------------------------------------------------- Subestação (execução)
-
-export const execucaoSubestacaoService = criarServicoCpq({
-  key: "execucao-subestacao",
-  label: "Execução de Subestação",
-  description: "Montagem eletromecânica e comissionamento de subestação (equipamentos faturados à parte).",
-  icon: "⚙️",
-  referencePrefix: "EXECSE",
-  titulo: (f) => `PROPOSTA TÉCNICA E COMERCIAL — EXECUÇÃO DE SUBESTAÇÃO ${f.potenciaKva ? `${f.potenciaKva} kVA` : ""}`.trim(),
-  descricaoServicoSecao: "Base histórica (serviços de engenharia): 300 kVA ~R$ 118 mil; 750 kVA ~R$ 160 mil; 2 MVA (comissionamento) ~R$ 131 mil.",
-  camposServico: [
-    { name: "potenciaKva", label: "Potência (kVA)", type: "number", width: "third", placeholder: "Ex.: 750" },
-    moeda("valorServicos", "Serviços de engenharia (R$)", 120000, `Sugestão ${hint(120000)} — ajuste conforme o porte (kVA) e o escopo.`, "half"),
-  ],
-  zodServico: {
-    potenciaKva: z.coerce.number().optional().default(0),
-    valorServicos: moedaZod,
-  },
-  montarItens: (f): ItemProposta[] => {
-    const kva = Number(f.potenciaKva) || 0;
-    return [{
-      descricao: `Execução completa da subestação${kva ? ` de ${kva} kVA` : ""}: obra civil, montagem eletromecânica, aterramento, comissionamento e ART (equipamentos e materiais faturados diretamente ao cliente)`,
-      valor: num(f.valorServicos),
-      condicao: "30% de entrada e saldo conforme cronograma físico-financeiro",
-    }];
-  },
-  objetoPadrao:
-    "Execução completa da subestação, contemplando obra civil, montagem eletromecânica, aterramento, ensaios de comissionamento e a documentação técnica pertinente.",
-  observacoesPadrao: [
-    "Equipamentos e materiais principais faturados diretamente ao cliente.",
-    "Serviços conforme normas técnicas vigentes e padrões da concessionária.",
-    "Energização sujeita à liberação da concessionária.",
-  ],
-  prazoPadrao: "60 a 90 dias",
-});
+// Execução de Subestação tem configurador próprio (custo × Fator K):
+// ver src/services/execucao-subestacao.
 
 // SPDA e Gerenciamento de Risco tem configurador próprio (preço por bloco +
 // por m², com piso e painel de margem): ver src/services/spda.

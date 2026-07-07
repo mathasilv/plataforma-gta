@@ -3,10 +3,10 @@ import { solarService } from "./solar";
 import { subestacaoService } from "./subestacao";
 import { carregadorService } from "./carregador";
 import { spdaService } from "./spda";
+import { execucaoSubestacaoService } from "./execucao-subestacao";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
 import {
-  execucaoSubestacaoService,
   laudoInspecaoService,
   redeMtService,
   projetoEletricoBtService,
