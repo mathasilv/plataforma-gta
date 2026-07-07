@@ -8,6 +8,7 @@ import {
   sugerirInversorComercial,
 } from "@/services/solar/commercial";
 import { SolarParamsForm } from "@/components/admin/SolarParamsForm";
+import { CopyButton } from "@/components/CopyButton";
 
 /** Formatação pt-BR local (sem depender de libs de servidor). */
 const nf = (v: number, d = 2) =>
@@ -705,9 +706,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         <section className={sec}>
           <div className="flex items-center justify-between">
             <h2 className={h2}><Passo n={3} /> Lista de materiais (para cotar)</h2>
-            <button type="button" className="btn-secondary !py-1 text-xs" onClick={() => navigator.clipboard?.writeText(calc.bom.map((b) => `${b.qtde}\t${b.descricao}`).join("\n"))}>
-              Copiar lista
-            </button>
+            <CopyButton label="Copiar lista" text={() => calc.bom.map((b) => `${b.qtde}\t${b.descricao}`).join("\n")} />
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Lista genérica (sem marca) para enviar ao distribuidor e obter o preço do kit.</p>
           <table className="mt-3 w-full text-sm">

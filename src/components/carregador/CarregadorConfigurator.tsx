@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CarregadorParamsForm } from "./CarregadorParamsForm";
+import { CopyButton } from "@/components/CopyButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -249,7 +250,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
         <section className={sec}>
           <div className="flex items-center justify-between">
             <h2 className={h2}>Lista de materiais (custo interno)</h2>
-            <button type="button" className="btn-secondary !py-1 text-xs" onClick={() => navigator.clipboard?.writeText(bom.itens.map((b) => `${b.qtd}\t${b.unidade}\t${b.descricao}`).join("\n"))}>Copiar lista</button>
+            <CopyButton label="Copiar lista" text={() => bom.itens.map((b) => `${b.qtd}\t${b.unidade}\t${b.descricao}`).join("\n")} />
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Base para cotação. Custo total dos materiais: <strong>{brl(bom.custoMateriais)}</strong>.</p>
           <div className="mt-3 overflow-x-auto">
