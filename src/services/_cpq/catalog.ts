@@ -71,42 +71,8 @@ export const laudoInspecaoService = criarServicoCpq({
 // Carregador Veicular (EV) tem configurador próprio (dimensionamento NBR 5410
 // + lista de materiais + preço por custo): ver src/services/carregador.
 
-// --------------------------------------------------------------- Rede MT/BT
-
-export const redeMtService = criarServicoCpq({
-  key: "rede-mt",
-  label: "Rede de Distribuição MT/BT",
-  description: "Projeto e/ou execução de rede MT/BT (loteamentos, extensões rurais).",
-  referencePrefix: "REDEMT",
-  titulo: () => "PROPOSTA TÉCNICA E COMERCIAL — REDE DE DISTRIBUIÇÃO MT/BT",
-  descricaoServicoSecao: "Base histórica: projeto de rede/loteamento ~R$ 8.000–19.000; execução (mão de obra) a partir de ~R$ 60.000 (materiais faturados à parte).",
-  camposServico: [
-    { name: "extensao", label: "Extensão / porte", type: "text", width: "third", placeholder: "Ex.: 1 km 13,8 kV / loteamento 80 lotes" },
-    moeda("valorProjeto", "Projeto (R$, 0 = não incluir)", 12000, `Projeto executivo + ART. Sugestão ${hint(12000)}.`),
-    { name: "valorExecucao", label: "Execução (R$, 0 = não incluir)", type: "currency", width: "third", defaultValue: "0", help: "Mão de obra de execução; materiais normalmente faturados ao cliente." },
-  ],
-  zodServico: {
-    extensao: z.string().optional().default(""),
-    valorProjeto: moedaZod,
-    valorExecucao: z.string().optional().default("0"),
-  },
-  montarItens: (f): ItemProposta[] => {
-    const ext = String(f.extensao ?? "").trim();
-    const suf = ext ? ` (${ext})` : "";
-    const itens: ItemProposta[] = [];
-    if (num(f.valorProjeto) > 0) itens.push({ descricao: `Projeto executivo de rede de distribuição MT/BT${suf}, com dimensionamentos, memoriais, ART e aprovação junto à concessionária`, valor: num(f.valorProjeto), condicao: "50% na contratação e 50% na entrega" });
-    if (num(f.valorExecucao) > 0) itens.push({ descricao: `Execução da rede MT/BT${suf}: postes, estruturas, cabos, proteções, aterramento e comissionamento (materiais faturados ao cliente)`, valor: num(f.valorExecucao), condicao: "conforme cronograma físico-financeiro" });
-    return itens;
-  },
-  objetoPadrao:
-    "Serviços de engenharia para rede de distribuição em média e baixa tensão, contemplando o projeto executivo (e a execução, quando aplicável) conforme os padrões da concessionária.",
-  observacoesPadrao: [
-    "Serviços conforme normas técnicas vigentes e padrões da concessionária.",
-    "Materiais e equipamentos principais faturados diretamente ao cliente na execução.",
-    "Aprovação e energização sujeitas à concessionária.",
-  ],
-  prazoPadrao: "45 a 90 dias",
-});
+// Rede de Distribuição MT/BT tem configurador próprio (projeto por métrica +
+// execução por custo × Fator K): ver src/services/rede-mt.
 
 // --------------------------------------------------------------- Projeto elétrico BT
 

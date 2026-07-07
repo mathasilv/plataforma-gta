@@ -9,6 +9,7 @@ import { SubestacaoConfigurator } from "@/components/subestacao/SubestacaoConfig
 import { CarregadorConfigurator } from "@/components/carregador/CarregadorConfigurator";
 import { SpdaConfigurator } from "@/components/spda/SpdaConfigurator";
 import { ExecucaoSubestacaoConfigurator } from "@/components/execucao-subestacao/ExecucaoSubestacaoConfigurator";
+import { RedeMtConfigurator } from "@/components/rede-mt/RedeMtConfigurator";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { requirePageUser } from "@/lib/session";
 
@@ -61,6 +62,8 @@ export default async function NovaPropostaPage({
           <SpdaConfigurator propostaId={proposta} />
         ) : service.key === "execucao-subestacao" ? (
           <ExecucaoSubestacaoConfigurator propostaId={proposta} />
+        ) : service.key === "rede-mt" ? (
+          <RedeMtConfigurator propostaId={proposta} />
         ) : (
           <DynamicForm serviceKey={service.key} serviceLabel={service.label} formSchema={service.formSchema} />
         )}

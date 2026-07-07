@@ -4,11 +4,11 @@ import { subestacaoService } from "./subestacao";
 import { carregadorService } from "./carregador";
 import { spdaService } from "./spda";
 import { execucaoSubestacaoService } from "./execucao-subestacao";
+import { redeMtService } from "./rede-mt";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
 import {
   laudoInspecaoService,
-  redeMtService,
   projetoEletricoBtService,
   qgbtService,
   limpezaPlacasService,
