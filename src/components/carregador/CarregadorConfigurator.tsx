@@ -38,23 +38,23 @@ interface Form {
   protecaoCcIntegrada: boolean;
   valorServico: string;
   valorEquipamento: string;
+  subtitulo: string;
   objeto: string;
+  textoObjetivo: string;
   prazoExecucao: string;
-  observacoesExtra: string;
 }
 
+const SUBTITULO_PADRAO = "INFRAESTRUTURA PARA CARREGAMENTO DE VEÍCULO ELÉTRICO  ·  NBR 5410 / NBR 17019";
 const OBJETO_PADRAO =
   "Implantação de ponto(s) de carregamento para veículos elétricos, contemplando projeto, infraestrutura elétrica, proteções, aterramento, instalação, parametrização e ART, conforme a ABNT NBR 5410.";
-const OBS_PADRAO = [
-  "Serviços conforme normas técnicas vigentes (ABNT NBR 5410 e correlatas).",
-  "Estudo de demanda pode ser necessário conforme a capacidade da instalação.",
-];
+const OBJETIVO_PADRAO =
+  "A presente proposta tem como objetivo a implantação da infraestrutura elétrica para carregamento de veículo(s) elétrico(s), contemplando o dimensionamento conforme a ABNT NBR 5410 e a NBR 17019, o fornecimento e a instalação dos materiais, as proteções elétricas, o aterramento dedicado e a parametrização do(s) ponto(s) de recarga, com segurança e em conformidade com as normas técnicas vigentes.";
 
 const FORM_INICIAL: Form = {
   clienteNome: "", cidadeUf: "", localAtividade: "", referenciaSeq: 1, dataEmissao: HOJE, validadeDias: 20, formaPagamento: "A combinar",
   potenciaKw: "7.4", fase: "mono", distanciaM: "20", qtdPontos: 1, protecaoCcIntegrada: true,
   valorServico: "", valorEquipamento: "0",
-  objeto: OBJETO_PADRAO, prazoExecucao: "15 a 30 dias", observacoesExtra: OBS_PADRAO.join("\n"),
+  subtitulo: SUBTITULO_PADRAO, objeto: OBJETO_PADRAO, textoObjetivo: OBJETIVO_PADRAO, prazoExecucao: "15 a 30 dias",
 };
 
 interface Sizing {
@@ -118,33 +118,9 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
 
   const totalCliente = parseBR(form.valorServico) + parseBR(form.valorEquipamento);
 
-  function tituloDoc() {
-    return `PROPOSTA TÉCNICA E COMERCIAL — CARREGADOR VEICULAR ELÉTRICO${sizing ? ` ${nf(parseBR(form.potenciaKw), parseBR(form.potenciaKw) % 1 ? 1 : 0)} kW` : ""}`;
-  }
-  function montarItens() {
-    if (!sizing) return null;
-    const n = form.qtdPontos;
-    const itens = [{
-      descricao:
-        `Projeto, infraestrutura elétrica, instalação, parametrização e comissionamento de ${n > 1 ? `${n} pontos` : "1 ponto"} de carregamento veicular ` +
-        `(${nf(parseBR(form.potenciaKw), parseBR(form.potenciaKw) % 1 ? 1 : 0)} kW, ${form.fase === "mono" ? "monofásico" : "trifásico"}), incluindo materiais, ` +
-        `proteções (disjuntor ${sizing.disjuntorA} A, DR Tipo ${sizing.drTipo} e DPS), aterramento e ART, conforme as NBR 5410 e NBR 17019`,
-      valor: nf(parseBR(form.valorServico), 2),
-      condicao: "50% na contratação e 50% na entrega",
-    }];
-    if (parseBR(form.valorEquipamento) > 0) {
-      itens.push({ descricao: `Fornecimento do(s) carregador(es) — ${n > 1 ? `${n} unidades` : "1 unidade"}`, valor: nf(parseBR(form.valorEquipamento), 2), condicao: "faturamento direto do equipamento" });
-    }
-    return itens;
-  }
-  function montarObservacoes() {
-    const base = sizing
-      ? `Base de dimensionamento (NBR 5410) — Carregador ${nf(parseBR(form.potenciaKw), parseBR(form.potenciaKw) % 1 ? 1 : 0)} kW ${form.fase === "mono" ? "monofásico (220 V)" : "trifásico (380 V)"} · ` +
-        `Corrente nominal: ${nf(sizing.correnteNominal, 1)} A · Corrente de projeto: ${nf(sizing.correnteProjeto, 1)} A · ` +
-        `Disjuntor: ${sizing.disjuntorA} A curva C (${sizing.polos}P) · Proteção diferencial DR Tipo ${sizing.drTipo} (NBR 17019) · Condutor: ${sizing.nCondutores} × ${sizing.secaoMm2} mm² (queda ${nf(sizing.quedaPct * 100, 1)}%) em eletroduto ${sizing.eletroduto} · ` +
-        `${sizing.nDps} DPS Classe II e aterramento dedicado. Distância considerada: ${nf(parseBR(form.distanciaM), 0)} m.`
-      : "";
-    return [base, ...form.observacoesExtra.split("\n")].filter((l) => l.trim());
+  function montarMateriais() {
+    if (!bom) return [];
+    return bom.itens.map((it) => ({ qtde: `${it.qtd} ${it.unidade}`, descricao: it.descricao }));
   }
 
   async function salvar(silencioso = false) {
@@ -167,8 +143,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   }
 
   async function gerar() {
-    const itens = montarItens();
-    if (!itens) { setErro("Informe a potência do carregador para dimensionar."); return; }
+    if (!sizing || !bom) { setErro("Informe a potência do carregador para dimensionar."); return; }
     if (!form.clienteNome) { setErro("Informe o nome do cliente."); return; }
     if (!form.cidadeUf) { setErro("Informe a Cidade/UF."); return; }
     if (parseBR(form.valorServico) <= 0) { setErro("Informe o valor do serviço."); return; }
@@ -177,9 +152,12 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       let id = savedId;
       if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
       const formData = {
-        clienteNome: form.clienteNome, cidadeUf: form.cidadeUf, localAtividade: form.localAtividade,
+        clienteNome: form.clienteNome, cidadeUf: form.cidadeUf,
         referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: form.formaPagamento,
-        titulo: tituloDoc(), objeto: form.objeto, prazoExecucao: form.prazoExecucao, itens, observacoes: montarObservacoes(),
+        subtitulo: form.subtitulo, objeto: form.objeto, textoObjetivo: form.textoObjetivo,
+        potenciaKw: form.potenciaKw, sizing, materiais: montarMateriais(),
+        valorServico: form.valorServico, valorEquipamento: form.valorEquipamento,
+        prazoExecucao: form.prazoExecucao,
       };
       const res = await fetch("/api/gerar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ serviceKey: "carregador", formData, propostaId: id }) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? "Falha ao gerar."); }
@@ -342,8 +320,9 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
         <div className="mt-4 space-y-3">
-          <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
-          <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[70px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
+          <div><label className="field-label">Subtítulo do cabeçalho</label><input className={inputCls} value={form.subtitulo} onChange={(e) => set("subtitulo", e.target.value)} /></div>
+          <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[60px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
+          <div><label className="field-label">Texto do objetivo</label><textarea className={`${inputCls} min-h-[90px]`} value={form.textoObjetivo} onChange={(e) => set("textoObjetivo", e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
             <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>

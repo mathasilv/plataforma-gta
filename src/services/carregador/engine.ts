@@ -124,6 +124,9 @@ const QUADRO_PRECO = { mono: 80, tri: 140 };
 
 const precoDe = (tabela: Record<number, number>, k: number) => tabela[k] ?? tabela[menorMaiorIgual(Object.keys(tabela).map(Number).sort((a, b) => a - b), k)] ?? 0;
 
+/** Formata a seção (mm²) em pt-BR: 2,5 · 10 · 16. */
+const secFmt = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
 export interface BomItemEV {
   categoria: string;
   descricao: string;
@@ -158,7 +161,7 @@ export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number): { iten
     item("Infraestrutura", `Curva galvanizada ${eletroduto.nome} 90º`, "un", 4 * n, eletroduto.curva),
     item("Infraestrutura", `Abraçadeira tipo D / Unistrut ${eletroduto.nome}`, "un", Math.ceil(L * 0.75), PRECOS_BASE.abracadeira),
     item("Infraestrutura", `Bucha e arruela de alumínio ${eletroduto.nome}`, "par", 4 * n, PRECOS_BASE.buchaArruela),
-    item("Cabeamento", `Cabo flexível HEPR ${s.secaoMm2} mm² (${tri ? "3F+N+T" : "F+N+T"})`, "m", L * s.nCondutores, precoDe(CABO_PRECO, s.secaoMm2)),
+    item("Cabeamento", `Cabo flexível HEPR ${secFmt(s.secaoMm2)} mm² (${tri ? "3F+N+T" : "F+N+T"})`, "m", L * s.nCondutores, precoDe(CABO_PRECO, s.secaoMm2)),
     item("Proteção", `Quadro de distribuição IP65 (${tri ? "12 DIN" : "6 a 8 DIN"})`, "un", n, tri ? QUADRO_PRECO.tri : QUADRO_PRECO.mono),
     item("Proteção", `Disjuntor termomagnético ${s.disjuntorA} A curva C (${s.polos}P)`, "un", n, precoDisj),
     item("Proteção", drDescricao, "un", n, precoDr),
@@ -166,7 +169,7 @@ export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number): { iten
     item("Aterramento", 'Haste de aterramento cobreada 5/8" x 2,40 m', "un", n, PRECOS_BASE.haste),
     item("Aterramento", "Caixa de inspeção de solo", "un", n, PRECOS_BASE.caixaInspecao),
     item("Aterramento", "Conector tipo cunha / grampo", "un", n, PRECOS_BASE.conectorAterr),
-    item("Acessórios", `Terminal tubular (ilhós) ${s.secaoMm2} mm²`, "un", s.nCondutores * 2 * n, PRECOS_BASE.terminal),
+    item("Acessórios", `Terminal tubular (ilhós) ${secFmt(s.secaoMm2)} mm²`, "un", s.nCondutores * 2 * n, PRECOS_BASE.terminal),
     item("Acessórios", "Fita isolante alta qualidade (rolo 20 m)", "un", n, PRECOS_BASE.fitaIsolante),
     item("Acessórios", "Fita de autofusão (emendas externas)", "un", n, PRECOS_BASE.fitaAutofusao),
   ];
