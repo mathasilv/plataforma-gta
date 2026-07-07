@@ -35,5 +35,5 @@ export async function POST(req: Request) {
   const bom = gerarBomEV(sizing, i.distanciaM, i.qtdPontos);
   const preco = precoEV(bom.custoMateriais, i.qtdPontos, params);
 
-  return NextResponse.json({ sizing, bom, preco });
+  return NextResponse.json({ sizing, bom, preco, params });
 }

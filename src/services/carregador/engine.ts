@@ -110,9 +110,11 @@ export function dimensionarEV(i: SizingEVInput): SizingEV {
 
 // ----------------------------------------------------- Lista de materiais (BOM)
 
+// Preços-base de referência (R$), calibrados por cotações reais da GTA
+// (Megaluz/KG/Schneider, 2025). São só a SUGESTÃO inicial — editáveis na tela.
 export const PRECOS_BASE = {
-  abracadeira: 2.5, buchaArruela: 3, dps: 60, haste: 65, caixaInspecao: 25,
-  conectorAterr: 10, terminal: 0.5, fitaIsolante: 15, fitaAutofusao: 25,
+  abracadeira: 2.5, buchaArruela: 3, dps: 60, haste: 66, caixaInspecao: 25,
+  conectorAterr: 12, terminal: 1.8, fitaIsolante: 15, fitaAutofusao: 25,
 };
 const CABO_PRECO: Record<number, number> = { 2.5: 5, 4: 6.5, 6: 8, 10: 12, 16: 18, 25: 28, 35: 38, 50: 55, 70: 78 };
 /** Disjuntor (base bipolar). Tetrapolar ≈ ×1,9. */

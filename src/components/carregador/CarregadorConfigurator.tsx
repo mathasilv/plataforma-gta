@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { CarregadorParamsForm } from "./CarregadorParamsForm";
 import { CopyButton } from "@/components/CopyButton";
 
@@ -64,14 +65,23 @@ interface Sizing {
 }
 interface BomItem { categoria: string; descricao: string; unidade: string; qtd: number; precoUnit: number; precoTotal: number }
 interface Bom { itens: BomItem[]; custoMateriais: number }
-interface Preco { custoMateriais: number; maoObra: number; custoGeral: number; fatorK: number; preco: number; impostos: number; lucro: number; margem: number }
+/** Linha editável da lista de materiais (qtd/preço como texto p/ edição). */
+interface MatRow { categoria: string; descricao: string; unidade: string; qtd: string; precoUnit: string }
+interface Params { maoObraPorPonto: number; fatorK: number; aliqImpostos: number }
+
+const seedRow = (it: BomItem): MatRow => ({
+  categoria: it.categoria, descricao: it.descricao, unidade: it.unidade,
+  qtd: String(it.qtd), precoUnit: nf(it.precoUnit, 2),
+});
+const rowTotal = (m: MatRow) => parseBR(m.qtd) * parseBR(m.precoUnit);
 
 export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
   const [sizing, setSizing] = useState<Sizing | null>(null);
   const [bom, setBom] = useState<Bom | null>(null);
-  const [preco, setPreco] = useState<Preco | null>(null);
+  const [materiais, setMateriais] = useState<MatRow[]>([]);
+  const [params, setParams] = useState<Params | null>(null);
   const [recalcNonce, setRecalcNonce] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -79,6 +89,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   const [gerando, setGerando] = useState(false);
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
   const precoTocado = useRef(false);
+  const pularReseed = useRef(false); // preserva os materiais salvos ao carregar uma proposta
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const aplicarParams = () => { precoTocado.current = false; setRecalcNonce((n) => n + 1); };
@@ -86,7 +97,12 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) { setForm({ ...FORM_INICIAL, ...(d.proposta.dados as Partial<Form>) }); precoTocado.current = true; }
+        const dados = d.proposta?.dados as (Partial<Form> & { materiais?: MatRow[] }) | undefined;
+        if (dados) {
+          setForm({ ...FORM_INICIAL, ...dados });
+          precoTocado.current = true;
+          if (Array.isArray(dados.materiais) && dados.materiais.length) { setMateriais(dados.materiais); pularReseed.current = true; }
+        }
       }).catch(() => {});
     } else {
       fetch("/api/propostas/proximo?serviceKey=carregador").then((r) => r.json()).then((d) => {
@@ -98,7 +114,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   const calcKey = JSON.stringify([form.potenciaKw, form.fase, form.distanciaM, form.qtdPontos, form.protecaoCcIntegrada, recalcNonce]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (parseBR(form.potenciaKw) <= 0) { setSizing(null); setBom(null); setPreco(null); return; }
+    if (parseBR(form.potenciaKw) <= 0) { setSizing(null); setBom(null); return; }
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(async () => {
       try {
@@ -108,8 +124,11 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
         });
         if (res.ok) {
           const d = await res.json();
-          setSizing(d.sizing); setBom(d.bom); setPreco(d.preco);
-          if (!precoTocado.current) setForm((f) => ({ ...f, valorServico: nf(d.preco.preco, 2) }));
+          setSizing(d.sizing); setBom(d.bom); setParams(d.params);
+          // Re-semeia a lista com a nova sugestão quando a configuração muda —
+          // exceto logo após carregar uma proposta salva (mantém os materiais salvos).
+          if (pularReseed.current) pularReseed.current = false;
+          else setMateriais(d.bom.itens.map(seedRow));
         }
       } catch { /* ignora */ }
     }, 300);
@@ -117,18 +136,45 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calcKey]);
 
+  // ---- preço recalculado a partir da lista EDITADA (mesma fórmula do engine) ----
+  const custoMateriais = materiais.reduce((s, m) => s + rowTotal(m), 0);
+  const preco = params
+    ? (() => {
+        const maoObra = params.maoObraPorPonto * Math.max(1, form.qtdPontos);
+        const custoGeral = custoMateriais + maoObra;
+        const faturamento = Math.round((custoGeral * params.fatorK) / 10) * 10;
+        const impostos = faturamento * params.aliqImpostos;
+        const lucro = faturamento - impostos - custoGeral;
+        const margem = faturamento > 0 ? lucro / faturamento : 0;
+        return { custoMateriais, maoObra, custoGeral, fatorK: params.fatorK, preco: faturamento, impostos, lucro, margem };
+      })()
+    : null;
+
+  // sugere o valor do serviço quando o usuário ainda não editou o preço
+  const sugerido = preco?.preco ?? 0;
+  useEffect(() => {
+    if (!precoTocado.current && sugerido > 0) setForm((f) => ({ ...f, valorServico: nf(sugerido, 2) }));
+  }, [sugerido]);
+
   const totalCliente = parseBR(form.valorServico) + parseBR(form.valorEquipamento);
 
+  // edição da lista de materiais
+  const setMat = (i: number, k: keyof MatRow, v: string) => setMateriais((ms) => ms.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
+  const addMat = () => setMateriais((ms) => [...ms, { categoria: "Diversos", descricao: "", unidade: "un", qtd: "1", precoUnit: "0" }]);
+  const removeMat = (i: number) => setMateriais((ms) => ms.filter((_, j) => j !== i));
+  const restaurarSugestao = () => { if (bom) setMateriais(bom.itens.map(seedRow)); };
+
   function montarMateriais() {
-    if (!bom) return [];
-    return bom.itens.map((it) => ({ qtde: `${it.qtd} ${it.unidade}`, descricao: it.descricao }));
+    return materiais
+      .filter((m) => m.descricao.trim())
+      .map((m) => ({ qtde: `${m.qtd} ${m.unidade}`.trim(), descricao: m.descricao }));
   }
 
   async function salvar(silencioso = false) {
     if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
     setSalvando(true); setErro(null);
     try {
-      const payload = { serviceKey: "carregador", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: form };
+      const payload = { serviceKey: "carregador", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: { ...form, materiais } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -144,7 +190,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   }
 
   async function gerar() {
-    if (!sizing || !bom) { setErro("Informe a potência do carregador para dimensionar."); return; }
+    if (!sizing) { setErro("Informe a potência do carregador para dimensionar."); return; }
     if (!form.clienteNome) { setErro("Informe o nome do cliente."); return; }
     if (!form.cidadeUf) { setErro("Informe a Cidade/UF."); return; }
     if (parseBR(form.valorServico) <= 0) { setErro("Informe o valor do serviço."); return; }
@@ -176,7 +222,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   }
 
   const inputCls = "field-input";
-  const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800";
+  const sec = "rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800";
   const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
 
   return (
@@ -199,7 +245,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       {/* Dados do carregador */}
       <section className={sec}>
         <h2 className={h2}>Carregador e infraestrutura</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">O sistema dimensiona a proteção e o cabo (NBR 5410) e monta a lista de materiais.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">O sistema dimensiona a proteção e o cabo (NBR 5410) e sugere a lista de materiais.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button key={p.label} type="button" className="btn-secondary !py-2 text-xs sm:!py-1.5" onClick={() => setForm((f) => ({ ...f, potenciaKw: p.kw, fase: p.fase }))}>
@@ -245,28 +291,50 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
         )}
       </section>
 
-      {/* Lista de materiais */}
-      {bom && (
+      {/* Lista de materiais editável */}
+      {materiais.length > 0 && (
         <section className={sec}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className={h2}>Lista de materiais (custo interno)</h2>
-            <CopyButton label="Copiar lista" text={() => bom.itens.map((b) => `${b.qtd}\t${b.unidade}\t${b.descricao}`).join("\n")} />
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-secondary !py-1.5 text-xs" onClick={restaurarSugestao}>Restaurar sugestão</button>
+              <CopyButton label="Copiar lista" text={() => materiais.map((m) => `${m.qtd}\t${m.unidade}\t${m.descricao}`).join("\n")} />
+            </div>
           </div>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Base para cotação. Custo total dos materiais: <strong>{brl(bom.custoMateriais)}</strong>.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Sugestão a partir dos orçamentos da GTA — <strong>edite quantidades e preços</strong> (mudam com frequência). Custo total: <strong>{brl(custoMateriais)}</strong>.
+          </p>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-500 dark:text-slate-400"><tr><th className="py-1">Material</th><th>Qtd</th><th className="text-right">Total</th></tr></thead>
+            <table className="w-full min-w-[560px] text-sm">
+              <thead className="text-left text-xs text-slate-500 dark:text-slate-400">
+                <tr>
+                  <th className="py-1 pr-2 font-medium">Material</th>
+                  <th className="w-16 px-1 font-medium">Qtd</th>
+                  <th className="w-14 px-1 font-medium">Un.</th>
+                  <th className="w-24 px-1 text-right font-medium">Unit. (R$)</th>
+                  <th className="w-24 px-1 text-right font-medium">Total</th>
+                  <th className="w-8" />
+                </tr>
+              </thead>
               <tbody>
-                {bom.itens.map((b, i) => (
+                {materiais.map((m, i) => (
                   <tr key={i} className="border-t border-slate-100 dark:border-slate-700">
-                    <td className="py-1 text-slate-700 dark:text-slate-300">{b.descricao}</td>
-                    <td className="whitespace-nowrap text-slate-500 dark:text-slate-400">{b.qtd} {b.unidade}</td>
-                    <td className="whitespace-nowrap text-right text-slate-600 dark:text-slate-300">{brl(b.precoTotal)}</td>
+                    <td className="py-1 pr-2"><input className="field-input !px-2 !py-1 text-sm" value={m.descricao} onChange={(e) => setMat(i, "descricao", e.target.value)} placeholder="Descrição" /></td>
+                    <td className="px-1"><input className="field-input !px-2 !py-1 text-sm" inputMode="decimal" value={m.qtd} onChange={(e) => setMat(i, "qtd", e.target.value)} /></td>
+                    <td className="px-1"><input className="field-input !px-1.5 !py-1 text-sm" value={m.unidade} onChange={(e) => setMat(i, "unidade", e.target.value)} /></td>
+                    <td className="px-1"><input className="field-input !px-2 !py-1 text-right text-sm" inputMode="decimal" value={m.precoUnit} onChange={(e) => setMat(i, "precoUnit", e.target.value)} /></td>
+                    <td className="whitespace-nowrap px-1 text-right text-slate-600 dark:text-slate-300">{brl(rowTotal(m))}</td>
+                    <td className="px-0 text-center">
+                      <button type="button" onClick={() => removeMat(i)} className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-600 dark:text-slate-600 dark:hover:bg-red-900/20 dark:hover:text-red-400" aria-label="Remover material">
+                        <X className="h-4 w-4" aria-hidden />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <button type="button" className="btn-secondary mt-3 !py-1.5 text-xs" onClick={addMat}>+ Adicionar material</button>
         </section>
       )}
 
@@ -311,7 +379,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
               <Kpi label="Margem líquida" value={`${nf(preco.margem * 100, 1)}%`} destaque />
             </div>
             <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-              Faturamento = custo geral × Fator K. Margem líquida = (faturamento − impostos − custo) / faturamento. Ajuste o Fator K e os impostos em “Parâmetros de preço”.
+              Faturamento = custo geral × Fator K. O custo dos materiais vem da lista editável acima. Ajuste o Fator K e os impostos em “Parâmetros de preço”.
             </p>
           </div>
         )}
