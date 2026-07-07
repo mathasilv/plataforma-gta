@@ -22,44 +22,8 @@ function moeda(name: string, label: string, def: number, help: string, width: Fi
 }
 const moedaZod = z.string().min(1, "Informe o valor");
 
-// --------------------------------------------------------------- Subestação (projeto)
-
-export const projetoSubestacaoService = criarServicoCpq({
-  key: "projeto-subestacao",
-  label: "Projeto de Subestação",
-  description: "Projeto executivo de subestação (aérea ou abrigada) com aprovação na concessionária.",
-  icon: "📐",
-  referencePrefix: "PROJSE",
-  titulo: (f) => `PROPOSTA TÉCNICA E COMERCIAL — PROJETO DE SUBESTAÇÃO ${f.potenciaKva ? `${f.potenciaKva} kVA` : ""}`.trim(),
-  descricaoServicoSecao: "Base histórica por subestação: ~R$ 6.000 (aérea residencial) a ~R$ 15.250 (750 kVA); ~R$ 13.750/SE em lotes (VUPER, 4 SEs).",
-  camposServico: [
-    { name: "potenciaKva", label: "Potência (kVA)", type: "number", width: "third", placeholder: "Ex.: 300" },
-    { name: "qtdSubestacoes", label: "Nº de subestações", type: "number", width: "third", defaultValue: 1 },
-    moeda("valorProjeto", "Valor por subestação (R$)", 10000, `Sugestão ${hint(10000)}/SE — ajuste conforme kVA (≤300: ~8k; 750: ~15k).`),
-  ],
-  zodServico: {
-    potenciaKva: z.coerce.number().optional().default(0),
-    qtdSubestacoes: z.coerce.number().int().min(1).default(1),
-    valorProjeto: moedaZod,
-  },
-  montarItens: (f): ItemProposta[] => {
-    const qtd = Number(f.qtdSubestacoes) || 1;
-    const kva = Number(f.potenciaKva) || 0;
-    return [{
-      descricao: `Elaboração de projeto executivo de ${qtd > 1 ? `${qtd} subestações` : "subestação"}${kva ? ` de ${kva} kVA` : ""}, com dimensionamentos, memoriais, ART e aprovação junto à concessionária`,
-      valor: num(f.valorProjeto) * qtd,
-      condicao: "50% na contratação e 50% na entrega/aprovação",
-    }];
-  },
-  objetoPadrao:
-    "Elaboração do projeto executivo de subestação, contemplando dimensionamentos, diagramas, memoriais descritivos e a documentação necessária para aprovação junto à concessionária.",
-  observacoesPadrao: [
-    "Serviços executados conforme normas técnicas vigentes e padrões da concessionária.",
-    "Aprovação sujeita à análise da concessionária.",
-    "Não inclui a execução/montagem da subestação nem o fornecimento de equipamentos.",
-  ],
-  prazoPadrao: "30 a 45 dias úteis",
-});
+// Projeto de Subestação tem configurador próprio (dimensionamento automático):
+// ver src/services/subestacao.
 
 // --------------------------------------------------------------- Subestação (execução)
 

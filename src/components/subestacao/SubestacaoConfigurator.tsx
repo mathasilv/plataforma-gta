@@ -1,0 +1,465 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+const nf = (v: number, d = 2) =>
+  (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const brl = (v: number) => "R$ " + nf(v, 2);
+const parseBR = (s: string) => {
+  const t = String(s ?? "").trim();
+  if (!t) return 0;
+  return t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
+};
+
+const HOJE = new Date().toISOString().slice(0, 10);
+const SALARIO_MINIMO = 1630;
+
+interface Form {
+  clienteNome: string;
+  cidadeUf: string;
+  localAtividade: string;
+  referenciaSeq: number;
+  dataEmissao: string;
+  validadeDias: number;
+  formaPagamento: string;
+  tipoSE: "Aérea" | "Abrigada" | "Pedestal";
+  tensaoMt: number;
+  tensaoBt: number;
+  modo: "carga" | "demanda";
+  cargaKw: string;
+  fatorDemanda: string;
+  fatorPotencia: string;
+  demandaKva: string;
+  qtdSubestacoes: number;
+  valorProjeto: string;
+  incluirConexao: boolean;
+  salarioMinimo: string;
+  impostos: string;
+  objeto: string;
+  prazoExecucao: string;
+  observacoesExtra: string;
+}
+
+const OBJETO_PADRAO =
+  "Elaboração do projeto executivo de subestação, contemplando o dimensionamento do transformador e da proteção, diagramas unifilares, memoriais descritivos, lista de materiais, ART e o acompanhamento da aprovação junto à concessionária.";
+
+const OBS_PADRAO = [
+  "Serviços executados conforme normas técnicas vigentes e padrões da concessionária.",
+  "Aprovação e prazos sujeitos à análise da concessionária.",
+  "Dimensionamento preliminar; os valores finais são confirmados no projeto executivo.",
+];
+
+const FORM_INICIAL: Form = {
+  clienteNome: "",
+  cidadeUf: "",
+  localAtividade: "",
+  referenciaSeq: 1,
+  dataEmissao: HOJE,
+  validadeDias: 20,
+  formaPagamento: "A combinar",
+  tipoSE: "Aérea",
+  tensaoMt: 13.8,
+  tensaoBt: 380,
+  modo: "carga",
+  cargaKw: "",
+  fatorDemanda: "0,6",
+  fatorPotencia: "0,92",
+  demandaKva: "",
+  qtdSubestacoes: 1,
+  valorProjeto: "",
+  incluirConexao: false,
+  salarioMinimo: String(SALARIO_MINIMO),
+  impostos: "0",
+  objeto: OBJETO_PADRAO,
+  prazoExecucao: "30 a 45 dias úteis",
+  observacoesExtra: OBS_PADRAO.join("\n"),
+};
+
+interface Sizing {
+  demandaKva: number;
+  trafoKva: number;
+  aproveitamento: number;
+  correntePrimaria: number;
+  correnteSecundaria: number;
+  elo: string;
+  disjuntorBt: number;
+  condutorMt: string;
+}
+
+export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) {
+  const router = useRouter();
+  const [form, setForm] = useState<Form>(FORM_INICIAL);
+  const [sizing, setSizing] = useState<Sizing | null>(null);
+  const [precoSugerido, setPrecoSugerido] = useState(0);
+  const [erro, setErro] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [gerando, setGerando] = useState(false);
+  const [savedId, setSavedId] = useState<string | undefined>(propostaId);
+  const precoTocado = useRef(false);
+
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (propostaId) {
+      fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
+        if (d.proposta?.dados) {
+          setForm({ ...FORM_INICIAL, ...(d.proposta.dados as Partial<Form>) });
+          precoTocado.current = true;
+        }
+      }).catch(() => {});
+    } else {
+      fetch("/api/propostas/proximo?serviceKey=projeto-subestacao").then((r) => r.json()).then((d) => {
+        if (d.seq) setForm((f) => ({ ...f, referenciaSeq: d.seq }));
+      }).catch(() => {});
+    }
+  }, [propostaId]);
+
+  // cálculo ao vivo (debounce)
+  const calcKey = JSON.stringify([
+    form.modo, form.cargaKw, form.fatorDemanda, form.fatorPotencia, form.demandaKva,
+    form.tensaoMt, form.tensaoBt, form.qtdSubestacoes,
+  ]);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const temEntrada = form.modo === "carga" ? parseBR(form.cargaKw) > 0 : parseBR(form.demandaKva) > 0;
+    if (!temEntrada) {
+      setSizing(null);
+      return;
+    }
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/subestacao/calcular", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modo: form.modo,
+            cargaKw: parseBR(form.cargaKw),
+            fatorDemanda: parseBR(form.fatorDemanda),
+            fatorPotencia: parseBR(form.fatorPotencia),
+            demandaKva: parseBR(form.demandaKva),
+            tensaoMt: form.tensaoMt,
+            tensaoBt: form.tensaoBt,
+            qtdSubestacoes: form.qtdSubestacoes,
+          }),
+        });
+        if (res.ok) {
+          const d = await res.json();
+          setSizing(d.sizing);
+          setPrecoSugerido(d.precoSugerido);
+          if (!precoTocado.current) setForm((f) => ({ ...f, valorProjeto: nf(d.precoSugerido, 2) }));
+        }
+      } catch {
+        /* ignora erro transitório */
+      }
+    }, 300);
+    return () => { if (debounce.current) clearTimeout(debounce.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calcKey]);
+
+  const conexaoValor = form.incluirConexao ? 2 * parseBR(form.salarioMinimo) : 0;
+  const total = parseBR(form.valorProjeto) + conexaoValor + parseBR(form.impostos);
+
+  function tituloDoc() {
+    return `PROPOSTA TÉCNICA E COMERCIAL — PROJETO DE SUBESTAÇÃO${sizing ? ` ${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA` : ""}`;
+  }
+
+  function montarItens() {
+    if (!sizing) return null;
+    const qtd = form.qtdSubestacoes;
+    const kva = nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0);
+    const itens = [
+      {
+        descricao:
+          `Elaboração de projeto executivo de ${qtd > 1 ? `${qtd} subestações` : "subestação"} ${form.tipoSE.toLowerCase()} de ${kva} kVA ` +
+          `(${nf(form.tensaoMt, form.tensaoMt % 1 ? 1 : 0)} kV / ${form.tensaoBt} V): dimensionamento do transformador e da proteção, ` +
+          `diagramas unifilares, memoriais, lista de materiais, ART e acompanhamento da aprovação junto à concessionária`,
+        valor: nf(parseBR(form.valorProjeto), 2),
+        condicao: "50% na contratação e 50% na entrega/aprovação",
+      },
+    ];
+    if (conexaoValor > 0) {
+      itens.push({
+        descricao: "Assessoria de conexão junto à concessionária (viabilidade, liberação de carga e acompanhamento) — 2 salários mínimos",
+        valor: nf(conexaoValor, 2),
+        condicao: "",
+      });
+    }
+    if (parseBR(form.impostos) > 0) {
+      itens.push({ descricao: "Impostos e emissão de Nota Fiscal", valor: nf(parseBR(form.impostos), 2), condicao: "" });
+    }
+    return itens;
+  }
+
+  function montarObservacoes() {
+    const base = sizing
+      ? `Base de dimensionamento — Demanda estimada: ${nf(sizing.demandaKva, 1)} kVA · ` +
+        `Transformador comercial: ${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA · ` +
+        `Corrente no primário (${nf(form.tensaoMt, form.tensaoMt % 1 ? 1 : 0)} kV): ${nf(sizing.correntePrimaria, 1)} A · ` +
+        `Corrente no secundário (${form.tensaoBt} V): ${nf(sizing.correnteSecundaria, 0)} A · ` +
+        `Proteção sugerida: elo fusível ${sizing.elo} e disjuntor geral de ${sizing.disjuntorBt} A · ` +
+        `Condutor de MT: ${sizing.condutorMt}.`
+      : "";
+    return [base, ...form.observacoesExtra.split("\n")].filter((l) => l.trim());
+  }
+
+  async function salvar(silencioso = false) {
+    if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
+    setSalvando(true);
+    setErro(null);
+    try {
+      const payload = { serviceKey: "projeto-subestacao", cliente: form.clienteNome, status: total > 0 ? "precificada" : "rascunho", dados: form };
+      const res = savedId
+        ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao salvar.");
+      const id = data.proposta?.id ?? savedId;
+      setSavedId(id);
+      if (!silencioso) setStatus("Proposta salva.");
+      return id;
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar.");
+      return null;
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function gerar() {
+    const itens = montarItens();
+    if (!itens) { setErro("Informe a carga/demanda para dimensionar antes de gerar."); return; }
+    if (!form.clienteNome) { setErro("Informe o nome do cliente."); return; }
+    if (!form.cidadeUf) { setErro("Informe a Cidade/UF."); return; }
+    if (parseBR(form.valorProjeto) <= 0) { setErro("Informe o valor do projeto."); return; }
+    setGerando(true);
+    setErro(null);
+    try {
+      let id = savedId;
+      if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
+      const formData = {
+        clienteNome: form.clienteNome,
+        cidadeUf: form.cidadeUf,
+        localAtividade: form.localAtividade,
+        referenciaSeq: form.referenciaSeq,
+        dataEmissao: form.dataEmissao,
+        validadeDias: form.validadeDias,
+        formaPagamento: form.formaPagamento,
+        titulo: tituloDoc(),
+        objeto: form.objeto,
+        prazoExecucao: form.prazoExecucao,
+        itens,
+        observacoes: montarObservacoes(),
+      };
+      const res = await fetch("/api/gerar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceKey: "projeto-subestacao", formData, propostaId: id }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? "Falha ao gerar."); }
+      const blob = await res.blob();
+      const disp = res.headers.get("Content-Disposition") ?? "";
+      const m = disp.match(/filename="?([^"]+)"?/);
+      const filename = m ? decodeURIComponent(m[1]) : "projeto-subestacao.docx";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      setStatus("Documento gerado e baixado. Registrado no histórico.");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao gerar.");
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  const inputCls = "field-input";
+  const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800";
+  const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
+
+  const aprovOk = sizing ? sizing.aproveitamento <= 0.85 : true;
+
+  return (
+    <div className="space-y-6">
+      {erro && <p className="field-error">{erro}</p>}
+
+      {/* Cliente e local */}
+      <section className={sec}>
+        <h2 className={h2}>Cliente e local</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-3">
+            <label className="field-label">Nome do cliente *</label>
+            <input className={inputCls} value={form.clienteNome} onChange={(e) => set("clienteNome", e.target.value)} />
+          </div>
+          <div className="sm:col-span-3">
+            <label className="field-label">Cidade/UF *</label>
+            <input className={inputCls} value={form.cidadeUf} onChange={(e) => set("cidadeUf", e.target.value)} placeholder="Ex.: Goianápolis/GO" />
+          </div>
+          <div className="sm:col-span-3">
+            <label className="field-label">Local da obra</label>
+            <input className={inputCls} value={form.localAtividade} onChange={(e) => set("localAtividade", e.target.value)} placeholder="Ex.: Edifício Residencial — Centro" />
+          </div>
+          <div className="sm:col-span-1">
+            <label className="field-label">Validade (dias)</label>
+            <input type="number" className={inputCls} value={form.validadeDias} onChange={(e) => set("validadeDias", Number(e.target.value))} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Emissão</label>
+            <input type="date" className={inputCls} value={form.dataEmissao} onChange={(e) => set("dataEmissao", e.target.value)} />
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">A referência (nº do orçamento) é gerada automaticamente ao salvar.</p>
+      </section>
+
+      {/* Dados da subestação */}
+      <section className={sec}>
+        <h2 className={h2}>Dados da subestação</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Informe a carga (ou a demanda) — o sistema dimensiona o transformador e a proteção.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-2">
+            <label className="field-label">Tipo de subestação</label>
+            <select className={inputCls} value={form.tipoSE} onChange={(e) => set("tipoSE", e.target.value as Form["tipoSE"])}>
+              {["Aérea", "Abrigada", "Pedestal"].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Tensão primária (MT)</label>
+            <select className={inputCls} value={form.tensaoMt} onChange={(e) => set("tensaoMt", Number(e.target.value))}>
+              <option value={13.8}>13,8 kV</option>
+              <option value={34.5}>34,5 kV</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Tensão secundária (BT)</label>
+            <select className={inputCls} value={form.tensaoBt} onChange={(e) => set("tensaoBt", Number(e.target.value))}>
+              <option value={380}>380/220 V</option>
+              <option value={220}>220/127 V</option>
+              <option value={440}>440/254 V</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Entrada por</label>
+            <select className={inputCls} value={form.modo} onChange={(e) => set("modo", e.target.value as Form["modo"])}>
+              <option value="carga">Carga instalada (kW)</option>
+              <option value="demanda">Demanda (kVA)</option>
+            </select>
+          </div>
+          {form.modo === "carga" ? (
+            <>
+              <div className="sm:col-span-2">
+                <label className="field-label">Carga instalada (kW) *</label>
+                <input className={inputCls} inputMode="decimal" value={form.cargaKw} onChange={(e) => set("cargaKw", e.target.value)} placeholder="Ex.: 250" />
+              </div>
+              <div className="sm:col-span-1">
+                <label className="field-label">Fator de demanda</label>
+                <input className={inputCls} inputMode="decimal" value={form.fatorDemanda} onChange={(e) => set("fatorDemanda", e.target.value)} />
+              </div>
+              <div className="sm:col-span-1">
+                <label className="field-label">Fator de potência</label>
+                <input className={inputCls} inputMode="decimal" value={form.fatorPotencia} onChange={(e) => set("fatorPotencia", e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <div className="sm:col-span-2">
+              <label className="field-label">Demanda (kVA) *</label>
+              <input className={inputCls} inputMode="decimal" value={form.demandaKva} onChange={(e) => set("demandaKva", e.target.value)} placeholder="Ex.: 225" />
+            </div>
+          )}
+          <div className="sm:col-span-2">
+            <label className="field-label">Nº de subestações</label>
+            <input type="number" className={inputCls} value={form.qtdSubestacoes} onChange={(e) => set("qtdSubestacoes", Number(e.target.value))} />
+          </div>
+        </div>
+
+        {sizing && (
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
+            <Kpi label="Transformador" value={`${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA`} destaque />
+            <Kpi label="Demanda estimada" value={`${nf(sizing.demandaKva, 1)} kVA`} />
+            <Kpi label="Corrente primária" value={`${nf(sizing.correntePrimaria, 1)} A`} />
+            <Kpi label="Corrente secundária" value={`${nf(sizing.correnteSecundaria, 0)} A`} />
+            <Kpi label="Elo fusível (MT)" value={sizing.elo} />
+            <Kpi label="Disjuntor geral (BT)" value={`${sizing.disjuntorBt} A`} />
+            <Kpi label="Condutor MT" value={sizing.condutorMt} />
+            <div className={`rounded-md p-2 shadow-sm ${aprovOk ? "bg-white dark:bg-slate-800" : "bg-amber-50 dark:bg-amber-900/30"}`}>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Aproveitamento do trafo</div>
+              <div className={`mt-0.5 font-semibold ${aprovOk ? "text-gta-navy dark:text-slate-100" : "text-amber-700 dark:text-amber-300"}`}>
+                {nf(sizing.aproveitamento * 100, 0)}% {aprovOk ? "" : "· folga baixa"}
+              </div>
+            </div>
+          </div>
+        )}
+        {!sizing && (
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+            Preencha a <strong>{form.modo === "carga" ? "carga instalada" : "demanda"}</strong> para dimensionar automaticamente.
+          </p>
+        )}
+      </section>
+
+      {/* Preço */}
+      <section className={sec}>
+        <h2 className={h2}>Preço</h2>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-2">
+            <label className="field-label">Valor do projeto (R$) *</label>
+            <input className={inputCls} value={form.valorProjeto} onChange={(e) => { precoTocado.current = true; set("valorProjeto", e.target.value); }} placeholder="Ex.: 8.000,00" />
+            {sizing ? <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Sugestão por kVA: {brl(precoSugerido)}</p> : null}
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Impostos / NF (R$)</label>
+            <input className={inputCls} value={form.impostos} onChange={(e) => set("impostos", e.target.value)} />
+          </div>
+          <div className="sm:col-span-2 flex items-end">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+              <input type="checkbox" className="h-4 w-4" checked={form.incluirConexao} onChange={(e) => set("incluirConexao", e.target.checked)} />
+              Incluir assessoria de conexão (2 SM = {brl(2 * parseBR(form.salarioMinimo))})
+            </label>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
+          <Kpi label="Projeto" value={brl(parseBR(form.valorProjeto))} />
+          <Kpi label="Assessoria conexão" value={brl(conexaoValor)} />
+          <Kpi label="Impostos / NF" value={brl(parseBR(form.impostos))} />
+          <Kpi label="Total" value={brl(total)} destaque />
+        </div>
+      </section>
+
+      {/* Textos */}
+      <details className={sec}>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
+        <div className="mt-4 space-y-3">
+          <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
+          <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[70px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
+            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
+          </div>
+        </div>
+      </details>
+
+      {/* Ações */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>
+          {salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}
+        </button>
+        <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || parseBR(form.valorProjeto) <= 0}>
+          {gerando ? "Gerando..." : "Gerar .docx"}
+        </button>
+        <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver orçamentos</button>
+        {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
+  return (
+    <div className={`rounded-md p-2 shadow-sm ${destaque ? "bg-gta-navy text-white" : "bg-white dark:bg-slate-800"}`}>
+      <div className={`text-xs ${destaque ? "text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{label}</div>
+      <div className="mt-0.5 font-semibold dark:text-slate-100">{value}</div>
+    </div>
+  );
+}

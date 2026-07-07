@@ -1,9 +1,9 @@
 import type { ServiceModule } from "./types";
 import { solarService } from "./solar";
+import { subestacaoService } from "./subestacao";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
 import {
-  projetoSubestacaoService,
   execucaoSubestacaoService,
   spdaService,
   laudoInspecaoService,
@@ -27,7 +27,7 @@ import {
  */
 export const SERVICES: ServiceModule[] = [
   solarService,
-  projetoSubestacaoService,
+  subestacaoService,
   execucaoSubestacaoService,
   conexaoConcessionariaService,
   redeMtService,
