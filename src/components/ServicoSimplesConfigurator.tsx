@@ -19,7 +19,8 @@ type Vals = Record<string, string>;
 interface Campo {
   name: string;
   label: string;
-  type?: "text" | "number";
+  /** "number" = contagem inteira; "currency" = valor em R$ (aceita vírgula); "text" livre. */
+  type?: "text" | "number" | "currency";
   width?: string; // classe sm:col-span-N
   placeholder?: string;
   help?: string;
@@ -169,7 +170,7 @@ export function ServicoSimplesConfigurator({ serviceKey, propostaId }: { service
           {config.campos.map((c) => (
             <div key={c.name} className={c.width ?? "sm:col-span-2"}>
               <label className="field-label">{c.label}</label>
-              <input className={inputCls} type={c.type === "number" ? "number" : "text"} inputMode={c.type === "number" ? "decimal" : undefined} value={form[c.name] ?? ""} onChange={(e) => set(c.name, e.target.value)} placeholder={c.placeholder} />
+              <input className={inputCls} type={c.type === "number" ? "number" : "text"} inputMode={c.type === "number" || c.type === "currency" ? "decimal" : undefined} value={form[c.name] ?? ""} onChange={(e) => set(c.name, e.target.value)} placeholder={c.placeholder} />
               {c.help && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{c.help}</p>}
             </div>
           ))}

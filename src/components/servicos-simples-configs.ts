@@ -10,6 +10,16 @@ const parseBR = (s: string) => {
 const brl = (v: number) => "R$ " + (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const inteiro = (s: string, min = 1) => Math.max(min, Math.floor(Number(s) || min));
 
+/**
+ * Limpeza de placas: R$/placa cai muito com o volume (economia de escala).
+ * Âncoras reais: ~R$ 50 (poucas) · ~R$ 24,50 (≈100) · R$ 4,10 (usina UniEvangélica,
+ * 2.900 placas = R$ 11.890). Faixas intermediárias interpoladas.
+ */
+const taxaLimpezaPorVolume = (n: number) =>
+  n <= 30 ? 50 : n <= 150 ? 25 : n <= 500 ? 12 : n <= 1500 ? 7 : 4.5;
+const faixaLimpeza = (n: number) =>
+  n <= 30 ? "≤30 placas" : n <= 150 ? "31–150" : n <= 500 ? "151–500" : n <= 1500 ? "501–1.500" : "usina 1.500+";
+
 export const CONEXAO_CONFIG: ServicoSimplesConfig = {
   serviceKey: "conexao",
   tituloSecao: "Conexão junto à concessionária",
@@ -22,7 +32,7 @@ export const CONEXAO_CONFIG: ServicoSimplesConfig = {
   ],
   prazoPadrao: "Conforme os trâmites da concessionária",
   campos: [
-    { name: "salarioMinimo", label: "Salário mínimo vigente (R$)", type: "number", width: "sm:col-span-2", default: "1630", help: "O orçamento é 2× este valor." },
+    { name: "salarioMinimo", label: "Salário mínimo vigente (R$)", type: "currency", width: "sm:col-span-2", default: "1630", help: "O orçamento é 2× este valor." },
   ],
   calcularPreco: (v) => 2 * parseBR(v.salarioMinimo),
   ajudaPreco: (v, p) => `2 × salário mínimo (${brl(parseBR(v.salarioMinimo))}) = ${brl(p)}`,
@@ -45,7 +55,7 @@ export const ANALISADOR_CONFIG: ServicoSimplesConfig = {
   prazoPadrao: "Conforme o período de medição + emissão do relatório",
   campos: [
     { name: "semanas", label: "Semanas de medição", type: "number", width: "sm:col-span-2", default: "1" },
-    { name: "valorSemana", label: "Valor por semana (R$)", type: "number", width: "sm:col-span-2", default: "1500" },
+    { name: "valorSemana", label: "Valor por semana (R$)", type: "currency", width: "sm:col-span-2", default: "1500" },
   ],
   calcularPreco: (v) => parseBR(v.valorSemana) * inteiro(v.semanas),
   ajudaPreco: (v, p) => `${inteiro(v.semanas)} semana(s) × ${brl(parseBR(v.valorSemana))} = ${brl(p)}`,
@@ -70,7 +80,7 @@ export const LAUDO_CONFIG: ServicoSimplesConfig = {
   prazoPadrao: "10 a 15 dias após a vistoria",
   campos: [
     { name: "qtdUnidades", label: "Nº de unidades (torres/edificações)", type: "number", width: "sm:col-span-2", default: "1" },
-    { name: "valorUnidade", label: "Valor por unidade (R$)", type: "number", width: "sm:col-span-2", default: "2500" },
+    { name: "valorUnidade", label: "Valor por unidade (R$)", type: "currency", width: "sm:col-span-2", default: "2500" },
     { name: "escopoLaudo", label: "Escopo do laudo", type: "text", width: "sm:col-span-2", default: "instalações elétricas, SPDA e iluminação de emergência" },
   ],
   calcularPreco: (v) => parseBR(v.valorUnidade) * inteiro(v.qtdUnidades),
@@ -91,22 +101,33 @@ export const LIMPEZA_CONFIG: ServicoSimplesConfig = {
   obsPadrao: [
     "Acesso especial (plataformas/andaimes), quando necessário, é orçado à parte.",
     "Serviço executado com equipe e equipamentos de segurança conforme NR-10 e NR-35.",
+    "Em usinas de grande porte, a limpeza pode ser feita com robô autônomo, sem interromper a geração.",
   ],
   prazoPadrao: "A combinar conforme agenda",
   campos: [
-    { name: "qtdPlacas", label: "Nº de placas", type: "number", width: "sm:col-span-2", default: "", placeholder: "Ex.: 94" },
-    { name: "valorPorPlaca", label: "Valor por placa (R$)", type: "number", width: "sm:col-span-2", default: "25", help: "Reduza para grandes volumes." },
-    { name: "valorMinimo", label: "Valor mínimo (R$)", type: "number", width: "sm:col-span-2", default: "900", help: "Piso da visita." },
+    { name: "qtdPlacas", label: "Nº de placas", type: "number", width: "sm:col-span-2", default: "", placeholder: "Ex.: 120" },
+    { name: "valorPorPlaca", label: "Valor por placa (R$) — opcional", type: "currency", width: "sm:col-span-2", default: "", help: "Em branco: faixa automática por volume (≤30 → R$ 50 · ~100 → R$ 25 · ~500 → R$ 12 · usina 1.500+ → R$ 4,50). Preencha para fixar." },
+    { name: "valorMinimo", label: "Valor mínimo (R$)", type: "currency", width: "sm:col-span-2", default: "900", help: "Piso da visita." },
   ],
-  calcularPreco: (v) => Math.max(parseBR(v.valorPorPlaca) * Math.max(0, Math.floor(Number(v.qtdPlacas) || 0)), parseBR(v.valorMinimo)),
+  calcularPreco: (v) => {
+    const n = Math.max(0, Math.floor(Number(v.qtdPlacas) || 0));
+    const manual = parseBR(v.valorPorPlaca);
+    const taxa = manual > 0 ? manual : taxaLimpezaPorVolume(n);
+    return Math.max(taxa * n, parseBR(v.valorMinimo));
+  },
   ajudaPreco: (v, p) => {
     const n = Math.max(0, Math.floor(Number(v.qtdPlacas) || 0));
-    const calc = parseBR(v.valorPorPlaca) * n;
-    return `${n} placa(s) × ${brl(parseBR(v.valorPorPlaca))} = ${brl(calc)}${calc < parseBR(v.valorMinimo) ? ` · piso ${brl(parseBR(v.valorMinimo))}` : ""} → ${brl(p)}`;
+    if (n <= 0) return "Informe o nº de placas para calcular a sugestão.";
+    const manual = parseBR(v.valorPorPlaca);
+    const taxa = manual > 0 ? manual : taxaLimpezaPorVolume(n);
+    const origem = manual > 0 ? "valor fixado" : `faixa ${faixaLimpeza(n)}`;
+    const calc = taxa * n;
+    const piso = parseBR(v.valorMinimo);
+    return `${n} placas × ${brl(taxa)} (${origem}) = ${brl(calc)}${calc < piso ? ` · piso ${brl(piso)}` : ""} → ${brl(p)}`;
   },
   montarDescricao: (v) => {
     const n = Math.max(0, Math.floor(Number(v.qtdPlacas) || 0));
-    return `Limpeza de ${n} ${n > 1 ? "painéis" : "painel"} fotovoltaico(s), com inspeção prévia e relatório fotográfico`;
+    return `Limpeza técnica de ${n} ${n > 1 ? "módulos" : "módulo"} fotovoltaico(s), com inspeção prévia e relatório fotográfico`;
   },
   condicao: "",
 };
