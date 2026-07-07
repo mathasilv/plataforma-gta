@@ -79,6 +79,8 @@ const FORM_INICIAL: Form = {
 
 interface Sizing {
   demandaKva: number;
+  atendimento: "BT" | "Aérea" | "Abrigada";
+  aviso: string;
   trafoKva: number;
   aproveitamento: number;
   correntePrimaria: number;
@@ -86,6 +88,8 @@ interface Sizing {
   elo: string;
   disjuntorBt: number;
   condutorMt: string;
+  poste: string;
+  bancoCapacitor: number;
 }
 
 interface Preco {
@@ -191,8 +195,8 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
       {
         descricao:
           `Elaboração de projeto executivo de ${qtd > 1 ? `${qtd} subestações` : "subestação"} ${form.tipoSE.toLowerCase()} de ${kva} kVA ` +
-          `(${nf(form.tensaoMt, form.tensaoMt % 1 ? 1 : 0)} kV / ${form.tensaoBt} V): dimensionamento do transformador e da proteção, ` +
-          `diagramas unifilares, memoriais, lista de materiais, ART e acompanhamento da aprovação junto à concessionária`,
+          `(${nf(form.tensaoMt, form.tensaoMt % 1 ? 1 : 0)} kV / ${form.tensaoBt} V), conforme a NT.002 da concessionária: dimensionamento do ` +
+          `transformador e da proteção, diagramas unifilares, memoriais, lista de materiais, ART e acompanhamento da aprovação`,
         valor: nf(parseBR(form.valorProjeto), 2),
         condicao: "50% na contratação e 50% na entrega/aprovação",
       },
@@ -212,12 +216,14 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
 
   function montarObservacoes() {
     const base = sizing
-      ? `Base de dimensionamento — Demanda estimada: ${nf(sizing.demandaKva, 1)} kVA · ` +
-        `Transformador comercial: ${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA · ` +
+      ? `Base de dimensionamento (NT.002) — Demanda estimada: ${nf(sizing.demandaKva, 1)} kVA · ` +
+        `Transformador: ${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA · ` +
         `Corrente no primário (${nf(form.tensaoMt, form.tensaoMt % 1 ? 1 : 0)} kV): ${nf(sizing.correntePrimaria, 1)} A · ` +
         `Corrente no secundário (${form.tensaoBt} V): ${nf(sizing.correnteSecundaria, 0)} A · ` +
-        `Proteção sugerida: elo fusível ${sizing.elo} e disjuntor geral de ${sizing.disjuntorBt} A · ` +
-        `Condutor de MT: ${sizing.condutorMt}.`
+        `Proteção: elo fusível ${sizing.elo} e disjuntor geral de ${sizing.disjuntorBt} A · ` +
+        `Condutor de MT: ${sizing.condutorMt}` +
+        (sizing.atendimento === "Aérea" ? ` · Poste: ${sizing.poste}` : "") +
+        ` · Banco de capacitores mínimo: ${nf(sizing.bancoCapacitor, sizing.bancoCapacitor % 1 ? 1 : 0)} kVAr.`
       : "";
     return [base, ...form.observacoesExtra.split("\n")].filter((l) => l.trim());
   }
@@ -248,6 +254,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
   async function gerar() {
     const itens = montarItens();
     if (!itens) { setErro("Informe a carga/demanda para dimensionar antes de gerar."); return; }
+    if (sizing && sizing.trafoKva === 0) { setErro("Demanda abaixo de 60 kVA: não há subestação a projetar (atendimento em BT)."); return; }
     if (!form.clienteNome) { setErro("Informe o nome do cliente."); return; }
     if (!form.cidadeUf) { setErro("Informe a Cidade/UF."); return; }
     if (parseBR(form.valorProjeto) <= 0) { setErro("Informe o valor do projeto."); return; }
@@ -296,7 +303,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
   const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800";
   const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
 
-  const aprovOk = sizing ? sizing.aproveitamento <= 0.85 : true;
+  const aprovOk = sizing ? sizing.aproveitamento <= 1.0 : true;
 
   return (
     <div className="space-y-6">
@@ -392,24 +399,32 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
           </div>
         </div>
 
-        {sizing && (
+        {sizing?.aviso && (
+          <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+            ⚠ {sizing.aviso}
+          </p>
+        )}
+
+        {sizing && sizing.trafoKva > 0 && (
           <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
-            <Kpi label="Transformador" value={`${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA`} destaque />
+            <Kpi label="Transformador (NT.002)" value={`${nf(sizing.trafoKva, sizing.trafoKva % 1 ? 1 : 0)} kVA`} destaque />
             <Kpi label="Demanda estimada" value={`${nf(sizing.demandaKva, 1)} kVA`} />
             <Kpi label="Corrente primária" value={`${nf(sizing.correntePrimaria, 1)} A`} />
             <Kpi label="Corrente secundária" value={`${nf(sizing.correnteSecundaria, 0)} A`} />
             <Kpi label="Elo fusível (MT)" value={sizing.elo} />
             <Kpi label="Disjuntor geral (BT)" value={`${sizing.disjuntorBt} A`} />
             <Kpi label="Condutor MT" value={sizing.condutorMt} />
+            {sizing.atendimento === "Aérea" && <Kpi label="Poste (NT.002)" value={sizing.poste} />}
+            <Kpi label="Banco de capacitores" value={`${nf(sizing.bancoCapacitor, sizing.bancoCapacitor % 1 ? 1 : 0)} kVAr`} />
             <div className={`rounded-md p-2 shadow-sm ${aprovOk ? "bg-white dark:bg-slate-800" : "bg-amber-50 dark:bg-amber-900/30"}`}>
               <div className="text-xs text-slate-500 dark:text-slate-400">Aproveitamento do trafo</div>
               <div className={`mt-0.5 font-semibold ${aprovOk ? "text-gta-navy dark:text-slate-100" : "text-amber-700 dark:text-amber-300"}`}>
-                {nf(sizing.aproveitamento * 100, 0)}% {aprovOk ? "" : "· folga baixa"}
+                {nf(sizing.aproveitamento * 100, 0)}% {aprovOk ? "" : "· acima do nominal (NT.002)"}
               </div>
             </div>
           </div>
         )}
-        {!sizing && (
+        {(!sizing || sizing.trafoKva === 0) && !sizing?.aviso && (
           <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             Preencha a <strong>{form.modo === "carga" ? "carga instalada" : "demanda"}</strong> para dimensionar automaticamente.
           </p>
@@ -486,7 +501,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>
           {salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}
         </button>
-        <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || parseBR(form.valorProjeto) <= 0}>
+        <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || sizing.trafoKva === 0 || parseBR(form.valorProjeto) <= 0}>
           {gerando ? "Gerando..." : "Gerar .docx"}
         </button>
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver orçamentos</button>
