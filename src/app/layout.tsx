@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Plataforma GTA — Propostas",
-  description: "Gerador interno de propostas comerciais da GTA Energia",
+  title: "Plataforma GTA",
+  description: "Plataforma interna da GTA Energia — propostas comerciais, orçamentos e gestão de tarefas",
 };
 
 // Aplica o tema salvo antes da primeira pintura (evita "flash" de tema claro).

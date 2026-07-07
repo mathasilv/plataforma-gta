@@ -1,21 +1,35 @@
-# Plataforma GTA — Gerador de Propostas
+# Plataforma GTA
 
-Plataforma web interna da GTA Energia para gerar propostas comerciais em `.docx`,
-fiéis aos modelos da empresa, a partir de um formulário.
+Plataforma web interna da **GTA Energia** (engenharia elétrica, Goiânia/GO). Reúne,
+num só lugar, as ferramentas do dia a dia da equipe: montagem e geração de propostas
+comerciais, histórico de orçamentos e gestão de tarefas — com tema claro/escuro e
+controle de acesso por usuário.
 
-**Serviços disponíveis (11):** Energia Solar, Limpeza de Painéis, Inspeção de
-Subestação, SPDA + Gerenciamento de Risco, Carregador Veicular (EV), Fornecimento
-de QGBT, Projeto de Subestação, Projeto de Rede MT, Execução de Rede MT, Execução
-de Subestação e Rede MT/BT de Loteamento.
+## Módulos
 
-**Ferramentas:** além do gerador de propostas, a plataforma tem um módulo de
-**Tarefas** (`/tarefas`): lista com filtros por status/responsável, busca,
-prioridade, prazo com alerta de atraso e comentários por usuário. Os responsáveis
-vêm dos usuários cadastrados (`APP_USERS`).
+- **Nova proposta (CPQ)** — monta a proposta de um serviço e gera o `.docx` fiel ao
+  modelo da GTA. Três serviços têm **configurador próprio** com dimensionamento e
+  precificação automáticos: Energia Solar (consumo → geração → economia/payback),
+  Projeto de Subestação (NT.002 da Equatorial) e Carregador Veicular EV (NBR 5410 /
+  NBR 17019 → lista de materiais → preço pelo Fator K). Os demais usam o formulário
+  dinâmico com precificação base derivada das propostas reais.
+- **Orçamentos** (`/propostas`) — histórico de **todas** as propostas geradas, de
+  qualquer serviço, com filtros (serviço, status, cliente), referência automática e
+  a coluna de quem criou.
+- **Tarefas** (`/tarefas`) — lista com filtros por status/responsável, busca,
+  prioridade, prazo com alerta de atraso e comentários por usuário. Os responsáveis
+  vêm dos usuários cadastrados.
+- **Conta e usuários** — menu do usuário com "Minha conta", troca de senha, tema
+  claro/escuro e, para administradores, gerenciamento de usuários.
+
+**Serviços no catálogo (12):** Energia Solar, Projeto de Subestação, Execução de
+Subestação, Conexão à Concessionária, Projeto de Rede MT, SPDA + Gerenciamento de
+Risco, Inspeção de Subestação, Aluguel de Analisador de Energia, Carregador Veicular
+(EV), Fornecimento de QGBT, Projeto Elétrico BT e Limpeza de Painéis.
 
 ## Como rodar (local)
 
-Pré-requisitos: **Node.js 18+** instalado (já instalado nesta máquina: Node 24).
+Pré-requisitos: **Node.js 18+**.
 
 ```bash
 npm install
@@ -27,92 +41,74 @@ Acesse http://localhost:3000. Login padrão de desenvolvimento:
 - **E-mail:** `admin@gta.com`
 - **Senha:** `gta123`
 
-> Configure usuários e segredo reais no arquivo `.env.local` (veja `.env.example`).
+> Configure usuários e segredo reais no `.env.local` (veja `.env.example`).
 
 ## Como usar
 
 1. Faça login.
-2. No painel, escolha **Energia Solar Fotovoltaica**.
-3. Preencha o formulário (dados do cliente, dimensionamento, cole os 12 meses da
-   simulação, materiais, distribuidor e valores). Os totais anuais, o valor total e
-   o **valor por extenso** são calculados automaticamente; o gráfico é atualizado.
-4. Clique em **Gerar proposta** — o `.docx` é baixado, pronto para envio.
+2. Em **Nova proposta**, escolha o serviço.
+3. Preencha o configurador ou o formulário. Nos configuradores, o dimensionamento,
+   os totais, o valor total e o **valor por extenso** são calculados automaticamente.
+4. Clique em **Gerar .docx** — o documento é baixado e registrado em **Orçamentos**.
 
 ## Arquitetura (modular)
 
 Cada serviço é uma pasta isolada em `src/services/<servico>` que exporta um
-`ServiceModule` (contrato em `src/services/types.ts`). O núcleo — formulário
-dinâmico (`src/components/DynamicForm.tsx`), motor de geração
-(`src/lib/docx/generate.ts`) e endpoint (`src/app/api/gerar`) — é genérico e
-dirigido pelo **registro** (`src/services/registry.ts`).
+`ServiceModule` (contrato em `src/services/types.ts`). O núcleo — formulário dinâmico
+(`src/components/DynamicForm.tsx`), motor de geração (`src/lib/docx/generate.ts`) e
+endpoint (`src/app/api/gerar`) — é genérico e dirigido pelo **registro**
+(`src/services/registry.ts`).
+
+Um serviço pode ter **configurador próprio** (`usesConfigurator: true` + componente
+em `src/components/<servico>/` + API de cálculo ao vivo) ou usar o **formulário
+dinâmico**. A geração usa um `template.docx` próprio (Solar, Carregador) ou o molde
+compartilhado dos serviços CPQ (`src/services/_shared/template-servicos.docx`).
 
 ```
 src/
-  app/                  login, dashboard, /nova/[servico], /api/{login,logout,gerar}
-  components/           DynamicForm, AppHeader
+  app/                  login, dashboard, /nova/[servico], /propostas, /tarefas,
+                        /conta, /admin/usuarios, /api/*
+  components/           DynamicForm, AppHeader, configuradores (solar, subestacao,
+                        carregador), tasks, propostas, users, CopyButton, ...
   lib/
-    auth.ts             login fechado (cookie HMAC) + middleware
+    session.ts          sessão/login (cookie) + guarda de rotas
     format.ts           moeda, datas, referência, valor por extenso
     docx/generate.ts    preenche o molde (docxtemplater)
-    docx/patchChart.ts  atualiza o gráfico nativo (Geração × Consumo)
+    docx/patchChart.ts  atualiza o gráfico nativo do Solar (Geração × Consumo)
+    propostas/          store do histórico de orçamentos
+    tasks/ · users/ · settings/   stores dos demais módulos
   services/
     types.ts            contrato ServiceModule
     registry.ts         lista de serviços
-    solar/              ⭐ config.ts, mapper.ts, presets.ts, template.docx
-scripts/
-  build-solar-template.mjs   (re)gera o molde a partir do .docx real
-  test-solar.mjs / test-api.mjs   verificação de fidelidade (diff de texto)
+    solar/ subestacao/ carregador/   configuradores (config, engine/sizing, mapper, template.docx)
+    _cpq/               fábrica + catálogo dos serviços CPQ
+    _shared/            molde e utilitários compartilhados
 ```
 
 ### Adicionar um novo serviço
 
-1. Crie `src/services/<novo>/` com `config.ts` (campos + Zod), `mapper.ts`
-   (dados → marcadores) e `template.docx` (molde com marcadores `{campo}` e
-   loops `{#lista}...{/lista}`).
+1. Crie `src/services/<novo>/` com o schema (Zod), o `mapper.ts` (dados →
+   marcadores) e, se precisar, o `template.docx` (marcadores `{campo}` e loops
+   `{#lista}...{/lista}`). Serviços simples podem reusar o molde CPQ compartilhado.
 2. Exporte um `ServiceModule` em `index.ts`.
 3. Registre-o em `src/services/registry.ts`.
 
-Pronto — o dashboard, o formulário e a geração passam a reconhecê-lo.
+Pronto — o dashboard, o formulário/configurador e a geração passam a reconhecê-lo.
 
-### Preparar um molde `.docx`
+## Persistência
 
-Os valores no `.docx` da GTA ficam em runs limpos, então o molde é criado por
-substituição de texto por marcadores. Use `scripts/build-solar-template.mjs` como
-referência: ele substitui valores por `{marcadores}`, colapsa tabelas repetíveis em
-uma linha de loop e remove arquivos-lixo do zip. Rode:
+Os módulos usam stores com a mesma interface e dois backends: **Postgres**
+(`@vercel/postgres`) em produção e **arquivo JSON local** em desenvolvimento
+(`data/*.json`, fora do git). Cobrem orçamentos, tarefas, usuários e os parâmetros
+editáveis dos configuradores (`settings`).
 
-```bash
-node scripts/build-solar-template.mjs
-node scripts/test-solar.mjs     # compara o texto gerado com o original
-```
+## Deploy
 
-## Verificação de fidelidade
-
-Com `npm run dev` ativo:
-
-- `node scripts/test-api.mjs` — Solar (Maria Selma WEG): 193/193 linhas idênticas.
-- `node scripts/test-services.mjs` — os outros 10 serviços contra os originais.
-  Resultado: Inspeção, SPDA, Projeto RD, Execução SE e Loteamento **idênticos**;
-  os demais diferem apenas em normalizações intencionais (prefixo da referência,
-  vírgula do valor por extenso, correção de typos do original como "R$4.575,00").
-
-## Módulo de Tarefas
-
-- Dados em `data/tasks.json` (gitignored) via `src/lib/tasks/store.ts` — escrita
-  atômica + fila de gravação. A interface `TaskStore` é o ponto único de troca
-  para o Supabase no deploy (na Vercel o filesystem é efêmero).
-- API: `/api/tarefas` (GET/POST), `/api/tarefas/[id]` (PATCH/DELETE),
-  `/api/tarefas/[id]/comentarios` (POST), `/api/usuarios` (GET, sem senhas).
-- UI: `src/app/tarefas/page.tsx` + `src/components/tasks/TaskList.tsx`.
-
-## Próximos passos
-
-- **Persistência (Supabase):** tarefas (`SupabaseTaskStore`) + histórico de
-  propostas e sequência automática do código de referência.
-- **Deploy (Vercel):** publicar com `AUTH_SECRET` e `APP_USERS` nas variáveis de ambiente.
-- **Variantes futuras:** subestação aérea (modelo Francefarma) e outros moldes.
+Publicado na **Vercel**, com deploy automático a cada push na `main`. Variáveis de
+ambiente: `AUTH_SECRET`, `APP_USERS` e a string de conexão do Postgres. Veja
+[`DEPLOY.md`](DEPLOY.md) para o passo a passo.
 
 ## Custos
 
-Stack 100% gratuita: Next.js + Vercel (free) + geração `.docx` local (docxtemplater,
-open-source). Supabase (free) entra na fase de persistência/deploy.
+Stack essencialmente gratuita: Next.js + Vercel (free) + geração `.docx` local
+(docxtemplater, open-source) + Postgres (free tier).
