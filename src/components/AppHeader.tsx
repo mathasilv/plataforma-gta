@@ -14,6 +14,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
   const router = useRouter();
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [navAberto, setNavAberto] = useState(false);
   const [dark, setDark] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -31,6 +32,11 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuAberto]);
+
+  // fecha o menu mobile ao trocar de rota
+  useEffect(() => {
+    setNavAberto(false);
+  }, [pathname]);
 
   function alternarTema() {
     const novo = !dark;
@@ -55,14 +61,33 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
 
   return (
     <header className="bg-gradient-to-r from-gta-navy to-gta-navy2 text-white">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-6">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
+        <div className="flex items-center gap-2 md:gap-6">
+          {/* Hamburguer — só no mobile */}
+          {userName && (
+            <button
+              type="button"
+              onClick={() => setNavAberto((v) => !v)}
+              className="-ml-1 flex h-10 w-10 items-center justify-center rounded hover:bg-white/10 md:hidden"
+              aria-label="Menu"
+              aria-expanded={navAberto}
+              aria-controls="mobile-nav"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden>
+                {navAberto ? (
+                  <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                ) : (
+                  <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                )}
+              </svg>
+            </button>
+          )}
           <Link href="/" className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/gta-icon.png" alt="GTA" className="h-8 w-8" />
-            <span className="text-lg font-bold tracking-tight">GTA Energia</span>
+            <span className="text-base font-bold tracking-tight sm:text-lg">GTA Energia</span>
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="hidden items-center gap-1 text-sm md:flex">
             {NAV.map((item) => (
               <Link
                 key={item.href}
@@ -83,7 +108,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuAberto((v) => !v)}
-              className="flex items-center gap-2 rounded border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10"
+              className="flex items-center gap-2 rounded border border-white/25 px-2.5 py-2 text-sm hover:bg-white/10 sm:px-3 sm:py-1.5"
               aria-haspopup="menu"
               aria-expanded={menuAberto}
             >
@@ -99,7 +124,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
             {menuAberto && (
               <div
                 role="menu"
-                className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="absolute right-0 z-20 mt-2 w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
                 <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
                   <div className="text-xs text-slate-400 dark:text-slate-500">Sessão</div>
@@ -133,6 +158,26 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
           </div>
         )}
       </div>
+
+      {/* Navegação mobile (gaveta) */}
+      {userName && navAberto && (
+        <nav id="mobile-nav" className="border-t border-white/10 px-2 pb-2 md:hidden">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setNavAberto(false)}
+              className={`block rounded px-3 py-2.5 text-sm transition ${
+                isActive(item.href)
+                  ? "bg-white/15 font-semibold text-white"
+                  : "text-slate-200 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      )}
       <div className="h-1 w-full bg-gta-orange" />
     </header>
   );

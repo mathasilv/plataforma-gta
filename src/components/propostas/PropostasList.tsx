@@ -103,8 +103,8 @@ export function PropostasList() {
       {erro && <p className="field-error">{erro}</p>}
 
       {/* Filtros */}
-      <div className={`flex flex-wrap items-end gap-3 p-4 ${cardCls}`}>
-        <div className="min-w-[200px] flex-1">
+      <div className={`flex flex-col gap-3 p-3 sm:flex-row sm:flex-wrap sm:items-end sm:p-4 ${cardCls}`}>
+        <div className="flex-1 sm:min-w-[200px]">
           <label className="field-label">Buscar cliente / referência</label>
           <input
             className="field-input"
@@ -147,8 +147,51 @@ export function PropostasList() {
         {filtradas.length} de {propostas.length} {propostas.length === 1 ? "proposta" : "propostas"}
       </div>
 
-      {/* Tabela */}
-      <div className={`overflow-x-auto ${cardCls}`}>
+      {/* Cartões (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {filtradas.length === 0 && (
+          <div className={`p-4 text-center text-sm text-slate-400 dark:text-slate-500 ${cardCls}`}>
+            {propostas.length === 0 ? "Nenhuma proposta gerada ainda." : "Nenhuma proposta corresponde aos filtros."}
+          </div>
+        )}
+        {filtradas.map((p) => {
+          const podeReabrir = serviceMap.get(p.serviceKey)?.usesConfigurator;
+          return (
+            <div key={p.id} className={`p-3 ${cardCls}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-gta-navy dark:text-slate-100">{p.cliente}</div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
+                    <ServiceIcon serviceKey={p.serviceKey} className="h-4 w-4 shrink-0 text-gta-indigo dark:text-indigo-300" />
+                    <span className="truncate">{rotuloServico(p.serviceKey)}</span>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[p.status] ?? ""}`}>
+                  {statusPropostaLabel(p.status)}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                {p.referencia && <span className="font-mono">{p.referencia}</span>}
+                <span>{nomeCriador(p)}</span>
+                <span>{fmtData(p.atualizadoEm)}</span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {podeReabrir && (
+                  <Link href={`/nova/${p.serviceKey}?proposta=${p.id}`} className="btn-secondary flex-1 justify-center !py-2 text-xs">
+                    Abrir
+                  </Link>
+                )}
+                <button onClick={() => excluir(p)} className="flex-1 rounded-md border border-red-200 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20">
+                  Excluir
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tabela (desktop) */}
+      <div className={`hidden overflow-x-auto md:block ${cardCls}`}>
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             <tr>

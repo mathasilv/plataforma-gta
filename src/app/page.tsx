@@ -22,7 +22,7 @@ export default async function DashboardPage() {
             <Link
               key={s.key}
               href={`/nova/${s.key}`}
-              className="group block h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gta-indigo hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-gta-indigo"
+              className="group block h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-gta-indigo hover:shadow-md sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-gta-indigo"
             >
               <span className="inline-flex rounded-lg bg-gta-indigo/10 p-2.5 text-gta-indigo dark:bg-gta-indigo/20 dark:text-indigo-300">
                 <ServiceIcon serviceKey={s.key} className="h-6 w-6" />

@@ -244,9 +244,9 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   return (
     <div className="space-y-4">
       {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 dark:border-slate-700 dark:bg-slate-800">
         <button
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
           onClick={() => {
             setNovaAberta((v) => !v);
             setForm((f) => ({ ...f, responsavel: f.responsavel || currentUserEmail }));
@@ -254,7 +254,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         >
           {novaAberta ? "Fechar" : "+ Nova tarefa"}
         </button>
-        <select className="field-input !w-auto" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+        <select className="field-input w-full sm:!w-auto" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
           <option value="ativas">Ativas (padrão)</option>
           <option value="todas">Todas</option>
           {STATUS_TAREFA.map((s) => (
@@ -263,7 +263,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             </option>
           ))}
         </select>
-        <select className="field-input !w-auto" value={fResp} onChange={(e) => setFResp(e.target.value)}>
+        <select className="field-input w-full sm:!w-auto" value={fResp} onChange={(e) => setFResp(e.target.value)}>
           <option value="todos">Todos os responsáveis</option>
           {responsaveis.map((r) => (
             <option key={r} value={r}>
@@ -272,7 +272,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           ))}
         </select>
         {clientes.length > 0 && (
-          <select className="field-input !w-auto" value={fCliente} onChange={(e) => setFCliente(e.target.value)}>
+          <select className="field-input w-full sm:!w-auto" value={fCliente} onChange={(e) => setFCliente(e.target.value)}>
             <option value="todos">Todos os clientes</option>
             {clientes.map((c) => (
               <option key={c} value={c}>
@@ -282,12 +282,12 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           </select>
         )}
         <input
-          className="field-input !w-56"
+          className="field-input w-full sm:!w-56"
           placeholder="Buscar..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
-        <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">
+        <span className="text-xs text-slate-400 sm:ml-auto dark:text-slate-500">
           {visiveis.length} tarefa{visiveis.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -350,12 +350,12 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             <tr>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Tarefa</th>
-              <th className="px-4 py-3">Cliente</th>
-              <th className="px-4 py-3">Responsável</th>
-              <th className="px-4 py-3">Prioridade</th>
-              <th className="px-4 py-3">Prazo</th>
+              <th className="px-3 py-3 md:px-4">Status</th>
+              <th className="px-3 py-3 md:px-4">Tarefa</th>
+              <th className="hidden px-4 py-3 md:table-cell">Cliente</th>
+              <th className="hidden px-4 py-3 md:table-cell">Responsável</th>
+              <th className="hidden px-4 py-3 md:table-cell">Prioridade</th>
+              <th className="hidden px-4 py-3 md:table-cell">Prazo</th>
               <th className="w-10 px-2 py-3" />
             </tr>
           </thead>
@@ -387,7 +387,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
 
       {/* paginação */}
       {visiveis.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
+        <div className="flex flex-col gap-2 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:gap-3 dark:text-slate-300">
           <div className="flex items-center gap-2">
             <span className="text-slate-500 dark:text-slate-400">
               {inicio}–{fim} de {visiveis.length}
@@ -466,7 +466,7 @@ function TaskRow({
   return (
     <>
       <tr className={`border-t border-slate-100 dark:border-slate-700 ${concluida ? "opacity-50" : ""} ${late ? "bg-red-50/40 dark:bg-red-900/20" : ""}`}>
-        <td className="px-4 py-2">
+        <td className="px-3 py-2.5 align-top md:px-4 md:py-2 md:align-middle">
           <select
             value={t.status}
             onChange={(e) => onStatus(e.target.value as StatusTarefa)}
@@ -479,34 +479,46 @@ function TaskRow({
             ))}
           </select>
         </td>
-        <td className="px-4 py-2">
+        <td className="px-3 py-2.5 md:px-4 md:py-2">
           <button onClick={onToggle} className={`text-left font-medium text-gta-navy hover:text-gta-indigo dark:text-slate-100 ${concluida ? "line-through" : ""}`}>
             {t.titulo}
           </button>
           {t.comentarios.length > 0 && (
             <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">💬 {t.comentarios.length}</span>
           )}
+          {/* No mobile, prioridade/prazo/responsável ficam ocultos nas colunas — mostra o essencial aqui */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORIDADE_BADGE[t.prioridade]}`}>
+              {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
+            </span>
+            {t.prazo && (
+              <span className={`text-[11px] ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
+                {formatPrazo(t.prazo)}{late ? " · atrasada" : ""}
+              </span>
+            )}
+            {t.cliente && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {t.cliente}</span>}
+          </div>
         </td>
-        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{t.cliente || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
-        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{nomeDe(t.responsavel)}</td>
-        <td className="px-4 py-2">
+        <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.cliente || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
+        <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{nomeDe(t.responsavel)}</td>
+        <td className="hidden px-4 py-2 md:table-cell">
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORIDADE_BADGE[t.prioridade]}`}>
             {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
           </span>
         </td>
-        <td className={`px-4 py-2 ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
+        <td className={`hidden px-4 py-2 md:table-cell ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
           {formatPrazo(t.prazo)}
           {late && <span className="ml-1 text-xs">(atrasada)</span>}
         </td>
-        <td className="px-2 py-2 text-center">
-          <button onClick={onExcluir} className="text-slate-300 hover:text-red-600 dark:text-slate-600 dark:hover:text-red-400" title="Excluir">
+        <td className="px-1 py-2 text-center align-top md:px-2 md:align-middle">
+          <button onClick={onExcluir} className="inline-flex h-9 w-9 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-600 dark:text-slate-600 dark:hover:bg-red-900/20 dark:hover:text-red-400" title="Excluir" aria-label="Excluir">
             ✕
           </button>
         </td>
       </tr>
       {aberta && (
         <tr className="border-t border-slate-100 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/40">
-          <td colSpan={7} className="px-6 py-4">
+          <td colSpan={7} className="px-3 py-3 md:px-6 md:py-4">
             {!editando ? (
               <div className="space-y-3">
                 <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
@@ -593,7 +605,7 @@ function TaskRow({
                 ))}
               </ul>
               <form
-                className="mt-2 flex gap-2"
+                className="mt-2 flex flex-col gap-2 sm:flex-row"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (comentario.trim()) {
@@ -608,7 +620,7 @@ function TaskRow({
                   value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
                 />
-                <button type="submit" className="btn-secondary">
+                <button type="submit" className="btn-secondary w-full sm:w-auto">
                   Comentar
                 </button>
               </form>

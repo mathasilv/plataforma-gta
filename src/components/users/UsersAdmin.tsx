@@ -155,8 +155,45 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
         </form>
       )}
 
-      {/* tabela */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      {/* cartões (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {usuarios.map((u) => {
+          const eu = u.id === currentUserId;
+          const acaoCls = "rounded-md border border-slate-200 px-2.5 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-700";
+          return (
+            <div key={u.id} className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 ${!u.active ? "opacity-60" : ""}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium text-gta-navy dark:text-slate-100">
+                    {u.name} {eu && <span className="text-xs font-normal text-slate-400 dark:text-slate-500">(você)</span>}
+                  </div>
+                  <div className="truncate text-sm text-slate-600 dark:text-slate-300">{u.email}</div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-indigo-100 text-gta-indigo dark:bg-indigo-900/40 dark:text-indigo-300" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>
+                  {ROLE_LABEL[u.role]}
+                </span>
+              </div>
+              <div className="mt-1.5 text-xs">
+                {u.active ? <span className="text-green-700 dark:text-green-400">Ativo</span> : <span className="text-slate-400 dark:text-slate-500">Inativo</span>}
+                {u.mustChangePassword && u.active && <span className="ml-1 text-amber-600 dark:text-amber-400">(troca pendente)</span>}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <button className={`text-gta-indigo ${acaoCls}`} onClick={() => resetar(u)}>Resetar senha</button>
+                <button className={`text-slate-600 dark:text-slate-300 ${acaoCls}`} disabled={eu} onClick={() => patch(u.id, { role: u.role === "admin" ? "member" : "admin" })}>
+                  {u.role === "admin" ? "Tornar membro" : "Tornar admin"}
+                </button>
+                <button className={`text-slate-600 dark:text-slate-300 ${acaoCls}`} disabled={eu} onClick={() => patch(u.id, { active: !u.active })}>
+                  {u.active ? "Desativar" : "Ativar"}
+                </button>
+                <button className={`text-red-500 dark:text-red-400 ${acaoCls}`} disabled={eu} onClick={() => excluir(u)}>Excluir</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* tabela (desktop) */}
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block dark:border-slate-700 dark:bg-slate-800">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             <tr>

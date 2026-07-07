@@ -202,12 +202,12 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">O sistema dimensiona a proteção e o cabo (NBR 5410) e monta a lista de materiais.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {PRESETS.map((p) => (
-            <button key={p.label} type="button" className="btn-secondary !py-1 text-xs" onClick={() => setForm((f) => ({ ...f, potenciaKw: p.kw, fase: p.fase }))}>
+            <button key={p.label} type="button" className="btn-secondary !py-2 text-xs sm:!py-1.5" onClick={() => setForm((f) => ({ ...f, potenciaKw: p.kw, fase: p.fase }))}>
               {p.label}
             </button>
           ))}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2"><label className="field-label">Potência (kW) *</label><input className={inputCls} inputMode="decimal" value={form.potenciaKw} onChange={(e) => set("potenciaKw", e.target.value)} placeholder="Ex.: 7,4 / 11 / 22" /></div>
           <div className="sm:col-span-2">
             <label className="field-label">Alimentação</label>
@@ -275,10 +275,10 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
         <div className="flex items-center justify-between">
           <h2 className={h2}>Preço</h2>
           {preco && precoTocado.current && (
-            <button type="button" className="text-xs text-gta-indigo hover:underline" onClick={() => { precoTocado.current = false; setForm((f) => ({ ...f, valorServico: nf(preco.preco, 2) })); }}>Usar sugerido {brl(preco.preco)}</button>
+            <button type="button" className="-my-1 px-1 py-2 text-xs text-gta-indigo hover:underline" onClick={() => { precoTocado.current = false; setForm((f) => ({ ...f, valorServico: nf(preco.preco, 2) })); }}>Usar sugerido {brl(preco.preco)}</button>
           )}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Valor do serviço (R$) *</label>
             <input className={inputCls} value={form.valorServico} onChange={(e) => { precoTocado.current = true; set("valorServico", e.target.value); }} placeholder="Ex.: 5.000,00" />
@@ -324,7 +324,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
           <div><label className="field-label">Subtítulo do cabeçalho</label><input className={inputCls} value={form.subtitulo} onChange={(e) => set("subtitulo", e.target.value)} /></div>
           <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[60px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Texto do objetivo</label><textarea className={`${inputCls} min-h-[90px]`} value={form.textoObjetivo} onChange={(e) => set("textoObjetivo", e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
             <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
           </div>

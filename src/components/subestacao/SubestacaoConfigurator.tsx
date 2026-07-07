@@ -343,7 +343,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Informe a carga (ou a demanda) — o sistema dimensiona o transformador e a proteção.
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Tipo de subestação</label>
             <select className={inputCls} value={form.tipoSE} onChange={(e) => set("tipoSE", e.target.value as Form["tipoSE"])}>
@@ -441,7 +441,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
             </button>
           )}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Valor do projeto (R$) *</label>
             <input className={inputCls} value={form.valorProjeto} onChange={(e) => { precoTocado.current = true; set("valorProjeto", e.target.value); }} placeholder="Ex.: 8.000,00" />
@@ -476,7 +476,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         <div className="mt-4 space-y-3">
           <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[70px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
             <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
           </div>

@@ -11,9 +11,9 @@ import {
 import type { FieldDef, FormSchema } from "@/services/types";
 
 const widthClass: Record<string, string> = {
-  full: "sm:col-span-6",
-  half: "sm:col-span-3",
-  third: "sm:col-span-2",
+  full: "col-span-1 sm:col-span-6",
+  half: "col-span-1 sm:col-span-3",
+  third: "col-span-1 sm:col-span-2",
 };
 
 function buildDefaults(schema: FormSchema): Record<string, unknown> {
@@ -90,7 +90,7 @@ export function DynamicForm({
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
         {formSchema.sections.map((section) => (
-          <section key={section.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <section key={section.title} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800">
             <h2 className="text-lg font-semibold text-gta-navy dark:text-slate-100">{section.title}</h2>
             {section.description && (
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{section.description}</p>
@@ -109,8 +109,8 @@ export function DynamicForm({
           </section>
         ))}
 
-        <div className="flex items-center gap-4">
-          <button type="submit" className="btn-primary" disabled={generating}>
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <button type="submit" className="btn-primary w-full sm:w-auto" disabled={generating}>
             {generating ? "Gerando..." : `Gerar proposta (${serviceLabel})`}
           </button>
           {status && <span className="text-sm text-slate-600 dark:text-slate-300">{status}</span>}
@@ -196,12 +196,13 @@ function ArrayFieldEditor({ field }: { field: FieldDef }) {
                   </td>
                 ))}
                 {!isFixed && (
-                  <td className="px-2 py-1 text-center">
+                  <td className="px-1 py-1 text-center">
                     <button
                       type="button"
                       onClick={() => remove(i)}
-                      className="text-red-500 hover:text-red-700"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded text-red-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
                       title="Remover"
+                      aria-label="Remover linha"
                     >
                       ✕
                     </button>

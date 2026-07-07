@@ -1,9 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Plataforma GTA",
   description: "Plataforma interna da GTA Energia — criação e histórico de propostas comerciais e gestão de tarefas",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 // Aplica o tema salvo antes da primeira pintura (evita "flash" de tema claro).

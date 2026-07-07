@@ -491,7 +491,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Copie os 12 meses da conta de energia. É a única entrada necessária — o dimensionamento sai daqui.
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-6">
           {MESES.map((mes, i) => (
             <div key={mes}>
               <label className="field-label">{mes.slice(0, 3)}</label>
@@ -551,7 +551,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Potência do painel (Wp)</label>
             <div className="flex gap-2">
@@ -725,7 +725,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
       {/* 4 · Distribuidor e preço */}
       <section className={sec}>
         <h2 className={h2}><Passo n={4} /> Preço e margem</h2>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Distribuidor</label>
             <select className={inputCls} value={form.distribuidor} onChange={(e) => set("distribuidor", e.target.value)}>
@@ -777,7 +777,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           Informe a distribuidora e a tarifa da conta de energia. O Fio B (Lei 14.300) é buscado
           automaticamente. Requer o valor do kit preenchido acima.
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-3">
             <label className="field-label">Distribuidora</label>
             <input
@@ -853,7 +853,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           <div><label className="field-label">Objeto</label><input className={inputCls} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Objetivo</label><textarea className={`${inputCls} min-h-[70px]`} value={form.textoObjetivo} onChange={(e) => set("textoObjetivo", e.target.value)} /></div>
           <div><label className="field-label">Observação técnica</label><textarea className={`${inputCls} min-h-[70px]`} value={form.textoObservacao} onChange={(e) => set("textoObservacao", e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
             <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
           </div>
@@ -909,7 +909,7 @@ function GraficoGeracao({ linhas }: { linhas: { mes: string; energia: number; co
   const W = 620, H = 180, pad = 24, bw = (W - pad * 2) / linhas.length;
   return (
     <div className="mt-3 overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[520px]">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[340px] sm:min-w-[520px]">
         {linhas.map((l, i) => {
           const x = pad + i * bw;
           const hg = ((H - pad * 2) * l.energia) / max;
