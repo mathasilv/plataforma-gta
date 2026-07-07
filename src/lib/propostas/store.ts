@@ -4,6 +4,39 @@ import crypto from "node:crypto";
 import { createPool, type VercelPool } from "@vercel/postgres";
 import type { Proposta } from "./types";
 import { getDbUrl } from "../tasks/postgres-store";
+import { buildReference } from "../format";
+import { getService } from "@/services/registry";
+
+const prefixo = (serviceKey: string) => getService(serviceKey)?.referencePrefix ?? serviceKey.toUpperCase();
+
+/** Maior sequencial já usado por (serviço, ano) a partir das referências existentes. */
+function maiorSeq(items: Proposta[], serviceKey: string, year: number): number {
+  let max = 0;
+  for (const p of items) {
+    if (p.serviceKey !== serviceKey) continue;
+    if (new Date(p.criadoEm).getFullYear() !== year) continue;
+    const m = p.referencia?.match(/-(\d+)$/);
+    const n = m ? parseInt(m[1], 10) : 0;
+    if (n > max) max = n;
+  }
+  return max;
+}
+
+/**
+ * Gera a referência automaticamente (GTA-ANO-CLIENTE-PREFIXO-00N) quando o
+ * chamador não informou uma. Usa o seq já presente em `dados.referenciaSeq`
+ * (mantendo consistência com o .docx) ou o próximo sequencial do serviço/ano.
+ */
+function referenciaAuto(
+  serviceKey: string,
+  cliente: string,
+  dados: Record<string, unknown>,
+  proximoSeq: number,
+): string {
+  const seqForm = Number(dados?.referenciaSeq);
+  const seq = Number.isFinite(seqForm) && seqForm > 0 ? seqForm : proximoSeq;
+  return buildReference(prefixo(serviceKey), cliente || "cliente", seq, new Date().getFullYear());
+}
 
 /**
  * Camada de dados das Propostas (histórico/rascunhos). Mesmo padrão de Tarefas:
@@ -16,6 +49,8 @@ export interface PropostaStore {
   create(data: Omit<Proposta, "id" | "criadoEm" | "atualizadoEm">): Promise<Proposta>;
   update(id: string, patch: Partial<Omit<Proposta, "id">>): Promise<Proposta | null>;
   remove(id: string): Promise<boolean>;
+  /** Próximo sequencial de referência para o serviço (ano corrente). */
+  nextSeq(serviceKey: string): Promise<number>;
 }
 
 // ------------------------------------------------------------- JSON (dev)
@@ -56,8 +91,16 @@ class JsonPropostaStore implements PropostaStore {
   }
   async create(data: Omit<Proposta, "id" | "criadoEm" | "atualizadoEm">) {
     const now = new Date().toISOString();
-    const p: Proposta = { ...data, id: crypto.randomUUID(), criadoEm: now, atualizadoEm: now };
-    return this.mutate((items) => ({ items: [...items, p], result: p }));
+    return this.mutate((items) => {
+      const referencia = data.referencia?.trim()
+        ? data.referencia
+        : referenciaAuto(data.serviceKey, data.cliente, data.dados, maiorSeq(items, data.serviceKey, new Date().getFullYear()) + 1);
+      const p: Proposta = { ...data, referencia, id: crypto.randomUUID(), criadoEm: now, atualizadoEm: now };
+      return { items: [...items, p], result: p };
+    });
+  }
+  async nextSeq(serviceKey: string) {
+    return maiorSeq(this.readAll(), serviceKey, new Date().getFullYear()) + 1;
   }
   async update(id: string, patch: Partial<Omit<Proposta, "id">>) {
     return this.mutate((items) => {
@@ -140,12 +183,30 @@ class PostgresPropostaStore implements PropostaStore {
     await this.ensureSchema();
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const referencia = data.referencia?.trim()
+      ? data.referencia
+      : referenciaAuto(data.serviceKey, data.cliente, data.dados, await this.nextSeq(data.serviceKey));
     await this.pool.sql`
       INSERT INTO propostas (id, service_key, cliente, referencia, status, dados, criado_por, criado_em, atualizado_em)
-      VALUES (${id}, ${data.serviceKey}, ${data.cliente}, ${data.referencia}, ${data.status},
+      VALUES (${id}, ${data.serviceKey}, ${data.cliente}, ${referencia}, ${data.status},
               ${JSON.stringify(data.dados)}::jsonb, ${data.criadoPor}, ${now}, ${now})
     `;
-    return { ...data, id, criadoEm: now, atualizadoEm: now };
+    return { ...data, referencia, id, criadoEm: now, atualizadoEm: now };
+  }
+  async nextSeq(serviceKey: string) {
+    await this.ensureSchema();
+    const year = new Date().getFullYear();
+    const { rows } = await this.pool.sql<{ referencia: string }>`
+      SELECT referencia FROM propostas
+      WHERE service_key = ${serviceKey} AND date_part('year', criado_em) = ${year}
+    `;
+    let max = 0;
+    for (const r of rows) {
+      const m = r.referencia?.match(/-(\d+)$/);
+      const n = m ? parseInt(m[1], 10) : 0;
+      if (n > max) max = n;
+    }
+    return max + 1;
   }
   async update(id: string, patch: Partial<Omit<Proposta, "id">>) {
     await this.ensureSchema();

@@ -45,7 +45,7 @@ function LoginForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gta-navy to-gta-navy2 p-4">
-      <div className="w-full max-w-sm overflow-hidden rounded-xl bg-white shadow-xl">
+      <div className="w-full max-w-sm overflow-hidden rounded-xl bg-white shadow-xl dark:bg-slate-800">
         <div className="h-1.5 w-full bg-gta-orange" />
         <div className="p-8">
           <div className="mb-6 text-center">

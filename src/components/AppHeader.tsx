@@ -14,7 +14,13 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
   const router = useRouter();
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [dark, setDark] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // estado inicial do tema (o script no <head> já aplicou a classe)
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
 
   // fecha o menu do usuário ao clicar fora
   useEffect(() => {
@@ -25,6 +31,17 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuAberto]);
+
+  function alternarTema() {
+    const novo = !dark;
+    setDark(novo);
+    document.documentElement.classList.toggle("dark", novo);
+    try {
+      localStorage.setItem("tema", novo ? "dark" : "light");
+    } catch {
+      /* localStorage indisponível — ignora */
+    }
+  }
 
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
@@ -82,11 +99,11 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
             {menuAberto && (
               <div
                 role="menu"
-                className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-700 shadow-lg"
+                className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
-                <div className="border-b border-slate-100 px-4 py-3">
-                  <div className="text-xs text-slate-400">Sessão</div>
-                  <div className="truncate text-sm font-semibold text-gta-navy">{userName}</div>
+                <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+                  <div className="text-xs text-slate-400 dark:text-slate-500">Sessão</div>
+                  <div className="truncate text-sm font-semibold text-gta-navy dark:text-slate-100">{userName}</div>
                 </div>
                 <MenuLink href="/conta" onNavigate={() => setMenuAberto(false)}>
                   Minha conta
@@ -97,9 +114,17 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
                   </MenuLink>
                 )}
                 <button
+                  onClick={alternarTema}
+                  role="menuitem"
+                  className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-2.5 text-left text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
+                >
+                  <span>Tema {dark ? "escuro" : "claro"}</span>
+                  <span aria-hidden>{dark ? "🌙" : "☀️"}</span>
+                </button>
+                <button
                   onClick={logout}
                   role="menuitem"
-                  className="block w-full border-t border-slate-100 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-slate-50"
+                  className="block w-full border-t border-slate-100 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-slate-50 dark:border-slate-700 dark:text-red-400 dark:hover:bg-slate-700"
                 >
                   Sair
                 </button>
@@ -115,7 +140,12 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
 
 function MenuLink({ href, onNavigate, children }: { href: string; onNavigate: () => void; children: React.ReactNode }) {
   return (
-    <Link href={href} role="menuitem" onClick={onNavigate} className="block px-4 py-2.5 text-sm hover:bg-slate-50">
+    <Link
+      href={href}
+      role="menuitem"
+      onClick={onNavigate}
+      className="block px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
+    >
       {children}
     </Link>
   );

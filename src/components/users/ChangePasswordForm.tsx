@@ -63,14 +63,14 @@ export function ChangePasswordForm({
       <div>
         <label className="field-label">Nova senha</label>
         <input type="password" className="field-input" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" required />
-        <p className="mt-1 text-xs text-slate-400">Mínimo de 8 caracteres.</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Mínimo de 8 caracteres.</p>
       </div>
       <div>
         <label className="field-label">Confirmar nova senha</label>
         <input type="password" className="field-input" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" required />
       </div>
       {erro && <p className="field-error">{erro}</p>}
-      {ok && !redirectTo && <p className="text-sm font-medium text-green-600">Senha alterada com sucesso.</p>}
+      {ok && !redirectTo && <p className="text-sm font-medium text-green-600 dark:text-green-400">Senha alterada com sucesso.</p>}
       <button type="submit" className="btn-primary" disabled={salvando}>
         {salvando ? "Salvando..." : "Alterar senha"}
       </button>

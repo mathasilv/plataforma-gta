@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   PAINEIS_COMERCIAIS,
   INVERSORES_COMERCIAIS,
   sugerirInversorComercial,
 } from "@/services/solar/commercial";
+import { SolarParamsForm } from "@/components/admin/SolarParamsForm";
 
 /** Formatação pt-BR local (sem depender de libs de servidor). */
 const nf = (v: number, d = 2) =>
@@ -120,7 +120,7 @@ const PASSOS = [
   "Salve e gere o .docx",
 ];
 
-export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string; isAdmin?: boolean }) {
+export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
   const [municipios, setMunicipios] = useState<{ nome: string; uf: string }[]>([]);
@@ -152,7 +152,7 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
         }
       }).catch(() => {});
     } else {
-      // proposta nova: usa os parâmetros vigentes (editáveis em /admin/parametros)
+      // proposta nova: usa os parâmetros vigentes e o próximo nº de referência
       fetch("/api/solar/config").then((r) => r.json()).then((d) => {
         if (d.params) {
           setForm((f) => ({
@@ -164,8 +164,16 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
           }));
         }
       }).catch(() => {});
+      fetch("/api/propostas/proximo?serviceKey=solar").then((r) => r.json()).then((d) => {
+        if (d.seq) setForm((f) => ({ ...f, referenciaSeq: d.seq }));
+      }).catch(() => {});
     }
   }, [propostaId]);
+
+  // aplica os parâmetros salvos no card de configuração à proposta atual
+  function aplicarParams(p: { eficiencia: number; overloadDesejado: number; fator: number; viagens: number }) {
+    setForm((f) => ({ ...f, eficiencia: p.eficiencia, overloadDesejado: p.overloadDesejado, fator: p.fator, viagens: p.viagens }));
+  }
 
   // recálculo ao vivo (debounce) — dispara com município + consumo; painéis/inversor são sugeridos
   const temConsumo = form.consumo.some((c) => Number(c) > 0);
@@ -391,8 +399,8 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
   }
 
   const inputCls = "field-input";
-  const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
-  const h2 = "text-lg font-semibold text-gta-navy";
+  const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800";
+  const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
 
   const painelSelect = painelCustom ? "outro" : String(form.potenciaPainel);
   const invSelect = invCustom ? "outro" : String(form.potenciaInversor);
@@ -400,7 +408,7 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
   return (
     <div className="space-y-6">
       {/* Passo a passo */}
-      <ol className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-gta-navy/5 px-4 py-3 text-xs text-slate-600">
+      <ol className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-gta-navy/5 px-4 py-3 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
         {PASSOS.map((p, i) => (
           <li key={i} className="flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gta-navy text-[10px] font-bold text-white">{i + 1}</span>
@@ -433,31 +441,30 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
                 <option key={m.nome} value={m.nome} />
               ))}
             </datalist>
-            <p className="mt-1 text-xs text-slate-400">Usada para buscar a irradiação solar (HSP) da região.</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Usada para buscar a irradiação solar (HSP) da região.</p>
           </div>
           <div className="sm:col-span-3">
             <label className="field-label">Cidade/UF (como sai no documento)</label>
             <input className={inputCls} value={form.cidadeUf} onChange={(e) => set("cidadeUf", e.target.value)} placeholder="Ex.: Goiânia/GO" />
           </div>
-          <div className="sm:col-span-1">
-            <label className="field-label">Nº ref.</label>
-            <input type="number" className={inputCls} value={form.referenciaSeq} onChange={(e) => set("referenciaSeq", Number(e.target.value))} />
-          </div>
-          <div className="sm:col-span-1">
+          <div className="sm:col-span-3">
             <label className="field-label">Validade (dias)</label>
             <input type="number" className={inputCls} value={form.validadeDias} onChange={(e) => set("validadeDias", Number(e.target.value))} />
           </div>
-          <div className="sm:col-span-1">
+          <div className="sm:col-span-3">
             <label className="field-label">Emissão</label>
             <input type="date" className={inputCls} value={form.dataEmissao} onChange={(e) => set("dataEmissao", e.target.value)} />
           </div>
         </div>
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+          A referência (nº do orçamento) é gerada automaticamente ao salvar.
+        </p>
       </section>
 
       {/* 1 · Consumo */}
       <section className={sec}>
         <h2 className={h2}><Passo n={1} /> Consumo mensal (kWh)</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Copie os 12 meses da conta de energia. É a única entrada necessária — o dimensionamento sai daqui.
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
@@ -499,20 +506,20 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
         <h2 className={h2}><Passo n={2} /> Dimensionamento</h2>
 
         {!calc && (
-          <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
+          <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             Preencha a <strong>cidade da instalação</strong> e o <strong>consumo</strong> acima — o
             sistema sugere os painéis e o inversor automaticamente.
           </p>
         )}
 
         {calc && (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gta-navy/20 bg-gta-navy/5 p-4">
-            <div className="text-sm text-slate-700">
-              <span className="font-semibold text-gta-navy">Sugestão para este consumo:</span>{" "}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gta-navy/20 bg-gta-navy/5 p-4 dark:border-slate-600 dark:bg-slate-900/50">
+            <div className="text-sm text-slate-700 dark:text-slate-300">
+              <span className="font-semibold text-gta-navy dark:text-slate-100">Sugestão para este consumo:</span>{" "}
               <strong>{Math.max(1, calc.sizing.nPlacasSugerido)} painéis</strong> de {form.potenciaPainel} Wp
               {" "}(≈ {nf((Math.max(1, calc.sizing.nPlacasSugerido) * form.potenciaPainel) / 1000, 2)} kWp)
               {" "}+ <strong>inversor {kw(sugerirInversorComercial((Math.max(1, calc.sizing.nPlacasSugerido) * form.potenciaPainel) / 1000, form.overloadDesejado))} kW</strong>
-              <span className="text-slate-500"> · necessidade calculada: {nf(calc.sizing.kwpNecessaria, 2)} kWp</span>
+              <span className="text-slate-500 dark:text-slate-400"> · necessidade calculada: {nf(calc.sizing.kwpNecessaria, 2)} kWp</span>
             </div>
             <button type="button" className="btn-secondary !py-1.5 text-xs" onClick={aplicarSugestao}>
               Aplicar sugestão
@@ -601,13 +608,13 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
         </div>
 
         {calc && (
-          <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
             <Kpi label="Potência do sistema" value={`${nf(calc.kwpTotal, 2)} kWp`} destaque />
             <Kpi label="Consumo médio" value={`${nf(calc.sizing.consumoMedio, 0)} kWh/mês`} />
             <Kpi label="HSP média (local)" value={nf(calc.sizing.hspMedia, 2)} />
-            <div className={`rounded-md p-2 shadow-sm ${overloadOk ? "bg-white" : "bg-amber-50"}`}>
-              <div className="text-xs text-slate-500">Overload do inversor</div>
-              <div className={`mt-0.5 font-semibold ${overloadOk ? "text-gta-navy" : "text-amber-700"}`}>
+            <div className={`rounded-md p-2 shadow-sm ${overloadOk ? "bg-white dark:bg-slate-800" : "bg-amber-50 dark:bg-amber-900/30"}`}>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Overload do inversor</div>
+              <div className={`mt-0.5 font-semibold ${overloadOk ? "text-gta-navy dark:text-slate-100" : "text-amber-700 dark:text-amber-300"}`}>
                 {pct(calc.overload)} {overloadOk ? "" : "· verificar"}
               </div>
             </div>
@@ -615,7 +622,7 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
         )}
 
         <details className="mt-3">
-          <summary className="cursor-pointer text-xs font-medium text-slate-500">Ajustes avançados (eficiência e overload)</summary>
+          <summary className="cursor-pointer text-xs font-medium text-slate-500 dark:text-slate-400">Ajustes avançados (eficiência e overload)</summary>
           <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <label className="field-label">Eficiência do sistema (%)</label>
@@ -633,8 +640,8 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
                 onChange={(e) => set("overloadDesejado", Number(e.target.value) / 100)}
               />
             </div>
-            <p className="col-span-2 self-end text-xs text-slate-400">
-              Padrões definidos em Parâmetros{isAdmin ? "" : " (admin)"} — mude aqui só para esta proposta.
+            <p className="col-span-2 self-end text-xs text-slate-400 dark:text-slate-500">
+              Padrão vem dos Parâmetros (abaixo) — mude aqui só para esta proposta.
             </p>
           </div>
         </details>
@@ -647,22 +654,22 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
           <GraficoGeracao linhas={calc.geracao.linhas} />
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-500">
+              <thead className="text-left text-xs text-slate-500 dark:text-slate-400">
                 <tr><th className="py-1">Mês</th><th>Insolação</th><th>Geração (kWh)</th><th>Consumo (kWh)</th></tr>
               </thead>
               <tbody>
                 {calc.geracao.linhas.map((l) => (
-                  <tr key={l.mes} className="border-t border-slate-100">
+                  <tr key={l.mes} className="border-t border-slate-100 dark:border-slate-700">
                     <td className="py-1">{l.mes}</td>
                     <td>{nf(l.insolacao, 3)}</td>
-                    <td className="font-medium text-green-700">{nf(l.energia, 0)}</td>
-                    <td className="text-orange-600">{nf(l.consumo, 0)}</td>
+                    <td className="font-medium text-green-700 dark:text-green-400">{nf(l.energia, 0)}</td>
+                    <td className="text-orange-600 dark:text-orange-400">{nf(l.consumo, 0)}</td>
                   </tr>
                 ))}
-                <tr className="border-t border-slate-200 font-semibold">
+                <tr className="border-t border-slate-200 font-semibold dark:border-slate-600">
                   <td className="py-1">Total anual</td><td></td>
-                  <td className="text-green-700">{nf(calc.geracao.totalEnergia, 0)}</td>
-                  <td className="text-orange-600">{nf(calc.geracao.totalConsumo, 0)}</td>
+                  <td className="text-green-700 dark:text-green-400">{nf(calc.geracao.totalEnergia, 0)}</td>
+                  <td className="text-orange-600 dark:text-orange-400">{nf(calc.geracao.totalConsumo, 0)}</td>
                 </tr>
               </tbody>
             </table>
@@ -679,13 +686,13 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
               Copiar lista
             </button>
           </div>
-          <p className="mt-1 text-sm text-slate-500">Lista genérica (sem marca) para enviar ao distribuidor e obter o preço do kit.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Lista genérica (sem marca) para enviar ao distribuidor e obter o preço do kit.</p>
           <table className="mt-3 w-full text-sm">
             <tbody>
               {calc.bom.map((b, i) => (
-                <tr key={i} className="border-t border-slate-100">
-                  <td className="w-20 py-1 font-medium text-gta-navy">{b.qtde}</td>
-                  <td className="py-1 text-slate-700">{b.descricao}</td>
+                <tr key={i} className="border-t border-slate-100 dark:border-slate-700">
+                  <td className="w-20 py-1 font-medium text-gta-navy dark:text-slate-100">{b.qtde}</td>
+                  <td className="py-1 text-slate-700 dark:text-slate-300">{b.descricao}</td>
                 </tr>
               ))}
             </tbody>
@@ -695,14 +702,7 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
 
       {/* 4 · Distribuidor e preço */}
       <section className={sec}>
-        <div className="flex items-center justify-between">
-          <h2 className={h2}><Passo n={4} /> Preço e margem</h2>
-          {isAdmin && (
-            <Link href="/admin/parametros" className="text-xs text-gta-indigo hover:underline">
-              Editar parâmetros padrão →
-            </Link>
-          )}
-        </div>
+        <h2 className={h2}><Passo n={4} /> Preço e margem</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Distribuidor</label>
@@ -729,17 +729,17 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
         </div>
 
         {calc?.pricing && (
-          <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
             <Kpi label="Valor total" value={brl(calc.pricing.valorTotal)} destaque />
             <Kpi label="Serviços GTA" value={brl(calc.pricing.servicos)} />
             <Kpi label="Lucro (líq.)" value={brl(calc.pricing.lucroLiquido)} />
-            <div className="rounded-md bg-white p-2 shadow-sm">
-              <div className="text-xs text-slate-500">Margem líquida</div>
+            <div className="rounded-md bg-white p-2 shadow-sm dark:bg-slate-800">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Margem líquida</div>
               <div className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${nivelMargem?.cls}`}>
                 {pct(calc.pricing.margemLiquida)} · {nivelMargem?.label}
               </div>
             </div>
-            <div className="col-span-2 text-xs text-slate-400 sm:col-span-4">
+            <div className="col-span-2 text-xs text-slate-400 sm:col-span-4 dark:text-slate-500">
               Custos: instalação {brl(calc.pricing.custos.instalacao)} · material CA {brl(calc.pricing.custos.materialCa)} ·
               deslocamento {brl(calc.pricing.custos.deslocamento)} · ART {brl(calc.pricing.custos.art)} ·
               imposto {brl(calc.pricing.custos.imposto)} · comissão {brl(calc.pricing.custos.comissao)}
@@ -748,9 +748,23 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
         )}
       </section>
 
+      {/* Parâmetros de preço e dimensionamento (retraído; disponível a todos) */}
+      <details className={sec}>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">
+          Parâmetros de preço e dimensionamento
+        </summary>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Valores padrão da plataforma (custos, imposto/NF, comissão, fator, eficiência). Ao salvar, valem
+          para todos os próximos cálculos.
+        </p>
+        <div className="mt-4">
+          <SolarParamsForm onSaved={aplicarParams} />
+        </div>
+      </details>
+
       {/* Textos (edição manual) */}
       <details className={sec}>
-        <summary className="cursor-pointer text-sm font-semibold text-gta-navy">Textos da proposta (opcional)</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
         <div className="mt-4 space-y-3">
           <div><label className="field-label">Objeto</label><input className={inputCls} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Objetivo</label><textarea className={`${inputCls} min-h-[70px]`} value={form.textoObjetivo} onChange={(e) => set("textoObjetivo", e.target.value)} /></div>
@@ -771,10 +785,10 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
           {gerando ? "Gerando..." : "Gerar .docx"}
         </button>
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>
-          Ver propostas salvas
+          Ver orçamentos
         </button>
-        {!calc?.pricing && <span className="text-xs text-slate-400">Informe o valor do kit para habilitar a geração.</span>}
-        {status && <span className="text-sm text-green-600">{status}</span>}
+        {!calc?.pricing && <span className="text-xs text-slate-400 dark:text-slate-500">Informe o valor do kit para habilitar a geração.</span>}
+        {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
     </div>
   );
@@ -790,9 +804,9 @@ function Passo({ n }: { n: number }) {
 
 function Kpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
   return (
-    <div className={`rounded-md p-2 shadow-sm ${destaque ? "bg-gta-navy text-white" : "bg-white"}`}>
-      <div className={`text-xs ${destaque ? "text-slate-300" : "text-slate-500"}`}>{label}</div>
-      <div className="mt-0.5 font-semibold">{value}</div>
+    <div className={`rounded-md p-2 shadow-sm ${destaque ? "bg-gta-navy text-white" : "bg-white dark:bg-slate-800"}`}>
+      <div className={`text-xs ${destaque ? "text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{label}</div>
+      <div className="mt-0.5 font-semibold dark:text-slate-100">{value}</div>
     </div>
   );
 }
@@ -816,7 +830,7 @@ function GraficoGeracao({ linhas }: { linhas: { mes: string; energia: number; co
           );
         })}
       </svg>
-      <div className="flex gap-4 text-xs text-slate-500">
+      <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400">
         <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 bg-[#1B7A3E]" /> Geração</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 bg-[#E65100]" /> Consumo</span>
       </div>

@@ -17,13 +17,10 @@ export async function GET() {
   return NextResponse.json({ params: await getSolarParams(), defaults: SOLAR_PARAMS_DEFAULT });
 }
 
-/** Atualiza os parâmetros padrão — somente administradores. */
+/** Atualiza os parâmetros padrão — disponível para qualquer usuário autenticado. */
 export async function PUT(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  if (user.role !== "admin") {
-    return NextResponse.json({ error: "Apenas administradores podem alterar os parâmetros." }, { status: 403 });
-  }
 
   let body: unknown;
   try {

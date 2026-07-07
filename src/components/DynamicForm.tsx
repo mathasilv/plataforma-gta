@@ -90,10 +90,10 @@ export function DynamicForm({
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
         {formSchema.sections.map((section) => (
-          <section key={section.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-gta-navy">{section.title}</h2>
+          <section key={section.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <h2 className="text-lg font-semibold text-gta-navy dark:text-slate-100">{section.title}</h2>
             {section.description && (
-              <p className="mt-1 text-sm text-slate-500">{section.description}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{section.description}</p>
             )}
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
               {section.fields.map((f) =>
@@ -113,7 +113,7 @@ export function DynamicForm({
           <button type="submit" className="btn-primary" disabled={generating}>
             {generating ? "Gerando..." : `Gerar proposta (${serviceLabel})`}
           </button>
-          {status && <span className="text-sm text-slate-600">{status}</span>}
+          {status && <span className="text-sm text-slate-600 dark:text-slate-300">{status}</span>}
         </div>
       </form>
     </FormProvider>
@@ -156,7 +156,7 @@ function ScalarField({
           placeholder={field.placeholder}
         />
       )}
-      {field.help && <p className="mt-1 text-xs text-slate-400">{field.help}</p>}
+      {field.help && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{field.help}</p>}
       {err && <p className="field-error">{String(err.message ?? "Campo inválido")}</p>}
     </div>
   );
@@ -171,9 +171,9 @@ function ArrayFieldEditor({ field }: { field: FieldDef }) {
   return (
     <div>
       <label className="field-label">{field.label}</label>
-      <div className="overflow-x-auto rounded-md border border-slate-200">
+      <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             <tr>
               {cols.map((c) => (
                 <th key={c.name} className="px-2 py-2 font-medium">
@@ -185,7 +185,7 @@ function ArrayFieldEditor({ field }: { field: FieldDef }) {
           </thead>
           <tbody>
             {fields.map((row, i) => (
-              <tr key={row.id} className="border-t border-slate-100">
+              <tr key={row.id} className="border-t border-slate-100 dark:border-slate-700">
                 {cols.map((c) => (
                   <td key={c.name} className="px-2 py-1">
                     <input

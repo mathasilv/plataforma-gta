@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 /**
  * Formulário dos parâmetros do Solar (custos/imposto/comissão/eficiência).
  * Valores em % são exibidos como porcentagem (7,01) e salvos como fração (0,0701).
+ * Disponível para qualquer usuário — os valores valem para toda a plataforma.
  */
 
 type ParamKey =
@@ -62,8 +63,7 @@ function parseDec(s: string): number {
   return t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
 }
 
-const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+const fmt = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
 
 function paraTexto(p: Params): Record<ParamKey, string> {
   const out = {} as Record<ParamKey, string>;
@@ -75,7 +75,7 @@ function paraTexto(p: Params): Record<ParamKey, string> {
   return out;
 }
 
-export function SolarParamsForm() {
+export function SolarParamsForm({ onSaved }: { onSaved?: (p: Params) => void }) {
   const [texto, setTexto] = useState<Record<ParamKey, string> | null>(null);
   const [defaults, setDefaults] = useState<Params | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -120,6 +120,7 @@ export function SolarParamsForm() {
       if (!res.ok) throw new Error(d.error ?? "Falha ao salvar.");
       setTexto(paraTexto(d.params));
       setStatus("Parâmetros salvos. Novos cálculos já usam estes valores.");
+      onSaved?.(d.params as Params);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao salvar.");
     } finally {
@@ -130,15 +131,15 @@ export function SolarParamsForm() {
   if (!texto) {
     return erro
       ? <p className="field-error">{erro}</p>
-      : <p className="text-sm text-slate-500">Carregando parâmetros...</p>;
+      : <p className="text-sm text-slate-500 dark:text-slate-400">Carregando parâmetros...</p>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {CAMPOS.map((grupo) => (
-        <section key={grupo.titulo} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gta-navy">{grupo.titulo}</h2>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div key={grupo.titulo}>
+          <h3 className="text-sm font-semibold text-gta-navy dark:text-slate-200">{grupo.titulo}</h3>
+          <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {grupo.campos.map((c) => (
               <div key={c.key}>
                 <label className="field-label">{c.label}</label>
@@ -148,11 +149,11 @@ export function SolarParamsForm() {
                   value={texto[c.key]}
                   onChange={(e) => setTexto({ ...texto, [c.key]: e.target.value })}
                 />
-                <p className="mt-1 text-xs text-slate-400">{c.help}</p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{c.help}</p>
               </div>
             ))}
           </div>
-        </section>
+        </div>
       ))}
 
       {erro && <p className="field-error">{erro}</p>}
@@ -167,10 +168,10 @@ export function SolarParamsForm() {
             className="btn-secondary"
             onClick={() => { setTexto(paraTexto(defaults)); setStatus("Padrões da planilha restaurados — clique em Salvar para aplicar."); }}
           >
-            Restaurar padrões da planilha
+            Restaurar padrões
           </button>
         )}
-        {status && <span className="text-sm text-green-600">{status}</span>}
+        {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
     </div>
   );

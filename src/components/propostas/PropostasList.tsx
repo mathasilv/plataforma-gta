@@ -5,9 +5,9 @@ import Link from "next/link";
 import { statusPropostaLabel, STATUS_PROPOSTA, type Proposta } from "@/lib/propostas/types";
 
 const STATUS_BADGE: Record<string, string> = {
-  rascunho: "bg-slate-100 text-slate-600",
-  precificada: "bg-amber-100 text-amber-700",
-  gerada: "bg-green-100 text-green-700",
+  rascunho: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+  precificada: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  gerada: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
 };
 
 interface ServiceMeta {
@@ -32,6 +32,7 @@ export function PropostasList() {
   const [busca, setBusca] = useState("");
   const [fServico, setFServico] = useState("");
   const [fStatus, setFStatus] = useState("");
+  const [fCriador, setFCriador] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -52,24 +53,31 @@ export function PropostasList() {
     return m;
   }, [services]);
 
+  const nomeCriador = (p: Proposta) => p.criadoPorNome || p.criadoPor || "—";
+
   // só mostra no filtro os serviços que têm propostas
   const servicosComPropostas = useMemo(() => {
     const keys = new Set(propostas.map((p) => p.serviceKey));
     return services.filter((s) => keys.has(s.key));
   }, [services, propostas]);
 
+  const criadores = useMemo(() => {
+    return Array.from(new Set(propostas.map(nomeCriador))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [propostas]);
+
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return propostas.filter((p) => {
       if (fServico && p.serviceKey !== fServico) return false;
       if (fStatus && p.status !== fStatus) return false;
+      if (fCriador && nomeCriador(p) !== fCriador) return false;
       if (q) {
         const alvo = `${p.cliente} ${p.referencia}`.toLowerCase();
         if (!alvo.includes(q)) return false;
       }
       return true;
     });
-  }, [propostas, busca, fServico, fStatus]);
+  }, [propostas, busca, fServico, fStatus, fCriador]);
 
   async function excluir(p: Proposta) {
     if (!window.confirm(`Excluir a proposta de "${p.cliente}"?`)) return;
@@ -83,18 +91,20 @@ export function PropostasList() {
     return s ? `${s.icon} ${s.label}` : key;
   }
 
-  const limparFiltros = () => { setBusca(""); setFServico(""); setFStatus(""); };
-  const temFiltro = busca || fServico || fStatus;
+  const limparFiltros = () => { setBusca(""); setFServico(""); setFStatus(""); setFCriador(""); };
+  const temFiltro = busca || fServico || fStatus || fCriador;
 
-  if (loading) return <p className="text-sm text-slate-500">Carregando propostas...</p>;
+  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando propostas...</p>;
+
+  const cardCls = "rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800";
 
   return (
     <div className="space-y-4">
       {erro && <p className="field-error">{erro}</p>}
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="min-w-[220px] flex-1">
+      <div className={`flex flex-wrap items-end gap-3 p-4 ${cardCls}`}>
+        <div className="min-w-[200px] flex-1">
           <label className="field-label">Buscar cliente / referência</label>
           <input
             className="field-input"
@@ -103,7 +113,7 @@ export function PropostasList() {
             onChange={(e) => setBusca(e.target.value)}
           />
         </div>
-        <div className="min-w-[180px]">
+        <div className="min-w-[170px]">
           <label className="field-label">Serviço</label>
           <select className="field-input" value={fServico} onChange={(e) => setFServico(e.target.value)}>
             <option value="">Todos</option>
@@ -113,6 +123,13 @@ export function PropostasList() {
           </select>
         </div>
         <div className="min-w-[150px]">
+          <label className="field-label">Criador</label>
+          <select className="field-input" value={fCriador} onChange={(e) => setFCriador(e.target.value)}>
+            <option value="">Todos</option>
+            {criadores.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="min-w-[140px]">
           <label className="field-label">Status</label>
           <select className="field-input" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
             <option value="">Todos</option>
@@ -126,20 +143,19 @@ export function PropostasList() {
         )}
       </div>
 
-      <div className="flex items-center justify-between text-sm text-slate-500">
-        <span>
-          {filtradas.length} de {propostas.length} {propostas.length === 1 ? "proposta" : "propostas"}
-        </span>
+      <div className="text-sm text-slate-500 dark:text-slate-400">
+        {filtradas.length} de {propostas.length} {propostas.length === 1 ? "proposta" : "propostas"}
       </div>
 
       {/* Tabela */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className={`overflow-x-auto ${cardCls}`}>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             <tr>
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Serviço</th>
               <th className="px-4 py-3">Referência</th>
+              <th className="px-4 py-3">Criador</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Atualizada</th>
               <th className="px-4 py-3 text-right">Ações</th>
@@ -148,7 +164,7 @@ export function PropostasList() {
           <tbody>
             {filtradas.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                   {propostas.length === 0 ? "Nenhuma proposta gerada ainda." : "Nenhuma proposta corresponde aos filtros."}
                 </td>
               </tr>
@@ -157,16 +173,17 @@ export function PropostasList() {
               const meta = serviceMap.get(p.serviceKey);
               const podeReabrir = meta?.usesConfigurator;
               return (
-                <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-4 py-2 font-medium text-gta-navy">{p.cliente}</td>
-                  <td className="px-4 py-2 text-slate-600">{rotuloServico(p.serviceKey)}</td>
-                  <td className="px-4 py-2 text-slate-500">{p.referencia || "—"}</td>
+                <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/60 dark:border-slate-700 dark:hover:bg-slate-700/40">
+                  <td className="px-4 py-2 font-medium text-gta-navy dark:text-slate-100">{p.cliente}</td>
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{rotuloServico(p.serviceKey)}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">{p.referencia || "—"}</td>
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{nomeCriador(p)}</td>
                   <td className="px-4 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[p.status] ?? ""}`}>
                       {statusPropostaLabel(p.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-slate-500">{fmtData(p.atualizadoEm)}</td>
+                  <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{fmtData(p.atualizadoEm)}</td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-3 text-xs">
                       {podeReabrir && (
@@ -174,7 +191,7 @@ export function PropostasList() {
                           Abrir
                         </Link>
                       )}
-                      <button onClick={() => excluir(p)} className="text-red-500 hover:underline">
+                      <button onClick={() => excluir(p)} className="text-red-500 hover:underline dark:text-red-400">
                         Excluir
                       </button>
                     </div>

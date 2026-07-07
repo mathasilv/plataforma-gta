@@ -19,6 +19,8 @@ export interface Proposta {
   /** Configuração completa (entradas + resultados) para reabrir e continuar. */
   dados: Record<string, unknown>;
   criadoPor: string;
+  /** Nome do criador resolvido a partir do e-mail (apenas para exibição). */
+  criadoPorNome?: string;
   criadoEm: string;
   atualizadoEm: string;
 }

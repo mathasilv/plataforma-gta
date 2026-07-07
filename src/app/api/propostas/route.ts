@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPropostaStore } from "@/lib/propostas/store";
 import { createPropostaSchema } from "@/lib/propostas/types";
 import { getCurrentUser } from "@/lib/session";
+import { users } from "@/lib/users/store";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,15 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   const propostas = await getPropostaStore().list();
-  return NextResponse.json({ propostas });
+
+  // Resolve o nome do criador a partir do e-mail (apenas exibição).
+  const nomePorEmail = new Map((await (await users()).list()).map((u) => [u.email.toLowerCase(), u.name]));
+  const enriquecidas = propostas.map((p) => ({
+    ...p,
+    criadoPorNome: nomePorEmail.get((p.criadoPor ?? "").toLowerCase()) ?? p.criadoPor,
+  }));
+
+  return NextResponse.json({ propostas: enriquecidas });
 }
 
 export async function POST(req: Request) {

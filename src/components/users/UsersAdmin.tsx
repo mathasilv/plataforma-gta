@@ -84,7 +84,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
     setUsuarios((prev) => prev.filter((x) => x.id !== u.id));
   }
 
-  if (loading) return <p className="text-sm text-slate-500">Carregando usuários...</p>;
+  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando usuários...</p>;
 
   return (
     <div className="space-y-4">
@@ -92,21 +92,21 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
         <button className="btn-primary" onClick={() => setNovoAberto((v) => !v)}>
           {novoAberto ? "Fechar" : "+ Novo usuário"}
         </button>
-        <span className="ml-auto text-xs text-slate-400">{usuarios.length} usuário(s)</span>
+        <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{usuarios.length} usuário(s)</span>
       </div>
 
       {erro && <p className="field-error">{erro}</p>}
 
       {/* credencial gerada */}
       {credencial && (
-        <div className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm">
-          <p className="font-semibold text-green-800">Senha provisória gerada</p>
-          <p className="mt-1 text-green-700">
+        <div className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm dark:border-green-700 dark:bg-green-900/30">
+          <p className="font-semibold text-green-800 dark:text-green-300">Senha provisória gerada</p>
+          <p className="mt-1 text-green-700 dark:text-green-300">
             Entregue estes dados a <strong>{credencial.email}</strong>. A pessoa será obrigada a
             definir uma nova senha no primeiro acesso.
           </p>
           <div className="mt-2 flex items-center gap-3">
-            <code className="rounded bg-white px-3 py-1 text-base font-bold tracking-wide text-gta-navy shadow-sm">
+            <code className="rounded bg-white px-3 py-1 text-base font-bold tracking-wide text-gta-navy shadow-sm dark:bg-slate-800 dark:text-slate-100">
               {credencial.senha}
             </code>
             <button
@@ -115,7 +115,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
             >
               Copiar
             </button>
-            <button className="text-xs text-slate-500 hover:underline" onClick={() => setCredencial(null)}>
+            <button className="text-xs text-slate-500 hover:underline dark:text-slate-400" onClick={() => setCredencial(null)}>
               Ocultar
             </button>
           </div>
@@ -124,8 +124,8 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
 
       {/* novo usuário */}
       {novoAberto && (
-        <form onSubmit={criar} className="rounded-xl border border-gta-indigo/30 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-gta-navy">Novo usuário</h2>
+        <form onSubmit={criar} className="rounded-xl border border-gta-indigo/30 bg-white p-4 shadow-sm dark:bg-slate-800">
+          <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Novo usuário</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div className="sm:col-span-3">
               <label className="field-label">Nome *</label>
@@ -156,9 +156,9 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
       )}
 
       {/* tabela */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             <tr>
               <th className="px-4 py-3">Nome</th>
               <th className="px-4 py-3">E-mail</th>
@@ -171,24 +171,24 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
             {usuarios.map((u) => {
               const eu = u.id === currentUserId;
               return (
-                <tr key={u.id} className={`border-t border-slate-100 ${!u.active ? "opacity-50" : ""}`}>
-                  <td className="px-4 py-2 font-medium text-gta-navy">
-                    {u.name} {eu && <span className="text-xs font-normal text-slate-400">(você)</span>}
+                <tr key={u.id} className={`border-t border-slate-100 dark:border-slate-700 ${!u.active ? "opacity-50" : ""}`}>
+                  <td className="px-4 py-2 font-medium text-gta-navy dark:text-slate-100">
+                    {u.name} {eu && <span className="text-xs font-normal text-slate-400 dark:text-slate-500">(você)</span>}
                   </td>
-                  <td className="px-4 py-2 text-slate-600">{u.email}</td>
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{u.email}</td>
                   <td className="px-4 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-indigo-100 text-gta-indigo" : "bg-slate-100 text-slate-600"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-indigo-100 text-gta-indigo dark:bg-indigo-900/40 dark:text-indigo-300" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>
                       {ROLE_LABEL[u.role]}
                     </span>
                   </td>
                   <td className="px-4 py-2">
                     {u.active ? (
-                      <span className="text-green-700">Ativo</span>
+                      <span className="text-green-700 dark:text-green-400">Ativo</span>
                     ) : (
-                      <span className="text-slate-400">Inativo</span>
+                      <span className="text-slate-400 dark:text-slate-500">Inativo</span>
                     )}
                     {u.mustChangePassword && u.active && (
-                      <span className="ml-1 text-xs text-amber-600">(troca pendente)</span>
+                      <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">(troca pendente)</span>
                     )}
                   </td>
                   <td className="px-4 py-2">
@@ -197,14 +197,14 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
                         Resetar senha
                       </button>
                       <button
-                        className="text-slate-500 hover:underline disabled:opacity-40"
+                        className="text-slate-500 hover:underline disabled:opacity-40 dark:text-slate-400"
                         disabled={eu}
                         onClick={() => patch(u.id, { role: u.role === "admin" ? "member" : "admin" })}
                       >
                         {u.role === "admin" ? "Tornar membro" : "Tornar admin"}
                       </button>
                       <button
-                        className="text-slate-500 hover:underline disabled:opacity-40"
+                        className="text-slate-500 hover:underline disabled:opacity-40 dark:text-slate-400"
                         disabled={eu}
                         onClick={() => patch(u.id, { active: !u.active })}
                       >
