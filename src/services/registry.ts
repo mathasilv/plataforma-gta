@@ -5,12 +5,12 @@ import { carregadorService } from "./carregador";
 import { spdaService } from "./spda";
 import { execucaoSubestacaoService } from "./execucao-subestacao";
 import { redeMtService } from "./rede-mt";
+import { qgbtService } from "./qgbt";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
 import {
   laudoInspecaoService,
   projetoEletricoBtService,
-  qgbtService,
   limpezaPlacasService,
 } from "./_cpq/catalog";
 

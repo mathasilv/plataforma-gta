@@ -108,42 +108,8 @@ export const projetoEletricoBtService = criarServicoCpq({
   prazoPadrao: "20 a 45 dias",
 });
 
-// --------------------------------------------------------------- QGBT
-
-export const qgbtService = criarServicoCpq({
-  key: "qgbt",
-  label: "Fornecimento de QGBT",
-  description: "Quadro Geral de Baixa Tensão montado, identificado e testado.",
-  referencePrefix: "QGBT",
-  titulo: () => "PROPOSTA TÉCNICA E COMERCIAL — FORNECIMENTO DE QGBT",
-  descricaoServicoSecao: "Base histórica: ~R$ 23.400 (200 A/80 kW + autotrafo) a ~R$ 32.700 (350 A, com NF).",
-  camposServico: [
-    { name: "especificacao", label: "Especificação (A / V)", type: "text", width: "third", placeholder: "Ex.: 350 A / 380 V IP55" },
-    { name: "qtdQuadros", label: "Nº de quadros", type: "number", width: "third", defaultValue: 1 },
-    moeda("valorQuadro", "Valor por quadro (R$)", 25000, `Montado, identificado e testado. Sugestão ${hint(25000)}.`),
-  ],
-  zodServico: {
-    especificacao: z.string().optional().default(""),
-    qtdQuadros: z.coerce.number().int().min(1).default(1),
-    valorQuadro: moedaZod,
-  },
-  montarItens: (f): ItemProposta[] => {
-    const qtd = Number(f.qtdQuadros) || 1;
-    const esp = String(f.especificacao ?? "").trim();
-    return [{
-      descricao: `Fornecimento de ${qtd > 1 ? `${qtd} QGBTs` : "QGBT"}${esp ? ` (${esp})` : ""} montado(s), identificado(s) e testado(s) em bancada, conforme especificação`,
-      valor: num(f.valorQuadro) * qtd,
-      condicao: "50% na contratação e 50% na entrega",
-    }];
-  },
-  objetoPadrao:
-    "Fornecimento de Quadro Geral de Baixa Tensão (QGBT) montado, identificado e testado em bancada, conforme especificação técnica do cliente.",
-  observacoesPadrao: [
-    "Montagem conforme a ABNT NBR IEC 61439.",
-    "Prazo de entrega condicionado ao fornecimento dos componentes.",
-  ],
-  prazoPadrao: "20 a 30 dias",
-});
+// Fornecimento de QGBT tem configurador próprio (custo × Fator K):
+// ver src/services/qgbt.
 
 // --------------------------------------------------------------- Limpeza de placas
 
