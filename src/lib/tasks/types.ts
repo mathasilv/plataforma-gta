@@ -47,6 +47,21 @@ export interface Task {
 const statusEnum = z.enum(["afazer", "andamento", "concluida"]);
 const prioridadeEnum = z.enum(["baixa", "media", "alta"]);
 
+/** Verifica se yyyy-mm-dd é uma data real do calendário (rejeita 2026-02-31). */
+function isDataReal(s: string): boolean {
+  const [y, m, d] = s.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/** Prazo: yyyy-mm-dd válido no calendário, ou vazio. */
+const prazoSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
+  .refine(isDataReal, "Data inexistente")
+  .or(z.literal(""))
+  .default("");
+
 /** Payload de criação de tarefa. */
 export const createTaskSchema = z.object({
   titulo: z.string().trim().min(1, "Informe o título").max(300),
@@ -55,11 +70,7 @@ export const createTaskSchema = z.object({
   responsavel: z.string().trim().min(1, "Informe o responsável"),
   status: statusEnum.default("afazer"),
   prioridade: prioridadeEnum.default("media"),
-  prazo: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
-    .or(z.literal(""))
-    .default(""),
+  prazo: prazoSchema,
 });
 
 /** Payload de atualização parcial. */

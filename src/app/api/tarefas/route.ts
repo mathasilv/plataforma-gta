@@ -6,6 +6,9 @@ import { getSessionUser } from "@/lib/session";
 export const runtime = "nodejs";
 
 export async function GET() {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
   const tasks = await getTaskStore().list();
   return NextResponse.json({ tasks });
 }

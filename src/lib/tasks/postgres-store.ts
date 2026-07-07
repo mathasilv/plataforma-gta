@@ -137,22 +137,24 @@ export class PostgresTaskStore implements TaskStore {
     patch: Partial<Omit<Task, "id" | "comentarios">>,
   ): Promise<Task | null> {
     await this.ensureSchema();
-    const current = await this.get(id);
-    if (!current) return null;
-    const next: Task = { ...current, ...patch, id, atualizadoEm: new Date().toISOString() };
-    await this.pool.sql`
+    // UPDATE atômico (sem read-then-write): COALESCE mantém o valor atual quando
+    // o campo não foi enviado (null), evitando que edições simultâneas se
+    // sobrescrevam em campos diferentes. RETURNING devolve a linha final.
+    const atualizadoEm = new Date().toISOString();
+    const { rows } = await this.pool.sql<Row>`
       UPDATE tasks SET
-        titulo = ${next.titulo},
-        descricao = ${next.descricao},
-        cliente = ${next.cliente},
-        responsavel = ${next.responsavel},
-        status = ${next.status},
-        prioridade = ${next.prioridade},
-        prazo = ${next.prazo},
-        atualizado_em = ${next.atualizadoEm}
+        titulo = COALESCE(${patch.titulo ?? null}::text, titulo),
+        descricao = COALESCE(${patch.descricao ?? null}::text, descricao),
+        cliente = COALESCE(${patch.cliente ?? null}::text, cliente),
+        responsavel = COALESCE(${patch.responsavel ?? null}::text, responsavel),
+        status = COALESCE(${patch.status ?? null}::text, status),
+        prioridade = COALESCE(${patch.prioridade ?? null}::text, prioridade),
+        prazo = COALESCE(${patch.prazo ?? null}::text, prazo),
+        atualizado_em = ${atualizadoEm}
       WHERE id = ${id}
+      RETURNING *
     `;
-    return next;
+    return rows[0] ? rowToTask(rows[0]) : null;
   }
 
   async remove(id: string): Promise<boolean> {

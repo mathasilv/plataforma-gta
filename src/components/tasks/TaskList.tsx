@@ -29,7 +29,9 @@ const STATUS_BADGE: Record<StatusTarefa, string> = {
 };
 
 function hoje(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Data LOCAL do navegador (não UTC) — evita marcar como atrasada 1 dia antes no Brasil.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function atrasada(t: Task): boolean {
@@ -188,33 +190,53 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
 
   async function atualizar(id: string, patch: Record<string, unknown>) {
     setErro(null);
-    const res = await fetch(`/api/tarefas/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setErro(data.error ?? "Falha ao atualizar.");
-      return;
+    try {
+      const res = await fetch(`/api/tarefas/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErro(data.error ?? "Falha ao atualizar.");
+        return;
+      }
+      aplicar(data.task);
+    } catch {
+      setErro("Falha de conexão ao atualizar a tarefa.");
     }
-    aplicar(data.task);
   }
 
   async function excluir(id: string, titulo: string) {
     if (!window.confirm(`Excluir a tarefa "${titulo}"?`)) return;
-    const res = await fetch(`/api/tarefas/${id}`, { method: "DELETE" });
-    if (res.ok) setTasks((prev) => prev.filter((t) => t.id !== id));
+    setErro(null);
+    try {
+      const res = await fetch(`/api/tarefas/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setErro(data.error ?? "Falha ao excluir a tarefa.");
+      }
+    } catch {
+      setErro("Falha de conexão ao excluir a tarefa.");
+    }
   }
 
   async function comentar(id: string, texto: string) {
-    const res = await fetch(`/api/tarefas/${id}/comentarios`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto }),
-    });
-    const data = await res.json();
-    if (res.ok) aplicar(data.task);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/tarefas/${id}/comentarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) aplicar(data.task);
+      else setErro(data.error ?? "Falha ao comentar.");
+    } catch {
+      setErro("Falha de conexão ao enviar o comentário.");
+    }
   }
 
   if (loading) return <p className="text-sm text-slate-500">Carregando tarefas...</p>;

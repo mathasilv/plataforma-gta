@@ -38,6 +38,19 @@ function b64urlDecode(str: string): Uint8Array {
   return out;
 }
 
+/**
+ * Comparação de tempo constante (não sai no 1º caractere diferente).
+ * Em JS puro para funcionar tanto no Node quanto no Edge (middleware).
+ * As assinaturas têm tamanho fixo (base64url de SHA-256), então o length
+ * não vaza informação útil.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 async function hmac(data: string): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -72,7 +85,7 @@ export async function verifySession(token: string | undefined): Promise<SessionP
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = b64url(await hmac(body));
-  if (expected !== sig) return null;
+  if (!timingSafeEqual(expected, sig)) return null;
   try {
     const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(body))) as SessionPayload;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
