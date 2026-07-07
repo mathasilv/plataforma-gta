@@ -11,6 +11,7 @@ const schema = z.object({
   fase: z.enum(["mono", "tri"]).default("mono"),
   distanciaM: z.coerce.number().min(1).default(20),
   qtdPontos: z.coerce.number().int().min(1).default(1),
+  protecaoCcIntegrada: z.coerce.boolean().default(true),
 });
 
 export async function POST(req: Request) {

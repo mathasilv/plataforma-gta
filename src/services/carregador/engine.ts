@@ -47,6 +47,9 @@ export interface SizingEVInput {
   potenciaKw: number;
   fase: Fase;
   distanciaM: number;
+  /** Carregador com proteção contra corrente contínua residual (RDC-DD 6 mA)
+   *  integrada → permite DR Tipo A. Sem ela → exige DR Tipo B (NBR 17019). */
+  protecaoCcIntegrada?: boolean;
 }
 export interface SizingEV {
   tensao: number;
@@ -59,6 +62,7 @@ export interface SizingEV {
   nCondutores: number; // 3 (mono: F+N+T) | 5 (tri: 3F+N+T)
   nDps: number; // 2 (mono) | 4 (tri)
   eletroduto: string; // ex.: '1.1/4"'
+  drTipo: "A" | "B"; // NBR 17019: nunca AC
 }
 
 export function dimensionarEV(i: SizingEVInput): SizingEV {
@@ -70,6 +74,8 @@ export function dimensionarEV(i: SizingEVInput): SizingEV {
   const Ib = In * 1.25;
   const L = Math.max(1, i.distanciaM);
 
+  // seção: ampacidade ≥ corrente de projeto E queda ≤ 4% (GTA adota uma bitola
+  // de folga em relação ao mínimo, para margem térmica no eletroduto).
   let escolha = AMPACIDADE[AMPACIDADE.length - 1];
   for (const a of AMPACIDADE) {
     if (a.i < Ib) continue;
@@ -92,6 +98,7 @@ export function dimensionarEV(i: SizingEVInput): SizingEV {
     nCondutores,
     nDps: fase === "mono" ? 2 : 4,
     eletroduto: eletroduto.nome,
+    drTipo: i.protecaoCcIntegrada ? "A" : "B",
   };
 }
 
@@ -104,7 +111,7 @@ export const PRECOS_BASE = {
 const CABO_PRECO: Record<number, number> = { 2.5: 5, 4: 6.5, 6: 8, 10: 12, 16: 18, 25: 28, 35: 38, 50: 55, 70: 78 };
 /** Disjuntor (base bipolar). Tetrapolar ≈ ×1,9. */
 const DISJ_PRECO: Record<number, number> = { 16: 45, 20: 48, 25: 52, 32: 56, 40: 60, 50: 70, 63: 90, 80: 120, 100: 150, 125: 190, 160: 240 };
-/** DR (base bipolar). Tetrapolar ≈ ×1,8. */
+/** DR Tipo A (base bipolar). Tetrapolar ≈ ×1,8; Tipo B ≈ ×3,5 (dispositivo especial). */
 const DR_PRECO: Record<number, number> = { 40: 350, 63: 420, 80: 520, 100: 620, 125: 750, 160: 900 };
 /** Quadro de distribuição IP65 por porte (mono menor / tri maior). */
 const QUADRO_PRECO = { mono: 80, tri: 140 };
@@ -133,7 +140,11 @@ export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number, fatorK 
   };
 
   const precoDisj = Math.round(precoDe(DISJ_PRECO, s.disjuntorA) * (tri ? 1.9 : 1));
-  const precoDr = Math.round(precoDe(DR_PRECO, s.disjuntorA) * (tri ? 1.8 : 1));
+  const drTipoB = s.drTipo === "B";
+  const precoDr = Math.round(precoDe(DR_PRECO, s.disjuntorA) * (tri ? 1.8 : 1) * (drTipoB ? 3.5 : 1));
+  const drDescricao = drTipoB
+    ? `Interruptor DR Tipo B ${s.disjuntorA} A / 30 mA (${s.polos}P) — proteção CC (NBR 17019)`
+    : `Interruptor DR Tipo A ${s.disjuntorA} A / 30 mA (${s.polos}P) — carregador com RDC-DD 6 mA integrado`;
 
   const itens: BomItemEV[] = [
     item("Infraestrutura", `Eletroduto galvanizado pesado ${eletroduto.nome} (barra 3 m)`, "barra", barras, eletroduto.barra),
@@ -144,7 +155,7 @@ export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number, fatorK 
     item("Cabeamento", `Cabo flexível HEPR ${s.secaoMm2} mm² (${tri ? "3F+N+T" : "F+N+T"})`, "m", L * s.nCondutores, precoDe(CABO_PRECO, s.secaoMm2)),
     item("Proteção", `Quadro de distribuição IP65 (${tri ? "12 DIN" : "6 a 8 DIN"})`, "un", n, tri ? QUADRO_PRECO.tri : QUADRO_PRECO.mono),
     item("Proteção", `Disjuntor termomagnético ${s.disjuntorA} A curva C (${s.polos}P)`, "un", n, precoDisj),
-    item("Proteção", `Interruptor DR ${s.disjuntorA} A / 30 mA Tipo A (${s.polos}P)`, "un", n, precoDr),
+    item("Proteção", drDescricao, "un", n, precoDr),
     item("Proteção", `Protetor de surto (DPS) Classe II 275 V / 40 kA`, "un", s.nDps * n, PRECOS_BASE.dps),
     item("Aterramento", 'Haste de aterramento cobreada 5/8" x 2,40 m', "un", n, PRECOS_BASE.haste),
     item("Aterramento", "Caixa de inspeção de solo", "un", n, PRECOS_BASE.caixaInspecao),

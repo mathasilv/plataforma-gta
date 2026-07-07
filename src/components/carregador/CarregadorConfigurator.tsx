@@ -15,6 +15,14 @@ const parseBR = (s: string) => {
 
 const HOJE = new Date().toISOString().slice(0, 10);
 
+/** Classes comerciais de carregadores AC (mono ≤ 7,4 kW; tri 11/22 kW). */
+const PRESETS: { label: string; kw: string; fase: "mono" | "tri" }[] = [
+  { label: "3,7 kW mono", kw: "3.7", fase: "mono" },
+  { label: "7,4 kW mono", kw: "7.4", fase: "mono" },
+  { label: "11 kW tri", kw: "11", fase: "tri" },
+  { label: "22 kW tri", kw: "22", fase: "tri" },
+];
+
 interface Form {
   clienteNome: string;
   cidadeUf: string;
@@ -27,6 +35,7 @@ interface Form {
   fase: "mono" | "tri";
   distanciaM: string;
   qtdPontos: number;
+  protecaoCcIntegrada: boolean;
   valorServico: string;
   valorEquipamento: string;
   objeto: string;
@@ -43,14 +52,14 @@ const OBS_PADRAO = [
 
 const FORM_INICIAL: Form = {
   clienteNome: "", cidadeUf: "", localAtividade: "", referenciaSeq: 1, dataEmissao: HOJE, validadeDias: 20, formaPagamento: "A combinar",
-  potenciaKw: "7.4", fase: "mono", distanciaM: "20", qtdPontos: 1,
+  potenciaKw: "7.4", fase: "mono", distanciaM: "20", qtdPontos: 1, protecaoCcIntegrada: true,
   valorServico: "", valorEquipamento: "0",
   objeto: OBJETO_PADRAO, prazoExecucao: "15 a 30 dias", observacoesExtra: OBS_PADRAO.join("\n"),
 };
 
 interface Sizing {
   tensao: number; correnteNominal: number; correnteProjeto: number; disjuntorA: number;
-  polos: number; secaoMm2: number; quedaPct: number; nCondutores: number; nDps: number; eletroduto: string;
+  polos: number; secaoMm2: number; quedaPct: number; nCondutores: number; nDps: number; eletroduto: string; drTipo: "A" | "B";
 }
 interface BomItem { categoria: string; descricao: string; unidade: string; qtd: number; precoUnit: number; precoTotal: number }
 interface Bom { itens: BomItem[]; custoMateriais: number }
@@ -85,7 +94,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
     }
   }, [propostaId]);
 
-  const calcKey = JSON.stringify([form.potenciaKw, form.fase, form.distanciaM, form.qtdPontos, recalcNonce]);
+  const calcKey = JSON.stringify([form.potenciaKw, form.fase, form.distanciaM, form.qtdPontos, form.protecaoCcIntegrada, recalcNonce]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (parseBR(form.potenciaKw) <= 0) { setSizing(null); setBom(null); setPreco(null); return; }
@@ -94,7 +103,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       try {
         const res = await fetch("/api/carregador/calcular", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ potenciaKw: parseBR(form.potenciaKw), fase: form.fase, distanciaM: parseBR(form.distanciaM), qtdPontos: form.qtdPontos }),
+          body: JSON.stringify({ potenciaKw: parseBR(form.potenciaKw), fase: form.fase, distanciaM: parseBR(form.distanciaM), qtdPontos: form.qtdPontos, protecaoCcIntegrada: form.protecaoCcIntegrada }),
         });
         if (res.ok) {
           const d = await res.json();
@@ -132,7 +141,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
     const base = sizing
       ? `Base de dimensionamento (NBR 5410) — Carregador ${nf(parseBR(form.potenciaKw), parseBR(form.potenciaKw) % 1 ? 1 : 0)} kW ${form.fase === "mono" ? "monofásico (220 V)" : "trifásico (380 V)"} · ` +
         `Corrente nominal: ${nf(sizing.correnteNominal, 1)} A · Corrente de projeto: ${nf(sizing.correnteProjeto, 1)} A · ` +
-        `Disjuntor: ${sizing.disjuntorA} A curva C (${sizing.polos}P) + DR Tipo A · Condutor: ${sizing.nCondutores} × ${sizing.secaoMm2} mm² (queda ${nf(sizing.quedaPct * 100, 1)}%) em eletroduto ${sizing.eletroduto} · ` +
+        `Disjuntor: ${sizing.disjuntorA} A curva C (${sizing.polos}P) · Proteção diferencial DR Tipo ${sizing.drTipo} (NBR 17019) · Condutor: ${sizing.nCondutores} × ${sizing.secaoMm2} mm² (queda ${nf(sizing.quedaPct * 100, 1)}%) em eletroduto ${sizing.eletroduto} · ` +
         `${sizing.nDps} DPS Classe II e aterramento dedicado. Distância considerada: ${nf(parseBR(form.distanciaM), 0)} m.`
       : "";
     return [base, ...form.observacoesExtra.split("\n")].filter((l) => l.trim());
@@ -212,6 +221,13 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       <section className={sec}>
         <h2 className={h2}>Carregador e infraestrutura</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">O sistema dimensiona a proteção e o cabo (NBR 5410) e monta a lista de materiais.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button key={p.label} type="button" className="btn-secondary !py-1 text-xs" onClick={() => setForm((f) => ({ ...f, potenciaKw: p.kw, fase: p.fase }))}>
+              {p.label}
+            </button>
+          ))}
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2"><label className="field-label">Potência (kW) *</label><input className={inputCls} inputMode="decimal" value={form.potenciaKw} onChange={(e) => set("potenciaKw", e.target.value)} placeholder="Ex.: 7,4 / 11 / 22" /></div>
           <div className="sm:col-span-2">
@@ -223,6 +239,14 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
           </div>
           <div className="sm:col-span-1"><label className="field-label">Distância (m)</label><input className={inputCls} inputMode="decimal" value={form.distanciaM} onChange={(e) => set("distanciaM", e.target.value)} /></div>
           <div className="sm:col-span-1"><label className="field-label">Nº de pontos</label><input type="number" className={inputCls} value={form.qtdPontos} onChange={(e) => set("qtdPontos", Number(e.target.value))} /></div>
+          <div className="sm:col-span-6">
+            <label className="field-label">Proteção diferencial (NBR 17019)</label>
+            <select className={inputCls} value={form.protecaoCcIntegrada ? "sim" : "nao"} onChange={(e) => set("protecaoCcIntegrada", e.target.value === "sim")}>
+              <option value="sim">Carregador com detecção de 6 mA CC integrada → DR Tipo A</option>
+              <option value="nao">Sem detecção integrada → DR Tipo B (obrigatório)</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">A NBR 17019 proíbe DR Tipo AC. A maioria dos WallBox (WEG, Intelbras, Wallbox) tem detecção de 6 mA CC integrada.</p>
+          </div>
         </div>
 
         {sizing && (
@@ -233,7 +257,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
             <Kpi label="Condutor" value={`${sizing.nCondutores} × ${sizing.secaoMm2} mm²`} />
             <Kpi label="Eletroduto" value={sizing.eletroduto} />
             <Kpi label="Queda de tensão" value={`${nf(sizing.quedaPct * 100, 2)}%`} />
-            <Kpi label="DR" value={`${sizing.disjuntorA} A · ${sizing.polos}P`} />
+            <Kpi label="DR (NBR 17019)" value={`Tipo ${sizing.drTipo} · ${sizing.disjuntorA} A`} />
             <Kpi label="DPS" value={`${sizing.nDps} × Classe II`} />
           </div>
         )}
