@@ -70,6 +70,10 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [fCliente, setFCliente] = useState<string>("todos");
   const [busca, setBusca] = useState("");
 
+  // paginação
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState(20);
+
   // formulário de nova tarefa
   const [novaAberta, setNovaAberta] = useState(false);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
@@ -143,6 +147,18 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     });
     return list;
   }, [tasks, fStatus, fResp, fCliente, busca]);
+
+  // volta para a 1ª página quando os filtros/busca mudam
+  useEffect(() => {
+    setPagina(1);
+  }, [fStatus, fResp, fCliente, busca, porPagina]);
+
+  // fatia a página atual (paginação no cliente sobre a lista já filtrada)
+  const totalPaginas = Math.max(1, Math.ceil(visiveis.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const paginadas = visiveis.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+  const inicio = visiveis.length === 0 ? 0 : (paginaAtual - 1) * porPagina + 1;
+  const fim = Math.min(paginaAtual * porPagina, visiveis.length);
 
   function aplicar(task: Task) {
     setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
@@ -329,7 +345,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
                 </td>
               </tr>
             )}
-            {visiveis.map((t) => (
+            {paginadas.map((t) => (
               <TaskRow
                 key={t.id}
                 task={t}
@@ -346,6 +362,47 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           </tbody>
         </table>
       </div>
+
+      {/* paginação */}
+      {visiveis.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">
+              {inicio}–{fim} de {visiveis.length}
+            </span>
+            <select
+              className="field-input !w-auto !py-1 text-xs"
+              value={porPagina}
+              onChange={(e) => setPorPagina(Number(e.target.value))}
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} por página
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-secondary !py-1 text-xs"
+              disabled={paginaAtual <= 1}
+              onClick={() => setPagina(paginaAtual - 1)}
+            >
+              ← Anterior
+            </button>
+            <span className="px-1 text-slate-500">
+              Página {paginaAtual} de {totalPaginas}
+            </span>
+            <button
+              className="btn-secondary !py-1 text-xs"
+              disabled={paginaAtual >= totalPaginas}
+              onClick={() => setPagina(paginaAtual + 1)}
+            >
+              Próxima →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
