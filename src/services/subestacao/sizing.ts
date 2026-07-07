@@ -86,13 +86,40 @@ export function dimensionarSE(i: SizingSEInput): SizingSEResult {
   };
 }
 
-/** Faixas de preço do PROJETO por kVA do transformador (mediana histórica GTA). */
-const FAIXAS_PRECO: [number, number][] = [
-  [150, 6000], [300, 7000], [500, 10000], [750, 15000], [1000, 16000], [1500, 18000], [2000, 20000],
-];
+/**
+ * Preço do PROJETO por custo (bottom-up):
+ *   horas = base(tipo) + horasPorCemKva × (kVA/100)
+ *   custo = horas × valor/hora + ART
+ *   preço = custo × (1 + margem), arredondado a R$ 50
+ */
+export interface PrecoParams {
+  valorHora: number;
+  horasAerea: number;
+  horasAbrigada: number;
+  horasPedestal: number;
+  horasPorCemKva: number;
+  artProjeto: number;
+  margemProjeto: number;
+}
 
-export function precoProjetoSE(trafoKva: number, qtd = 1): number {
-  const faixa = FAIXAS_PRECO.find(([k]) => trafoKva <= k);
-  const base = faixa ? faixa[1] : 24000;
-  return base * Math.max(1, qtd);
+export interface PrecoResult {
+  horas: number;
+  custo: number;
+  margem: number;
+  precoUnitario: number;
+  precoTotal: number;
+}
+
+export function precoProjeto(p: PrecoParams, tipo: TipoSE, trafoKva: number, qtd = 1): PrecoResult {
+  const horasBase = tipo === "Abrigada" ? p.horasAbrigada : tipo === "Pedestal" ? p.horasPedestal : p.horasAerea;
+  const horas = horasBase + p.horasPorCemKva * (trafoKva / 100);
+  const custo = horas * p.valorHora + p.artProjeto;
+  const precoUnitario = Math.round((custo * (1 + p.margemProjeto)) / 50) * 50;
+  return {
+    horas,
+    custo,
+    margem: p.margemProjeto,
+    precoUnitario,
+    precoTotal: precoUnitario * Math.max(1, qtd),
+  };
 }

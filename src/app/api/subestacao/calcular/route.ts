@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/session";
-import { dimensionarSE, precoProjetoSE } from "@/services/subestacao/sizing";
+import { dimensionarSE, precoProjeto } from "@/services/subestacao/sizing";
+import { getSubestacaoParams } from "@/services/subestacao/params";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ const schema = z.object({
   demandaKva: z.coerce.number().min(0).default(0),
   tensaoMt: z.coerce.number().positive().default(13.8),
   tensaoBt: z.coerce.number().positive().default(380),
+  tipoSE: z.enum(["Aérea", "Abrigada", "Pedestal"]).default("Aérea"),
   qtdSubestacoes: z.coerce.number().int().min(1).default(1),
 });
 
@@ -33,7 +35,8 @@ export async function POST(req: Request) {
   const i = parsed.data;
 
   const sizing = dimensionarSE(i);
-  const precoSugerido = precoProjetoSE(sizing.trafoKva, i.qtdSubestacoes);
+  const params = await getSubestacaoParams();
+  const preco = precoProjeto(params, i.tipoSE, sizing.trafoKva, i.qtdSubestacoes);
 
-  return NextResponse.json({ sizing, precoSugerido });
+  return NextResponse.json({ sizing, preco });
 }

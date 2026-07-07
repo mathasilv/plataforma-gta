@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SubestacaoParamsForm } from "./SubestacaoParamsForm";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -87,11 +88,20 @@ interface Sizing {
   condutorMt: string;
 }
 
+interface Preco {
+  horas: number;
+  custo: number;
+  margem: number;
+  precoUnitario: number;
+  precoTotal: number;
+}
+
 export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
   const [sizing, setSizing] = useState<Sizing | null>(null);
-  const [precoSugerido, setPrecoSugerido] = useState(0);
+  const [preco, setPreco] = useState<Preco | null>(null);
+  const [recalcNonce, setRecalcNonce] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -100,6 +110,12 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
   const precoTocado = useRef(false);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  // ao salvar os parâmetros de preço, recalcula e volta a aplicar a sugestão
+  function aplicarParams() {
+    precoTocado.current = false;
+    setRecalcNonce((n) => n + 1);
+  }
 
   useEffect(() => {
     if (propostaId) {
@@ -119,7 +135,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
   // cálculo ao vivo (debounce)
   const calcKey = JSON.stringify([
     form.modo, form.cargaKw, form.fatorDemanda, form.fatorPotencia, form.demandaKva,
-    form.tensaoMt, form.tensaoBt, form.qtdSubestacoes,
+    form.tensaoMt, form.tensaoBt, form.tipoSE, form.qtdSubestacoes, recalcNonce,
   ]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -142,14 +158,15 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
             demandaKva: parseBR(form.demandaKva),
             tensaoMt: form.tensaoMt,
             tensaoBt: form.tensaoBt,
+            tipoSE: form.tipoSE,
             qtdSubestacoes: form.qtdSubestacoes,
           }),
         });
         if (res.ok) {
           const d = await res.json();
           setSizing(d.sizing);
-          setPrecoSugerido(d.precoSugerido);
-          if (!precoTocado.current) setForm((f) => ({ ...f, valorProjeto: nf(d.precoSugerido, 2) }));
+          setPreco(d.preco);
+          if (!precoTocado.current) setForm((f) => ({ ...f, valorProjeto: nf(d.preco.precoTotal, 2) }));
         }
       } catch {
         /* ignora erro transitório */
@@ -401,12 +418,23 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
 
       {/* Preço */}
       <section className={sec}>
-        <h2 className={h2}>Preço</h2>
+        <div className="flex items-center justify-between">
+          <h2 className={h2}>Preço</h2>
+          {preco && !precoTocado.current && (
+            <button type="button" className="text-xs text-gta-indigo hover:underline" onClick={() => { precoTocado.current = false; setForm((f) => ({ ...f, valorProjeto: nf(preco.precoTotal, 2) })); }}>
+              Usar sugerido {brl(preco.precoTotal)}
+            </button>
+          )}
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Valor do projeto (R$) *</label>
             <input className={inputCls} value={form.valorProjeto} onChange={(e) => { precoTocado.current = true; set("valorProjeto", e.target.value); }} placeholder="Ex.: 8.000,00" />
-            {sizing ? <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Sugestão por kVA: {brl(precoSugerido)}</p> : null}
+            {preco ? (
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                {nf(preco.horas, 1)} h × valor/hora + ART = custo {brl(preco.custo)} · margem {nf(preco.margem * 100, 0)}% → sugerido {brl(preco.precoTotal)}
+              </p>
+            ) : null}
           </div>
           <div className="sm:col-span-2">
             <label className="field-label">Impostos / NF (R$)</label>
@@ -437,6 +465,19 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
             <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
             <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
           </div>
+        </div>
+      </details>
+
+      {/* Parâmetros de preço (retraído; disponível a todos) */}
+      <details className={sec}>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">
+          Parâmetros de preço (modelo por custo)
+        </summary>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Preço = (horas × valor/hora + ART) × (1 + margem). Ao salvar, valem para todos os próximos cálculos.
+        </p>
+        <div className="mt-4">
+          <SubestacaoParamsForm onSaved={aplicarParams} />
         </div>
       </details>
 
