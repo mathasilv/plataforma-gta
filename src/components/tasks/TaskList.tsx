@@ -106,6 +106,13 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [tasks]);
 
+  // responsáveis distintos presentes nas tarefas (nomes importados ou e-mails de usuários)
+  const responsaveis = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach((t) => t.responsavel && set.add(t.responsavel));
+    return Array.from(set).sort((a, b) => nomeDe(a).localeCompare(nomeDe(b), "pt-BR"));
+  }, [tasks, nomeDe]);
+
   const visiveis = useMemo(() => {
     let list = [...tasks];
     if (fStatus === "ativas") list = list.filter((t) => t.status !== "concluida");
@@ -220,9 +227,9 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         </select>
         <select className="field-input !w-auto" value={fResp} onChange={(e) => setFResp(e.target.value)}>
           <option value="todos">Todos os responsáveis</option>
-          {usuarios.map((u) => (
-            <option key={u.email} value={u.email}>
-              {u.name}
+          {responsaveis.map((r) => (
+            <option key={r} value={r}>
+              {nomeDe(r)}
             </option>
           ))}
         </select>
