@@ -41,6 +41,7 @@ interface Row {
   id: string;
   titulo: string;
   descricao: string;
+  cliente: string;
   responsavel: string;
   status: string;
   prioridade: string;
@@ -56,6 +57,7 @@ function rowToTask(r: Row): Task {
     id: r.id,
     titulo: r.titulo,
     descricao: r.descricao,
+    cliente: r.cliente ?? "",
     responsavel: r.responsavel,
     status: r.status as Task["status"],
     prioridade: r.prioridade as Task["prioridade"],
@@ -78,11 +80,13 @@ export class PostgresTaskStore implements TaskStore {
   /** Cria a tabela na primeira operação (idempotente). */
   private ensureSchema(): Promise<void> {
     if (!this.ready) {
-      this.ready = this.pool.sql`
+      this.ready = this.pool
+        .sql`
         CREATE TABLE IF NOT EXISTS tasks (
           id uuid PRIMARY KEY,
           titulo text NOT NULL,
           descricao text NOT NULL DEFAULT '',
+          cliente text NOT NULL DEFAULT '',
           responsavel text NOT NULL,
           status text NOT NULL,
           prioridade text NOT NULL,
@@ -92,7 +96,10 @@ export class PostgresTaskStore implements TaskStore {
           criado_em timestamptz NOT NULL,
           atualizado_em timestamptz NOT NULL
         )
-      `.then(() => undefined);
+      `
+        // Garante a coluna em tabelas criadas antes do campo cliente existir
+        .then(() => this.pool.sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cliente text NOT NULL DEFAULT ''`)
+        .then(() => undefined);
     }
     return this.ready;
   }
@@ -117,9 +124,9 @@ export class PostgresTaskStore implements TaskStore {
     const now = new Date().toISOString();
     await this.pool.sql`
       INSERT INTO tasks
-        (id, titulo, descricao, responsavel, status, prioridade, prazo, comentarios, criado_por, criado_em, atualizado_em)
+        (id, titulo, descricao, cliente, responsavel, status, prioridade, prazo, comentarios, criado_por, criado_em, atualizado_em)
       VALUES
-        (${id}, ${data.titulo}, ${data.descricao}, ${data.responsavel}, ${data.status},
+        (${id}, ${data.titulo}, ${data.descricao}, ${data.cliente}, ${data.responsavel}, ${data.status},
          ${data.prioridade}, ${data.prazo}, '[]'::jsonb, ${data.criadoPor}, ${now}, ${now})
     `;
     return { ...data, id, comentarios: [], criadoEm: now, atualizadoEm: now };
@@ -137,6 +144,7 @@ export class PostgresTaskStore implements TaskStore {
       UPDATE tasks SET
         titulo = ${next.titulo},
         descricao = ${next.descricao},
+        cliente = ${next.cliente},
         responsavel = ${next.responsavel},
         status = ${next.status},
         prioridade = ${next.prioridade},

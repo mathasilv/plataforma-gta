@@ -50,12 +50,13 @@ function formatDataHora(iso: string): string {
 interface FormState {
   titulo: string;
   descricao: string;
+  cliente: string;
   responsavel: string;
   prioridade: Prioridade;
   prazo: string;
 }
 
-const FORM_VAZIO: FormState = { titulo: "", descricao: "", responsavel: "", prioridade: "media", prazo: "" };
+const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", responsavel: "", prioridade: "media", prazo: "" };
 
 export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -66,6 +67,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   // filtros
   const [fStatus, setFStatus] = useState<string>("ativas");
   const [fResp, setFResp] = useState<string>("todos");
+  const [fCliente, setFCliente] = useState<string>("todos");
   const [busca, setBusca] = useState("");
 
   // formulário de nova tarefa
@@ -97,15 +99,26 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     return (email: string) => map.get(email) ?? email;
   }, [usuarios]);
 
+  // clientes distintos presentes nas tarefas (para o filtro)
+  const clientes = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach((t) => t.cliente && set.add(t.cliente));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [tasks]);
+
   const visiveis = useMemo(() => {
     let list = [...tasks];
     if (fStatus === "ativas") list = list.filter((t) => t.status !== "concluida");
     else if (fStatus !== "todas") list = list.filter((t) => t.status === fStatus);
     if (fResp !== "todos") list = list.filter((t) => t.responsavel === fResp);
+    if (fCliente !== "todos") list = list.filter((t) => t.cliente === fCliente);
     const q = busca.trim().toLowerCase();
     if (q) {
       list = list.filter(
-        (t) => t.titulo.toLowerCase().includes(q) || t.descricao.toLowerCase().includes(q),
+        (t) =>
+          t.titulo.toLowerCase().includes(q) ||
+          t.descricao.toLowerCase().includes(q) ||
+          (t.cliente ?? "").toLowerCase().includes(q),
       );
     }
     // ordenação: concluídas por último; depois atrasadas primeiro; prazo mais próximo; prioridade
@@ -122,7 +135,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
       return PRIORIDADE_PESO[a.prioridade] - PRIORIDADE_PESO[b.prioridade];
     });
     return list;
-  }, [tasks, fStatus, fResp, busca]);
+  }, [tasks, fStatus, fResp, fCliente, busca]);
 
   function aplicar(task: Task) {
     setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
@@ -213,6 +226,16 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             </option>
           ))}
         </select>
+        {clientes.length > 0 && (
+          <select className="field-input !w-auto" value={fCliente} onChange={(e) => setFCliente(e.target.value)}>
+            <option value="todos">Todos os clientes</option>
+            {clientes.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           className="field-input !w-56"
           placeholder="Buscar..."
@@ -239,7 +262,11 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
               <label className="field-label">Descrição</label>
               <textarea className="field-input min-h-[70px]" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
             </div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-3">
+              <label className="field-label">Cliente</label>
+              <input className="field-input" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} placeholder="Ex.: CPDF, Fazenda Rio Doce..." />
+            </div>
+            <div className="sm:col-span-3">
               <label className="field-label">Responsável *</label>
               <select className="field-input" value={form.responsavel} onChange={(e) => setForm({ ...form, responsavel: e.target.value })} required>
                 <option value="">Selecione...</option>
@@ -280,6 +307,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             <tr>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Tarefa</th>
+              <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Responsável</th>
               <th className="px-4 py-3">Prioridade</th>
               <th className="px-4 py-3">Prazo</th>
@@ -289,7 +317,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           <tbody>
             {visiveis.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   Nenhuma tarefa encontrada. Crie a primeira com “+ Nova tarefa”.
                 </td>
               </tr>
@@ -343,6 +371,7 @@ function TaskRow({
   const [edit, setEdit] = useState<FormState>({
     titulo: t.titulo,
     descricao: t.descricao,
+    cliente: t.cliente ?? "",
     responsavel: t.responsavel,
     prioridade: t.prioridade,
     prazo: t.prazo,
@@ -372,6 +401,7 @@ function TaskRow({
             <span className="ml-2 text-xs text-slate-400">💬 {t.comentarios.length}</span>
           )}
         </td>
+        <td className="px-4 py-2 text-slate-600">{t.cliente || <span className="text-slate-300">—</span>}</td>
         <td className="px-4 py-2 text-slate-600">{nomeDe(t.responsavel)}</td>
         <td className="px-4 py-2">
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORIDADE_BADGE[t.prioridade]}`}>
@@ -390,7 +420,7 @@ function TaskRow({
       </tr>
       {aberta && (
         <tr className="border-t border-slate-100 bg-slate-50/60">
-          <td colSpan={6} className="px-6 py-4">
+          <td colSpan={7} className="px-6 py-4">
             {!editando ? (
               <div className="space-y-3">
                 <p className="whitespace-pre-wrap text-sm text-slate-700">
@@ -420,9 +450,16 @@ function TaskRow({
                   <label className="field-label">Descrição</label>
                   <textarea className="field-input min-h-[70px]" value={edit.descricao} onChange={(e) => setEdit({ ...edit, descricao: e.target.value })} />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-3">
+                  <label className="field-label">Cliente</label>
+                  <input className="field-input" value={edit.cliente} onChange={(e) => setEdit({ ...edit, cliente: e.target.value })} />
+                </div>
+                <div className="sm:col-span-3">
                   <label className="field-label">Responsável</label>
                   <select className="field-input" value={edit.responsavel} onChange={(e) => setEdit({ ...edit, responsavel: e.target.value })}>
+                    {!usuarios.some((u) => u.email === edit.responsavel) && edit.responsavel && (
+                      <option value={edit.responsavel}>{edit.responsavel}</option>
+                    )}
                     {usuarios.map((u) => (
                       <option key={u.email} value={u.email}>
                         {u.name}

@@ -30,6 +30,8 @@ export interface Task {
   id: string;
   titulo: string;
   descricao: string;
+  /** Cliente/obra relacionada à tarefa (texto livre). */
+  cliente: string;
   /** E-mail do responsável (usuário cadastrado na plataforma). */
   responsavel: string;
   status: StatusTarefa;
@@ -47,8 +49,9 @@ const prioridadeEnum = z.enum(["baixa", "media", "alta"]);
 
 /** Payload de criação de tarefa. */
 export const createTaskSchema = z.object({
-  titulo: z.string().trim().min(1, "Informe o título").max(200),
+  titulo: z.string().trim().min(1, "Informe o título").max(300),
   descricao: z.string().trim().max(4000).default(""),
+  cliente: z.string().trim().max(200).default(""),
   responsavel: z.string().trim().min(1, "Informe o responsável"),
   status: statusEnum.default("afazer"),
   prioridade: prioridadeEnum.default("media"),
