@@ -16,6 +16,7 @@ export const solarService: ServiceModule = {
   referencePrefix: "SOLAR",
   validityDays: 20,
   templateFile: "src/services/solar/template.docx",
+  usesConfigurator: true,
   formSchema: solarFormSchema,
   zodSchema: solarZodSchema,
   map: (formData) => mapSolar(formData as SolarFormData),

@@ -94,6 +94,11 @@ export interface ServiceModule {
   validityDays: number;
   /** Caminho do molde .docx relativo à raiz do projeto */
   templateFile: string;
+  /**
+   * Se true, a tela usa um configurador próprio (ex.: Solar/CPQ) em vez do
+   * formulário dinâmico genérico. A geração do .docx continua igual.
+   */
+  usesConfigurator?: boolean;
   /** Definição do formulário dinâmico */
   formSchema: FormSchema;
   /** Schema de validação (Zod) dos dados do formulário */
