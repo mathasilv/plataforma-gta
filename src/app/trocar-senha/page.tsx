@@ -13,7 +13,7 @@ export default async function TrocarSenhaPage() {
         <div className="p-8">
           <div className="mb-6 text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/gta-logo.png" alt="GTA Energia" className="mx-auto h-20 w-auto" />
+            <img src="/brand/gta-icon.png" alt="GTA Energia" className="mx-auto h-16 w-auto" />
             <h1 className="mt-3 text-lg font-bold text-gta-navy dark:text-slate-100">Defina sua senha</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {forcado

@@ -5,11 +5,14 @@
 :root {
   --background: #f5f6f8;
   --foreground: #1a2f4a;
+  color-scheme: light;
 }
 
 .dark {
   --background: #0b1220;
   --foreground: #e2e8f0;
+  /* Renderiza controles nativos (date picker, scrollbars) em modo escuro */
+  color-scheme: dark;
 }
 
 body {
