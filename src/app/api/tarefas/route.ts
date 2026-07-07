@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getTaskStore } from "@/lib/tasks/store";
 import { createTaskSchema } from "@/lib/tasks/types";
 import { getSessionUser } from "@/lib/session";
+import { notifyTaskAssigned } from "@/lib/email/notifyTask";
 
 export const runtime = "nodejs";
 
@@ -33,5 +34,7 @@ export async function POST(req: Request) {
   }
 
   const task = await getTaskStore().create({ ...parsed.data, criadoPor: user.email });
+  // Notifica o responsável por e-mail após a resposta (best-effort, não bloqueia).
+  after(() => notifyTaskAssigned(task));
   return NextResponse.json({ task }, { status: 201 });
 }

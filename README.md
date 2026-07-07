@@ -18,7 +18,9 @@ controle de acesso por usuário.
   a coluna de quem criou.
 - **Tarefas** (`/tarefas`) — lista com filtros por status/responsável, busca,
   prioridade, prazo com alerta de atraso e comentários por usuário. Os responsáveis
-  vêm dos usuários cadastrados.
+  vêm dos usuários cadastrados. Opcionalmente, envia um **e-mail ao responsável**
+  quando uma tarefa é criada para ele (desligado por padrão; ative com o Resend —
+  veja `.env.example`).
 - **Conta e usuários** — menu do usuário com "Minha conta", troca de senha, tema
   claro/escuro e, para administradores, gerenciamento de usuários.
 
