@@ -11,7 +11,7 @@ export const solarService: ServiceModule = {
   key: "solar",
   label: "Energia Solar Fotovoltaica",
   description:
-    "Proposta de sistema de microgeração solar On-Grid (implantação ou ampliação).",
+    "Dimensione pelo consumo da conta, simule a geração e gere a proposta On-Grid.",
   icon: "☀️",
   referencePrefix: "SOLAR",
   validityDays: 20,

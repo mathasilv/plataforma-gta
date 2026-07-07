@@ -3,9 +3,11 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/session";
 import { getMunicipio } from "@/services/solar/municipios";
 import { dimensionar, kwpTotal, overloadReal } from "@/services/solar/sizing";
+import { sugerirInversorComercial } from "@/services/solar/commercial";
 import { simularGeracao } from "@/services/solar/generation";
 import { gerarBom } from "@/services/solar/bom";
-import { precificar, PRICING_DEFAULTS } from "@/services/solar/pricing";
+import { precificar } from "@/services/solar/pricing";
+import { getSolarParams } from "@/services/solar/params";
 import { parseNumber } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -15,16 +17,18 @@ const schema = z.object({
   consumo: z.array(z.coerce.number()).length(12),
   tipoConexao: z.enum(["mono", "bi", "tri"]).default("tri"),
   potenciaPainel: z.coerce.number().positive().default(700),
-  eficiencia: z.coerce.number().positive().default(0.75),
-  overloadDesejado: z.coerce.number().default(0.15),
-  nPaineis: z.coerce.number().int().positive(),
-  potenciaInversor: z.coerce.number().positive().default(1),
+  // 0 = "não definido": o servidor usa o padrão/sugestão
+  eficiencia: z.coerce.number().min(0).max(1).default(0),
+  overloadDesejado: z.coerce.number().min(-1).max(1).optional(),
+  nPaineis: z.coerce.number().int().min(0).default(0),
+  potenciaInversor: z.coerce.number().min(0).default(0),
   qtdInversores: z.coerce.number().int().positive().default(1),
   tipoInversor: z.enum(["string", "micro"]).default("string"),
   tipoTelhado: z.string().default("Metálico"),
-  // precificação (opcional)
+  // precificação (opcional; defaults vêm dos parâmetros salvos)
   kit: z.union([z.string(), z.number()]).optional(),
   fator: z.coerce.number().optional(),
+  viagens: z.coerce.number().int().min(0).optional(),
   execucaoCivil: z.union([z.string(), z.number()]).optional(),
 });
 
@@ -47,23 +51,33 @@ export async function POST(req: Request) {
   const mun = getMunicipio(i.municipio);
   if (!mun) return NextResponse.json({ error: "Município não encontrado." }, { status: 404 });
 
+  // Parâmetros vigentes (admin pode alterá-los em /admin/parametros)
+  const params = await getSolarParams();
+  const eficiencia = i.eficiencia > 0 ? i.eficiencia : params.eficiencia;
+  const overloadDesejado = i.overloadDesejado ?? params.overloadDesejado;
+
   const sizing = dimensionar({
     consumo: i.consumo,
     tipoConexao: i.tipoConexao,
     hsp: mun.hsp,
     potenciaPainel: i.potenciaPainel,
-    eficiencia: i.eficiencia,
-    overloadDesejado: i.overloadDesejado,
+    eficiencia,
+    overloadDesejado,
   });
 
-  const kwp = kwpTotal(i.nPaineis, i.potenciaPainel);
-  const overload = overloadReal(kwp, i.potenciaInversor);
-  const geracao = simularGeracao(mun.hsp, kwp, i.eficiencia, i.consumo);
+  // Valores comerciais aplicados: usa o que o usuário escolheu, senão a sugestão
+  const nPaineis = i.nPaineis > 0 ? i.nPaineis : Math.max(1, sizing.nPlacasSugerido);
+  const kwp = kwpTotal(nPaineis, i.potenciaPainel);
+  const inversorSugerido = sugerirInversorComercial(kwp, overloadDesejado);
+  const potenciaInversor = i.potenciaInversor > 0 ? i.potenciaInversor : inversorSugerido;
+  const overload = overloadReal(kwp, potenciaInversor);
+
+  const geracao = simularGeracao(mun.hsp, kwp, eficiencia, i.consumo);
   const bom = gerarBom({
-    nPaineis: i.nPaineis,
+    nPaineis,
     potenciaPainel: i.potenciaPainel,
     tipoInversor: i.tipoInversor,
-    potenciaInversor: i.potenciaInversor,
+    potenciaInversor,
     qtdInversores: i.qtdInversores,
     tipoTelhado: i.tipoTelhado,
   });
@@ -72,14 +86,25 @@ export async function POST(req: Request) {
   const kitNum = parseNumber(i.kit ?? 0);
   if (kitNum > 0) {
     pricing = precificar({
-      ...PRICING_DEFAULTS,
-      fator: i.fator ?? PRICING_DEFAULTS.fator,
+      ...params,
+      fator: i.fator ?? params.fator,
+      viagens: i.viagens ?? params.viagens,
       execucaoCivil: parseNumber(i.execucaoCivil ?? 0),
       kit: kitNum,
-      nPaineis: i.nPaineis,
+      nPaineis,
       kwpTotal: kwp,
     });
   }
 
-  return NextResponse.json({ sizing, kwpTotal: kwp, overload, geracao, bom, pricing });
+  return NextResponse.json({
+    sizing,
+    // o que foi de fato usado no cálculo (preenche o formulário quando "auto")
+    aplicado: { nPaineis, potenciaInversor, eficiencia, overloadDesejado },
+    inversorSugerido,
+    kwpTotal: kwp,
+    overload,
+    geracao,
+    bom,
+    pricing,
+  });
 }

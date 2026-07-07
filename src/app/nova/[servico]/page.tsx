@@ -35,7 +35,7 @@ export default async function NovaPropostaPage({
         </div>
 
         {service.usesConfigurator ? (
-          <SolarConfigurator propostaId={proposta} />
+          <SolarConfigurator propostaId={proposta} isAdmin={user.role === "admin"} />
         ) : (
           <DynamicForm serviceKey={service.key} serviceLabel={service.label} formSchema={service.formSchema} />
         )}

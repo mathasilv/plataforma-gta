@@ -1,13 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  PAINEIS_COMERCIAIS,
+  INVERSORES_COMERCIAIS,
+  sugerirInversorComercial,
+} from "@/services/solar/commercial";
 
 /** Formatação pt-BR local (sem depender de libs de servidor). */
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
 const brl = (v: number) => "R$ " + nf(v, 2);
 const pct = (v: number) => nf(v * 100, 2) + "%";
+/** kW sem casas desnecessárias: 3.5 -> "3,5" · 10 -> "10" */
+const kw = (v: number) => nf(v, Number.isInteger(v) ? 0 : 1);
+/** Busca sem acento/caixa. */
+const normalizar = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -24,10 +35,10 @@ interface Form {
   consumo: string[]; // 12
   tipoConexao: "mono" | "bi" | "tri";
   potenciaPainel: number;
-  eficiencia: number;
-  overloadDesejado: number;
-  nPaineis: number;
-  potenciaInversor: number;
+  eficiencia: number; // fração (0,75)
+  overloadDesejado: number; // fração (0,15)
+  nPaineis: number; // 0 = automático (usa a sugestão)
+  potenciaInversor: number; // 0 = automático
   qtdInversores: number;
   tipoInversor: "string" | "micro";
   tipoTelhado: string;
@@ -37,6 +48,7 @@ interface Form {
   kitItens: string;
   kit: string;
   fator: number;
+  viagens: number;
   execucaoCivil: string;
   textoObjetivo: string;
   textoObservacao: string;
@@ -61,7 +73,7 @@ const FORM_INICIAL: Form = {
   eficiencia: 0.75,
   overloadDesejado: 0.15,
   nPaineis: 0,
-  potenciaInversor: 5,
+  potenciaInversor: 0,
   qtdInversores: 1,
   tipoInversor: "string",
   tipoTelhado: "Metálico",
@@ -71,6 +83,7 @@ const FORM_INICIAL: Form = {
   kitItens: "módulos, inversor, estrutura e cabos",
   kit: "",
   fator: 1.5,
+  viagens: 2,
   execucaoCivil: "0",
   textoObjetivo:
     "A presente proposta tem como objetivo a implantação de um sistema de microgeração de energia solar fotovoltaica conectada à rede elétrica (On-Grid), proporcionando redução nos custos com energia elétrica através da geração própria de energia limpa e renovável.",
@@ -81,6 +94,8 @@ const FORM_INICIAL: Form = {
 
 interface Calc {
   sizing: { consumoMedio: number; hspMedia: number; kwpNecessaria: number; nPlacasSugerido: number; inversorSugerido: number };
+  aplicado: { nPaineis: number; potenciaInversor: number; eficiencia: number; overloadDesejado: number };
+  inversorSugerido: number;
   kwpTotal: number;
   overload: number;
   geracao: { linhas: { mes: string; insolacao: number; energia: number; consumo: number }[]; totalEnergia: number; totalConsumo: number };
@@ -97,7 +112,15 @@ const DISTRIBUIDORES = [
   { value: "outro", label: "Outro distribuidor" },
 ];
 
-export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
+const PASSOS = [
+  "Informe o consumo da conta de energia",
+  "Confira o dimensionamento sugerido",
+  "Copie a lista e cote o kit com o distribuidor",
+  "Informe o preço do kit e veja a margem",
+  "Salve e gere o .docx",
+];
+
+export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string; isAdmin?: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
   const [municipios, setMunicipios] = useState<{ nome: string; uf: string }[]>([]);
@@ -107,28 +130,53 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const [salvando, setSalvando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
+  const [painelCustom, setPainelCustom] = useState(false);
+  const [invCustom, setInvCustom] = useState(false);
+  // campos que o usuário já editou de propósito (a sugestão não sobrescreve)
+  const touched = useRef({ nPaineis: false, inversor: false });
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  // carrega municípios e (se reabrindo) a proposta salva
+  // carrega municípios, parâmetros padrão e (se reabrindo) a proposta salva
   useEffect(() => {
     fetch("/api/municipios").then((r) => r.json()).then((d) => setMunicipios(d.municipios ?? [])).catch(() => {});
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) setForm({ ...FORM_INICIAL, ...(d.proposta.dados as Partial<Form>) });
+        if (d.proposta?.dados) {
+          const dados = d.proposta.dados as Partial<Form>;
+          setForm({ ...FORM_INICIAL, ...dados });
+          // valores salvos são escolhas do usuário — não sobrescrever com sugestões
+          touched.current = { nPaineis: (dados.nPaineis ?? 0) > 0, inversor: (dados.potenciaInversor ?? 0) > 0 };
+          if (dados.potenciaPainel && !PAINEIS_COMERCIAIS.includes(dados.potenciaPainel)) setPainelCustom(true);
+          if (dados.potenciaInversor && !INVERSORES_COMERCIAIS.includes(dados.potenciaInversor)) setInvCustom(true);
+        }
+      }).catch(() => {});
+    } else {
+      // proposta nova: usa os parâmetros vigentes (editáveis em /admin/parametros)
+      fetch("/api/solar/config").then((r) => r.json()).then((d) => {
+        if (d.params) {
+          setForm((f) => ({
+            ...f,
+            eficiencia: d.params.eficiencia,
+            overloadDesejado: d.params.overloadDesejado,
+            fator: d.params.fator,
+            viagens: d.params.viagens,
+          }));
+        }
       }).catch(() => {});
     }
   }, [propostaId]);
 
-  // recálculo ao vivo (debounce) quando os dados relevantes mudam
+  // recálculo ao vivo (debounce) — dispara com município + consumo; painéis/inversor são sugeridos
+  const temConsumo = form.consumo.some((c) => Number(c) > 0);
   const calcKey = JSON.stringify([
     form.municipio, form.consumo, form.tipoConexao, form.potenciaPainel, form.eficiencia,
     form.overloadDesejado, form.nPaineis, form.potenciaInversor, form.qtdInversores,
-    form.tipoInversor, form.tipoTelhado, form.kit, form.fator, form.execucaoCivil,
+    form.tipoInversor, form.tipoTelhado, form.kit, form.fator, form.viagens, form.execucaoCivil,
   ]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!form.municipio || !form.nPaineis) {
+    if (!form.municipio || !temConsumo) {
       setCalc(null);
       return;
     }
@@ -152,6 +200,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
             tipoTelhado: form.tipoTelhado,
             kit: form.kit,
             fator: form.fator,
+            viagens: form.viagens,
             execucaoCivil: form.execucaoCivil,
           }),
         });
@@ -166,13 +215,33 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calcKey]);
 
-  // sugere nº de painéis quando o cálculo muda e o campo está zerado
+  // preenche painéis/inversor com o valor aplicado pelo servidor enquanto o
+  // usuário não mexer nesses campos (a sugestão "segue" o consumo)
   useEffect(() => {
-    if (calc?.sizing?.nPlacasSugerido && form.nPaineis === 0) {
-      set("nPaineis", calc.sizing.nPlacasSugerido);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calc?.sizing?.nPlacasSugerido]);
+    if (!calc) return;
+    setForm((f) => {
+      const next = { ...f };
+      let mudou = false;
+      if (!touched.current.nPaineis && calc.aplicado.nPaineis !== f.nPaineis) {
+        next.nPaineis = calc.aplicado.nPaineis;
+        mudou = true;
+      }
+      if (!touched.current.inversor && calc.aplicado.potenciaInversor !== f.potenciaInversor) {
+        next.potenciaInversor = calc.aplicado.potenciaInversor;
+        mudou = true;
+      }
+      return mudou ? next : f;
+    });
+  }, [calc]);
+
+  function aplicarSugestao() {
+    if (!calc) return;
+    const nP = Math.max(1, calc.sizing.nPlacasSugerido);
+    const inv = sugerirInversorComercial((nP * form.potenciaPainel) / 1000, form.overloadDesejado);
+    touched.current = { nPaineis: false, inversor: false };
+    setInvCustom(false);
+    setForm((f) => ({ ...f, nPaineis: nP, potenciaInversor: inv, qtdInversores: 1 }));
+  }
 
   const nivelMargem = useMemo(() => {
     const m = calc?.pricing?.margemLiquida ?? 0;
@@ -181,6 +250,15 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     if (m >= 0.15) return { cls: "bg-amber-100 text-amber-800", label: "atenção" };
     return { cls: "bg-red-100 text-red-700", label: "baixa" };
   }, [calc?.pricing]);
+
+  const overloadOk = calc ? calc.overload >= 0 && calc.overload <= 0.35 : true;
+
+  // datalist filtrado: só busca com 2+ letras (5.508 opções travam o navegador)
+  const sugestoesMunicipio = useMemo(() => {
+    const q = normalizar(form.municipio);
+    if (q.length < 2) return [];
+    return municipios.filter((m) => normalizar(m.nome).includes(q)).slice(0, 50);
+  }, [municipios, form.municipio]);
 
   function preencherMunicipio(nome: string) {
     set("municipio", nome);
@@ -206,9 +284,9 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
       formaPagamento: form.formaPagamento,
       textoObjetivo: form.textoObjetivo,
       potenciaPainel: `${form.potenciaPainel} W`,
-      qtdPaineis: `${form.nPaineis} unidades`,
+      qtdPaineis: `${calc.aplicado.nPaineis} unidades`,
       potenciaTotal: `${nf(calc.kwpTotal, 2)} kWp`,
-      potenciaInversor: `${nf(form.potenciaInversor, 0)} kWp`,
+      potenciaInversor: `${kw(calc.aplicado.potenciaInversor)} kWp`,
       overload: pct(calc.overload),
       qtdInversores: `${form.qtdInversores} ${form.qtdInversores > 1 ? "unidades" : "unidade"}`,
       tipoInversor: form.tipoInversor === "micro" ? "microinversor" : "inversor",
@@ -260,7 +338,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   async function gerar() {
     const formData = montarFormData();
     if (!formData) {
-      setErro("Preencha o município e o nº de painéis para gerar.");
+      setErro("Preencha o município e o consumo para calcular antes de gerar.");
       return;
     }
     if (!form.clienteNome) {
@@ -310,8 +388,21 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
   const h2 = "text-lg font-semibold text-gta-navy";
 
+  const painelSelect = painelCustom ? "outro" : String(form.potenciaPainel);
+  const invSelect = invCustom ? "outro" : String(form.potenciaInversor);
+
   return (
     <div className="space-y-6">
+      {/* Passo a passo */}
+      <ol className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-gta-navy/5 px-4 py-3 text-xs text-slate-600">
+        {PASSOS.map((p, i) => (
+          <li key={i} className="flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gta-navy text-[10px] font-bold text-white">{i + 1}</span>
+            {p}
+          </li>
+        ))}
+      </ol>
+
       {erro && <p className="field-error">{erro}</p>}
 
       {/* Identificação */}
@@ -323,22 +414,23 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
             <input className={inputCls} value={form.clienteNome} onChange={(e) => set("clienteNome", e.target.value)} />
           </div>
           <div className="sm:col-span-3">
-            <label className="field-label">Município (para a irradiação) *</label>
+            <label className="field-label">Cidade da instalação *</label>
             <input
               className={inputCls}
               list="municipios-list"
               value={form.municipio}
               onChange={(e) => preencherMunicipio(e.target.value)}
-              placeholder="Digite e selecione..."
+              placeholder="Digite 2+ letras e selecione..."
             />
             <datalist id="municipios-list">
-              {municipios.map((m) => (
+              {sugestoesMunicipio.map((m) => (
                 <option key={m.nome} value={m.nome} />
               ))}
             </datalist>
+            <p className="mt-1 text-xs text-slate-400">Usada para buscar a irradiação solar (HSP) da região.</p>
           </div>
           <div className="sm:col-span-3">
-            <label className="field-label">Cidade/UF (documento)</label>
+            <label className="field-label">Cidade/UF (como sai no documento)</label>
             <input className={inputCls} value={form.cidadeUf} onChange={(e) => set("cidadeUf", e.target.value)} placeholder="Ex.: Goiânia/GO" />
           </div>
           <div className="sm:col-span-1">
@@ -356,10 +448,12 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         </div>
       </section>
 
-      {/* Consumo */}
+      {/* 1 · Consumo */}
       <section className={sec}>
-        <h2 className={h2}>Consumo mensal (kWh)</h2>
-        <p className="mt-1 text-sm text-slate-500">Informe os 12 meses da conta de energia. O sistema dimensiona automaticamente.</p>
+        <h2 className={h2}><Passo n={1} /> Consumo mensal (kWh)</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Copie os 12 meses da conta de energia. É a única entrada necessária — o dimensionamento sai daqui.
+        </p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
           {MESES.map((mes, i) => (
             <div key={mes}>
@@ -380,47 +474,164 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
               <option value="tri">Trifásico</option>
             </select>
           </div>
+          <div className="flex items-end sm:col-span-2">
+            <button
+              type="button"
+              className="btn-secondary !py-2 text-xs"
+              disabled={!Number(form.consumo[0])}
+              onClick={() => set("consumo", Array(12).fill(form.consumo[0]))}
+              title="Útil quando o cliente só informa a média mensal"
+            >
+              Repetir Jan nos 12 meses
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Dimensionamento */}
+      {/* 2 · Dimensionamento */}
       <section className={sec}>
-        <h2 className={h2}>Dimensionamento</h2>
+        <h2 className={h2}><Passo n={2} /> Dimensionamento</h2>
+
+        {!calc && (
+          <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
+            Preencha a <strong>cidade da instalação</strong> e o <strong>consumo</strong> acima — o
+            sistema sugere os painéis e o inversor automaticamente.
+          </p>
+        )}
+
+        {calc && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gta-navy/20 bg-gta-navy/5 p-4">
+            <div className="text-sm text-slate-700">
+              <span className="font-semibold text-gta-navy">Sugestão para este consumo:</span>{" "}
+              <strong>{Math.max(1, calc.sizing.nPlacasSugerido)} painéis</strong> de {form.potenciaPainel} Wp
+              {" "}(≈ {nf((Math.max(1, calc.sizing.nPlacasSugerido) * form.potenciaPainel) / 1000, 2)} kWp)
+              {" "}+ <strong>inversor {kw(sugerirInversorComercial((Math.max(1, calc.sizing.nPlacasSugerido) * form.potenciaPainel) / 1000, form.overloadDesejado))} kW</strong>
+              <span className="text-slate-500"> · necessidade calculada: {nf(calc.sizing.kwpNecessaria, 2)} kWp</span>
+            </div>
+            <button type="button" className="btn-secondary !py-1.5 text-xs" onClick={aplicarSugestao}>
+              Aplicar sugestão
+            </button>
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
-          <div><label className="field-label">Potência do painel (W)</label><input type="number" className={inputCls} value={form.potenciaPainel} onChange={(e) => set("potenciaPainel", Number(e.target.value))} /></div>
-          <div><label className="field-label">Eficiência</label><input type="number" step="0.01" className={inputCls} value={form.eficiencia} onChange={(e) => set("eficiencia", Number(e.target.value))} /></div>
-          <div><label className="field-label">Overload desejado</label><input type="number" step="0.01" className={inputCls} value={form.overloadDesejado} onChange={(e) => set("overloadDesejado", Number(e.target.value))} /></div>
           <div className="sm:col-span-2">
-            <label className="field-label">Nº de painéis (comercial)</label>
+            <label className="field-label">Potência do painel (Wp)</label>
             <div className="flex gap-2">
-              <input type="number" className={inputCls} value={form.nPaineis} onChange={(e) => set("nPaineis", Number(e.target.value))} />
-              {calc?.sizing?.nPlacasSugerido ? (
-                <button type="button" className="btn-secondary whitespace-nowrap !px-2 text-xs" onClick={() => set("nPaineis", calc.sizing.nPlacasSugerido)}>
-                  usar {calc.sizing.nPlacasSugerido}
-                </button>
-              ) : null}
+              <select
+                className={inputCls}
+                value={painelSelect}
+                onChange={(e) => {
+                  if (e.target.value === "outro") setPainelCustom(true);
+                  else { setPainelCustom(false); set("potenciaPainel", Number(e.target.value)); }
+                }}
+              >
+                {PAINEIS_COMERCIAIS.map((p) => <option key={p} value={p}>{p} Wp</option>)}
+                <option value="outro">Outra...</option>
+              </select>
+              {painelCustom && (
+                <input type="number" className={inputCls} value={form.potenciaPainel} onChange={(e) => set("potenciaPainel", Number(e.target.value))} />
+              )}
             </div>
           </div>
-          <div><label className="field-label">Potência inversor (kW)</label><input type="number" className={inputCls} value={form.potenciaInversor} onChange={(e) => set("potenciaInversor", Number(e.target.value))} /></div>
-          <div><label className="field-label">Qtd. inversores</label><input type="number" className={inputCls} value={form.qtdInversores} onChange={(e) => set("qtdInversores", Number(e.target.value))} /></div>
-          <div>
-            <label className="field-label">Tipo</label>
+          <div className="sm:col-span-1">
+            <label className="field-label">Nº de painéis</label>
+            <input
+              type="number"
+              className={inputCls}
+              value={form.nPaineis || ""}
+              placeholder="auto"
+              onChange={(e) => { touched.current.nPaineis = true; set("nPaineis", Number(e.target.value)); }}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Inversor (kW)</label>
+            <div className="flex gap-2">
+              <select
+                className={inputCls}
+                value={invSelect}
+                onChange={(e) => {
+                  touched.current.inversor = true;
+                  if (e.target.value === "outro") setInvCustom(true);
+                  else { setInvCustom(false); set("potenciaInversor", Number(e.target.value)); }
+                }}
+              >
+                {!INVERSORES_COMERCIAIS.includes(form.potenciaInversor) && !invCustom && (
+                  <option value={String(form.potenciaInversor)}>
+                    {form.potenciaInversor === 0 ? "Automático" : `${kw(form.potenciaInversor)} kW`}
+                  </option>
+                )}
+                {INVERSORES_COMERCIAIS.map((p) => <option key={p} value={p}>{kw(p)} kW</option>)}
+                <option value="outro">Outro...</option>
+              </select>
+              {invCustom && (
+                <input
+                  type="number"
+                  step="0.5"
+                  className={inputCls}
+                  value={form.potenciaInversor}
+                  onChange={(e) => { touched.current.inversor = true; set("potenciaInversor", Number(e.target.value)); }}
+                />
+              )}
+            </div>
+          </div>
+          <div className="sm:col-span-1">
+            <label className="field-label">Qtd. inversores</label>
+            <input type="number" className={inputCls} value={form.qtdInversores} onChange={(e) => set("qtdInversores", Number(e.target.value))} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Tipo de inversor</label>
             <select className={inputCls} value={form.tipoInversor} onChange={(e) => set("tipoInversor", e.target.value as Form["tipoInversor"])}>
-              <option value="string">Inversor</option>
+              <option value="string">Inversor (string)</option>
               <option value="micro">Microinversor</option>
             </select>
           </div>
-          <div><label className="field-label">Tipo de telhado</label><input className={inputCls} value={form.tipoTelhado} onChange={(e) => set("tipoTelhado", e.target.value)} /></div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Tipo de telhado</label>
+            <select className={inputCls} value={form.tipoTelhado} onChange={(e) => set("tipoTelhado", e.target.value)}>
+              {["Metálico", "Colonial", "Fibrocimento", "Laje", "Solo"].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
         </div>
 
-        {calc?.sizing && (
+        {calc && (
           <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-4">
-            <Kpi label="kWp necessária" value={`${nf(calc.sizing.kwpNecessaria, 2)} kWp`} />
-            <Kpi label="Placas sugeridas" value={String(calc.sizing.nPlacasSugerido)} />
-            <Kpi label="Inversor sugerido" value={`${nf(calc.sizing.inversorSugerido, 2)} kW`} />
-            <Kpi label="Potência total" value={`${nf(calc.kwpTotal, 2)} kWp`} destaque />
+            <Kpi label="Potência do sistema" value={`${nf(calc.kwpTotal, 2)} kWp`} destaque />
+            <Kpi label="Consumo médio" value={`${nf(calc.sizing.consumoMedio, 0)} kWh/mês`} />
+            <Kpi label="HSP média (local)" value={nf(calc.sizing.hspMedia, 2)} />
+            <div className={`rounded-md p-2 shadow-sm ${overloadOk ? "bg-white" : "bg-amber-50"}`}>
+              <div className="text-xs text-slate-500">Overload do inversor</div>
+              <div className={`mt-0.5 font-semibold ${overloadOk ? "text-gta-navy" : "text-amber-700"}`}>
+                {pct(calc.overload)} {overloadOk ? "" : "· verificar"}
+              </div>
+            </div>
           </div>
         )}
+
+        <details className="mt-3">
+          <summary className="cursor-pointer text-xs font-medium text-slate-500">Ajustes avançados (eficiência e overload)</summary>
+          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <label className="field-label">Eficiência do sistema (%)</label>
+              <input
+                type="number" step="1" min="30" max="100" className={inputCls}
+                value={Math.round(form.eficiencia * 100)}
+                onChange={(e) => set("eficiencia", Number(e.target.value) / 100)}
+              />
+            </div>
+            <div>
+              <label className="field-label">Overload desejado (%)</label>
+              <input
+                type="number" step="1" min="0" max="100" className={inputCls}
+                value={Math.round(form.overloadDesejado * 100)}
+                onChange={(e) => set("overloadDesejado", Number(e.target.value) / 100)}
+              />
+            </div>
+            <p className="col-span-2 self-end text-xs text-slate-400">
+              Padrões definidos em Parâmetros{isAdmin ? "" : " (admin)"} — mude aqui só para esta proposta.
+            </p>
+          </div>
+        </details>
       </section>
 
       {/* Geração + gráfico */}
@@ -453,11 +664,11 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         </section>
       )}
 
-      {/* Materiais genéricos */}
+      {/* 3 · Materiais genéricos */}
       {calc?.bom && (
         <section className={sec}>
           <div className="flex items-center justify-between">
-            <h2 className={h2}>Lista de materiais (para cotar)</h2>
+            <h2 className={h2}><Passo n={3} /> Lista de materiais (para cotar)</h2>
             <button type="button" className="btn-secondary !py-1 text-xs" onClick={() => navigator.clipboard?.writeText(calc.bom.map((b) => `${b.qtde}\t${b.descricao}`).join("\n"))}>
               Copiar lista
             </button>
@@ -476,10 +687,17 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         </section>
       )}
 
-      {/* Distribuidor e preço */}
+      {/* 4 · Distribuidor e preço */}
       <section className={sec}>
-        <h2 className={h2}>Distribuidor e preço</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
+        <div className="flex items-center justify-between">
+          <h2 className={h2}><Passo n={4} /> Preço e margem</h2>
+          {isAdmin && (
+            <Link href="/admin/parametros" className="text-xs text-gta-indigo hover:underline">
+              Editar parâmetros padrão →
+            </Link>
+          )}
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Distribuidor</label>
             <select className={inputCls} value={form.distribuidor} onChange={(e) => set("distribuidor", e.target.value)}>
@@ -495,6 +713,10 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
             <input type="number" step="0.05" className={inputCls} value={form.fator} onChange={(e) => set("fator", Number(e.target.value))} />
           </div>
           <div>
+            <label className="field-label">Viagens</label>
+            <input type="number" min="0" className={inputCls} value={form.viagens} onChange={(e) => set("viagens", Number(e.target.value))} />
+          </div>
+          <div className="sm:col-span-2">
             <label className="field-label">Execução civil (R$)</label>
             <input className={inputCls} value={form.execucaoCivil} onChange={(e) => set("execucaoCivil", e.target.value)} />
           </div>
@@ -534,7 +756,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         </div>
       </details>
 
-      {/* Ações */}
+      {/* 5 · Ações */}
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>
           {salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}
@@ -549,6 +771,14 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         {status && <span className="text-sm text-green-600">{status}</span>}
       </div>
     </div>
+  );
+}
+
+function Passo({ n }: { n: number }) {
+  return (
+    <span className="mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gta-navy align-middle text-xs font-bold text-white">
+      {n}
+    </span>
   );
 }
 

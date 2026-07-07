@@ -13,7 +13,9 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
   const router = useRouter();
   const pathname = usePathname();
 
-  const nav = isAdmin ? [...NAV, { href: "/admin/usuarios", label: "Usuários" }] : NAV;
+  const nav = isAdmin
+    ? [...NAV, { href: "/admin/usuarios", label: "Usuários" }, { href: "/admin/parametros", label: "Parâmetros" }]
+    : NAV;
 
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
