@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { DynamicForm } from "@/components/DynamicForm";
 import { SolarConfigurator } from "@/components/solar/SolarConfigurator";
 import { SubestacaoConfigurator } from "@/components/subestacao/SubestacaoConfigurator";
+import { CarregadorConfigurator } from "@/components/carregador/CarregadorConfigurator";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { requirePageUser } from "@/lib/session";
 
@@ -41,6 +42,8 @@ export default async function NovaPropostaPage({
           <SolarConfigurator propostaId={proposta} />
         ) : service.key === "projeto-subestacao" ? (
           <SubestacaoConfigurator propostaId={proposta} />
+        ) : service.key === "carregador" ? (
+          <CarregadorConfigurator propostaId={proposta} />
         ) : (
           <DynamicForm serviceKey={service.key} serviceLabel={service.label} formSchema={service.formSchema} />
         )}

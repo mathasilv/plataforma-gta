@@ -135,49 +135,8 @@ export const laudoInspecaoService = criarServicoCpq({
   prazoPadrao: "10 a 15 dias após a vistoria",
 });
 
-// --------------------------------------------------------------- Carregador EV
-
-export const carregadorEvService = criarServicoCpq({
-  key: "carregador",
-  label: "Carregador Veicular (EV)",
-  description: "Projeto, infraestrutura e instalação de carregador veicular (WallBox), por ponto.",
-  icon: "🔋",
-  referencePrefix: "EV",
-  titulo: () => "PROPOSTA TÉCNICA E COMERCIAL — CARREGADOR VEICULAR ELÉTRICO",
-  descricaoServicoSecao: "Base histórica: infraestrutura ~R$ 3.900 (7 kW) a ~R$ 8.300 por ponto; com equipamento WallBox ~R$ 13.750–24.000/ponto.",
-  camposServico: [
-    { name: "qtdPontos", label: "Nº de pontos/vagas", type: "number", width: "third", defaultValue: 1 },
-    { name: "potenciaCarregador", label: "Potência (kW)", type: "text", width: "third", placeholder: "Ex.: 7, 22 ou 23 kW" },
-    moeda("valorPonto", "Serviços por ponto (R$)", 8300, `Infra + instalação por ponto. Sugestão ${hint(8300)}.`),
-    { name: "valorEquipamento", label: "Equipamento por ponto (R$, 0 = cliente fornece)", type: "currency", width: "half", defaultValue: "0", help: "Deixe 0 quando o carregador é fornecido pelo cliente." },
-  ],
-  zodServico: {
-    qtdPontos: z.coerce.number().int().min(1).default(1),
-    potenciaCarregador: z.string().optional().default(""),
-    valorPonto: moedaZod,
-    valorEquipamento: z.string().optional().default("0"),
-  },
-  montarItens: (f): ItemProposta[] => {
-    const qtd = Number(f.qtdPontos) || 1;
-    const pot = String(f.potenciaCarregador ?? "").trim();
-    const itens: ItemProposta[] = [{
-      descricao: `Projeto, infraestrutura elétrica, instalação e comissionamento de ${qtd} ${qtd > 1 ? "pontos" : "ponto"} de carregamento veicular${pot ? ` (${pot})` : ""}, com ART`,
-      valor: num(f.valorPonto) * qtd,
-      condicao: "",
-    }];
-    if (num(f.valorEquipamento) > 0) {
-      itens.push({ descricao: `Fornecimento do(s) carregador(es) — ${qtd} ${qtd > 1 ? "unidades" : "unidade"}`, valor: num(f.valorEquipamento) * qtd, condicao: "faturamento direto do equipamento" });
-    }
-    return itens;
-  },
-  objetoPadrao:
-    "Implantação de ponto(s) de carregamento para veículos elétricos, contemplando projeto, infraestrutura elétrica, instalação, parametrização e ART.",
-  observacoesPadrao: [
-    "Serviços conforme normas técnicas vigentes (ABNT NBR 17019 e correlatas).",
-    "Estudo de demanda pode ser necessário conforme a capacidade da instalação.",
-  ],
-  prazoPadrao: "15 a 30 dias",
-});
+// Carregador Veicular (EV) tem configurador próprio (dimensionamento NBR 5410
+// + lista de materiais + preço por custo): ver src/services/carregador.
 
 // --------------------------------------------------------------- Rede MT/BT
 
