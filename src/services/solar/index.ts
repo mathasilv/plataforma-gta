@@ -12,7 +12,6 @@ export const solarService: ServiceModule = {
   label: "Energia Solar Fotovoltaica",
   description:
     "Dimensione pelo consumo da conta, simule a geração e gere a proposta On-Grid.",
-  icon: "☀️",
   referencePrefix: "SOLAR",
   validityDays: 20,
   templateFile: "src/services/solar/template.docx",

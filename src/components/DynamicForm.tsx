@@ -8,6 +8,7 @@ import {
   useFormContext,
   type UseFormReturn,
 } from "react-hook-form";
+import { X } from "lucide-react";
 import type { FieldDef, FormSchema } from "@/services/types";
 
 const widthClass: Record<string, string> = {
@@ -204,7 +205,7 @@ function ArrayFieldEditor({ field }: { field: FieldDef }) {
                       title="Remover"
                       aria-label="Remover linha"
                     >
-                      ✕
+                      <X className="h-4 w-4" aria-hidden />
                     </button>
                   </td>
                 )}

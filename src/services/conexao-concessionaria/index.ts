@@ -39,7 +39,6 @@ export const conexaoConcessionariaService: ServiceModule = {
   key: "conexao",
   label: "Orçamento de Conexão",
   description: "Viabilidade, liberação de carga e acompanhamento junto à concessionária — tabelado em 2 salários mínimos.",
-  icon: "🔌",
   referencePrefix: "CONEXAO",
   validityDays: 20,
   emDesenvolvimento: true,

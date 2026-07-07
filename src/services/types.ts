@@ -86,8 +86,6 @@ export interface ServiceModule {
   label: string;
   /** Descrição curta para o card do dashboard */
   description: string;
-  /** Emoji/ícone para o card */
-  icon: string;
   /** Prefixo do código de referência (ex.: "SOLAR" -> GTA-2026-CLIENTE-SOLAR-00N) */
   referencePrefix: string;
   /** Validade padrão da proposta em dias corridos */

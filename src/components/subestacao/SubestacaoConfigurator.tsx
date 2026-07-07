@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { SubestacaoParamsForm } from "./SubestacaoParamsForm";
 
 const nf = (v: number, d = 2) =>
@@ -401,7 +402,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
 
         {sizing?.aviso && (
           <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
-            ⚠ {sizing.aviso}
+            <AlertTriangle className="inline h-3.5 w-3.5" aria-hidden /> {sizing.aviso}
           </p>
         )}
 

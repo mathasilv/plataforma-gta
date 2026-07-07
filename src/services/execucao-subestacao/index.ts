@@ -32,7 +32,6 @@ export const execucaoSubestacaoService: ServiceModule = {
   key: "execucao-subestacao",
   label: "Execução de Subestação",
   description: "Precifica a execução por custo × Fator K (equipamentos faturados à parte).",
-  icon: "⚙️",
   referencePrefix: "EXECSE",
   validityDays: 20,
   usesConfigurator: true,

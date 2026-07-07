@@ -11,7 +11,6 @@ export const carregadorService: ServiceModule = {
   key: "carregador",
   label: "Carregador Veicular (EV)",
   description: "Dimensiona a infraestrutura (NBR 5410), monta a lista de materiais e precifica.",
-  icon: "🔋",
   referencePrefix: "EV",
   validityDays: 20,
   usesConfigurator: true,

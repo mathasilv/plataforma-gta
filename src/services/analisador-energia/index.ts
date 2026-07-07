@@ -35,7 +35,6 @@ export const analisadorEnergiaService: ServiceModule = {
   key: "analisador",
   label: "Analisador de Energia",
   description: "Locação com instalação, medição e relatório — R$ 1.500 por semana.",
-  icon: "📈",
   referencePrefix: "ANALISADOR",
   validityDays: 20,
   emDesenvolvimento: true,

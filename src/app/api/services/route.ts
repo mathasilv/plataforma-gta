@@ -11,7 +11,6 @@ export async function GET() {
   const services = SERVICES.map((s) => ({
     key: s.key,
     label: s.label,
-    icon: s.icon,
     usesConfigurator: !!s.usesConfigurator,
     emDesenvolvimento: !!s.emDesenvolvimento,
   }));

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Moon, Sun } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Nova proposta" },
@@ -144,7 +145,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
                   className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-2.5 text-left text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
                 >
                   <span>Tema {dark ? "escuro" : "claro"}</span>
-                  <span aria-hidden>{dark ? "🌙" : "☀️"}</span>
+                  {dark ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
                 <button
                   onClick={logout}

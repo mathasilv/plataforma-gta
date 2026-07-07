@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { SpdaParamsForm } from "./SpdaParamsForm";
 
 const nf = (v: number, d = 2) =>
@@ -234,7 +235,7 @@ export function SpdaConfigurator({ propostaId }: { propostaId?: string }) {
           </div>
         )}
         {preco?.aplicouPiso && (
-          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">⚠ Piso mínimo aplicado: risco + projeto ({brl(preco.risco + preco.projetoCalc)}) ficou abaixo do piso, o valor foi elevado para proteger o custo fixo.</p>
+          <p className="mt-2 inline-flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />Piso mínimo aplicado: risco + projeto ({brl(preco.risco + preco.projetoCalc)}) ficou abaixo do piso, o valor foi elevado para proteger o custo fixo.</p>
         )}
       </section>
 

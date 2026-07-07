@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, MessageSquare, X } from "lucide-react";
 import {
   PRIORIDADES,
   STATUS_TAREFA,
@@ -406,21 +407,23 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="btn-secondary !py-1 text-xs"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
               disabled={paginaAtual <= 1}
               onClick={() => setPagina(paginaAtual - 1)}
+              aria-label="Anterior"
             >
-              ← Anterior
+              <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="px-1 text-slate-500 dark:text-slate-400">
               Página {paginaAtual} de {totalPaginas}
             </span>
             <button
-              className="btn-secondary !py-1 text-xs"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
               disabled={paginaAtual >= totalPaginas}
               onClick={() => setPagina(paginaAtual + 1)}
+              aria-label="Próxima"
             >
-              Próxima →
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -484,7 +487,7 @@ function TaskRow({
             {t.titulo}
           </button>
           {t.comentarios.length > 0 && (
-            <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">💬 {t.comentarios.length}</span>
+            <span className="ml-2 inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500"><MessageSquare className="h-3.5 w-3.5" aria-hidden />{t.comentarios.length}</span>
           )}
           {/* No mobile, prioridade/prazo/responsável ficam ocultos nas colunas — mostra o essencial aqui */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
@@ -512,7 +515,7 @@ function TaskRow({
         </td>
         <td className="px-1 py-2 text-center align-top md:px-2 md:align-middle">
           <button onClick={onExcluir} className="inline-flex h-9 w-9 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-600 dark:text-slate-600 dark:hover:bg-red-900/20 dark:hover:text-red-400" title="Excluir" aria-label="Excluir">
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </td>
       </tr>

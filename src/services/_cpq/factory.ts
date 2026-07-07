@@ -21,7 +21,6 @@ export interface CpqConfig {
   key: string;
   label: string;
   description: string;
-  icon: string;
   referencePrefix: string;
   validityDays?: number;
   /** Título do documento (pode usar os campos do form) */
@@ -76,7 +75,6 @@ export function criarServicoCpq(cfg: CpqConfig): ServiceModule {
     key: cfg.key,
     label: cfg.label,
     description: cfg.description,
-    icon: cfg.icon,
     referencePrefix: cfg.referencePrefix,
     validityDays: validade,
     // Serviços genéricos do CPQ ainda não estão no padrão completo. Ao virarem

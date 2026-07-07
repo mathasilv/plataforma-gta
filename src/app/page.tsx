@@ -14,7 +14,7 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="text-2xl font-bold text-gta-navy dark:text-slate-100">Nova proposta</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Escolha o serviço para gerar uma proposta comercial em .docx.
+          Escolha o serviço para gerar uma proposta comercial.
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -44,8 +44,7 @@ export default async function DashboardPage() {
         </div>
 
         <p className="mt-10 text-xs text-slate-400 dark:text-slate-500">
-          Cada proposta gerada é fiel ao modelo oficial da GTA Energia (.docx). Para adicionar um novo
-          tipo de serviço, basta criar um novo módulo em src/services.
+          Cada proposta gerada é fiel ao modelo oficial da GTA Energia.
         </p>
       </main>
     </div>

@@ -33,7 +33,6 @@ export const spdaService: ServiceModule = {
   key: "spda",
   label: "SPDA e Gerenciamento de Risco",
   description: "Precifica o projeto por bloco (risco) e por m² (projeto) conforme a ABNT NBR 5419.",
-  icon: "🌩️",
   referencePrefix: "SPDA",
   validityDays: 20,
   usesConfigurator: true,

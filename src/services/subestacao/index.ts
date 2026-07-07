@@ -36,7 +36,6 @@ export const subestacaoService: ServiceModule = {
   key: "projeto-subestacao",
   label: "Projeto de Subestação",
   description: "Dimensiona o transformador e a proteção pela carga e gera a proposta do projeto.",
-  icon: "📐",
   referencePrefix: "PROJSE",
   validityDays: 20,
   usesConfigurator: true,
