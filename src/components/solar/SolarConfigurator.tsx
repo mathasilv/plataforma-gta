@@ -50,6 +50,10 @@ interface Form {
   fator: number;
   viagens: number;
   execucaoCivil: string;
+  // economia
+  distribuidora: string;
+  subgrupo: "B1" | "B2" | "B3";
+  tarifaEnergia: string; // R$/kWh
   textoObjetivo: string;
   textoObservacao: string;
   prazoExecucao: string;
@@ -85,6 +89,9 @@ const FORM_INICIAL: Form = {
   fator: 1.5,
   viagens: 2,
   execucaoCivil: "0",
+  distribuidora: "",
+  subgrupo: "B1",
+  tarifaEnergia: "",
   textoObjetivo:
     "A presente proposta tem como objetivo a implantação de um sistema de microgeração de energia solar fotovoltaica conectada à rede elétrica (On-Grid), proporcionando redução nos custos com energia elétrica através da geração própria de energia limpa e renovável.",
   textoObservacao:
@@ -103,6 +110,10 @@ interface Calc {
   pricing: null | {
     valorTotal: number; servicos: number; margem: number; margemLiquida: number; lucro: number; lucroLiquido: number;
     custos: { instalacao: number; materialCa: number; deslocamento: number; art: number; imposto: number; comissao: number; total: number };
+  };
+  economia: null | {
+    economiaAno1: number; economiaMensalMedia: number; gastoSemSolarAno1: number; gastoComSolarAno1: number;
+    paybackAnos: number; paybackMeses: number; economiaPorAno: number[]; saldo: number[]; economiaHorizonte: number;
   };
 }
 
@@ -124,6 +135,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
   const [municipios, setMunicipios] = useState<{ nome: string; uf: string }[]>([]);
+  const [distribuidoras, setDistribuidoras] = useState<string[]>([]);
   const [calc, setCalc] = useState<Calc | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -140,6 +152,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   // carrega municípios, parâmetros padrão e (se reabrindo) a proposta salva
   useEffect(() => {
     fetch("/api/municipios").then((r) => r.json()).then((d) => setMunicipios(d.municipios ?? [])).catch(() => {});
+    fetch("/api/distribuidoras").then((r) => r.json()).then((d) => setDistribuidoras(d.distribuidoras ?? [])).catch(() => {});
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
         if (d.proposta?.dados) {
@@ -181,6 +194,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     form.municipio, form.consumo, form.tipoConexao, form.potenciaPainel, form.eficiencia,
     form.overloadDesejado, form.nPaineis, form.potenciaInversor, form.qtdInversores,
     form.tipoInversor, form.tipoTelhado, form.kit, form.fator, form.viagens, form.execucaoCivil,
+    form.distribuidora, form.subgrupo, form.tarifaEnergia,
   ]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -210,6 +224,9 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
             fator: form.fator,
             viagens: form.viagens,
             execucaoCivil: form.execucaoCivil,
+            distribuidora: form.distribuidora,
+            subgrupo: form.subgrupo,
+            tarifaEnergia: form.tarifaEnergia,
           }),
         });
         if (res.ok) setCalc(await res.json());
@@ -748,6 +765,69 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         )}
       </section>
 
+      {/* 5 · Economia e retorno */}
+      <section className={sec}>
+        <h2 className={h2}>Economia e retorno do investimento</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Informe a distribuidora e a tarifa da conta de energia. O Fio B (Lei 14.300) é buscado
+          automaticamente. Requer o valor do kit preenchido acima.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-3">
+            <label className="field-label">Distribuidora</label>
+            <input
+              className={inputCls}
+              list="distribuidoras-list"
+              value={form.distribuidora}
+              onChange={(e) => set("distribuidora", e.target.value)}
+              placeholder="Ex.: Equatorial GO"
+            />
+            <datalist id="distribuidoras-list">
+              {distribuidoras.map((d) => <option key={d} value={d} />)}
+            </datalist>
+          </div>
+          <div className="sm:col-span-1">
+            <label className="field-label">Subgrupo</label>
+            <select className={inputCls} value={form.subgrupo} onChange={(e) => set("subgrupo", e.target.value as Form["subgrupo"])}>
+              <option value="B1">B1 (residencial)</option>
+              <option value="B2">B2 (rural)</option>
+              <option value="B3">B3 (demais)</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Tarifa de energia (R$/kWh)</label>
+            <input className={inputCls} value={form.tarifaEnergia} onChange={(e) => set("tarifaEnergia", e.target.value)} placeholder="Ex.: 1,14" />
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Valor cheio da conta (com impostos).</p>
+          </div>
+        </div>
+
+        {calc?.economia ? (
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
+              <Kpi label="Economia média/mês" value={brl(calc.economia.economiaMensalMedia)} destaque />
+              <Kpi label="Economia no 1º ano" value={brl(calc.economia.economiaAno1)} />
+              <div className="rounded-md bg-white p-2 shadow-sm dark:bg-slate-800">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Payback</div>
+                <div className="mt-0.5 font-semibold text-green-700 dark:text-green-400">
+                  {calc.economia.paybackAnos <= 25 ? paybackTexto(calc.economia.paybackMeses) : "acima de 25 anos"}
+                </div>
+              </div>
+              <Kpi label="Economia em 25 anos" value={brl(calc.economia.economiaHorizonte)} />
+            </div>
+            <PaybackChart saldo={calc.economia.saldo} paybackAnos={calc.economia.paybackAnos} />
+            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+              Considera inflação da tarifa, degradação dos módulos, Fio B progressivo e o consumo simultâneo
+              (ajustáveis nos Parâmetros). Gasto atual ≈ {brl(calc.economia.gastoSemSolarAno1 / 12)}/mês → com solar ≈ {brl(calc.economia.gastoComSolarAno1 / 12)}/mês.
+            </p>
+          </>
+        ) : (
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+            Preencha o <strong>valor do kit</strong>, a <strong>distribuidora</strong> e a <strong>tarifa</strong> para
+            ver a economia mensal e o gráfico de payback.
+          </p>
+        )}
+      </section>
+
       {/* Parâmetros de preço e dimensionamento (retraído; disponível a todos) */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">
@@ -799,6 +879,68 @@ function Passo({ n }: { n: number }) {
     <span className="mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gta-navy align-middle text-xs font-bold text-white">
       {n}
     </span>
+  );
+}
+
+/** "26" -> "2 anos e 2 meses". */
+function paybackTexto(meses: number): string {
+  const anos = Math.floor(meses / 12);
+  const m = meses % 12;
+  const pa = anos > 0 ? `${anos} ano${anos > 1 ? "s" : ""}` : "";
+  const pm = m > 0 ? `${m} m${m > 1 ? "eses" : "ês"}` : "";
+  return [pa, pm].filter(Boolean).join(" e ") || "menos de 1 mês";
+}
+
+/** Gráfico de payback: saldo acumulado (R$) ao longo dos anos, cruzando o zero. */
+function PaybackChart({ saldo, paybackAnos }: { saldo: number[]; paybackAnos: number }) {
+  const W = 640, H = 220, padL = 52, padR = 12, padT = 12, padB = 26;
+  const n = saldo.length; // anos+1 (0..N)
+  const min = Math.min(...saldo, 0);
+  const max = Math.max(...saldo, 0);
+  const x = (i: number) => padL + ((W - padL - padR) * i) / (n - 1);
+  const y = (v: number) => padT + (H - padT - padB) * (1 - (v - min) / (max - min || 1));
+  const zeroY = y(0);
+  const pts = saldo.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const areaNeg = `${x(0)},${zeroY} ${pts} ${x(n - 1)},${zeroY}`;
+  const money = (v: number) => "R$ " + Math.round(v).toLocaleString("pt-BR");
+  // rótulos do eixo Y espaçados (evita sobrepor o investimento, minúsculo na escala de 25 anos)
+  const marks = [0, max / 2, max];
+
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[560px]">
+        {/* eixos de referência */}
+        {marks.map((v, i) => (
+          <g key={i}>
+            <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="currentColor" strokeOpacity="0.12" />
+            <text x={padL - 6} y={y(v) + 3} textAnchor="end" fontSize="9" fill="currentColor" fillOpacity="0.5">{money(v)}</text>
+          </g>
+        ))}
+        {/* linha do zero destacada */}
+        <line x1={padL} y1={zeroY} x2={W - padR} y2={zeroY} stroke="currentColor" strokeOpacity="0.35" strokeDasharray="4 3" />
+        {/* área e curva do saldo */}
+        <polyline points={areaNeg} fill="#1B7A3E" fillOpacity="0.12" stroke="none" />
+        <polyline points={pts} fill="none" stroke="#1B7A3E" strokeWidth="2" />
+        {/* rótulo do investimento inicial */}
+        <text x={x(0) + 4} y={y(saldo[0]) - 4} fontSize="8.5" fill="#F26522">{money(saldo[0])}</text>
+        {/* marcador do payback */}
+        {paybackAnos <= n - 1 && (
+          <g>
+            <line x1={x(paybackAnos)} y1={padT} x2={x(paybackAnos)} y2={H - padB} stroke="#F26522" strokeWidth="1.5" strokeDasharray="3 3" />
+            <circle cx={x(paybackAnos)} cy={zeroY} r="4" fill="#F26522" />
+          </g>
+        )}
+        {/* rótulos de anos */}
+        {saldo.map((_, i) => (i % 5 === 0 ? (
+          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="9" fill="currentColor" fillOpacity="0.5">{i}</text>
+        ) : null))}
+      </svg>
+      <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400">
+        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 bg-[#1B7A3E]" /> Saldo acumulado</span>
+        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 bg-[#F26522]" /> Payback</span>
+        <span>Eixo X: anos</span>
+      </div>
+    </div>
   );
 }
 

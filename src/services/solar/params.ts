@@ -34,6 +34,17 @@ export const solarParamsSchema = z.object({
   eficiencia: z.coerce.number().min(0.3).max(1),
   /** Overload desejado no dimensionamento (fração: 0,15 = 15%) */
   overloadDesejado: z.coerce.number().min(0).max(1),
+  // ----- Economia / payback -----
+  /** Consumo simultâneo à geração (fração; o resto é injetado e paga Fio B) */
+  simultaneidade: z.coerce.number().min(0).max(1),
+  /** % do Fio B cobrado no ano corrente (fração; Lei 14.300) */
+  fioBPct: z.coerce.number().min(0).max(1),
+  /** Iluminação pública / custo fixo mensal (R$) */
+  iluminacaoPublica: z.coerce.number().min(0),
+  /** Inflação anual da tarifa de energia (fração: 0,10 = 10%) */
+  inflacaoTarifa: z.coerce.number().min(0).max(1),
+  /** Degradação anual dos módulos (fração: 0,005 = 0,5%) */
+  degradacao: z.coerce.number().min(0).max(1),
 });
 
 export type SolarParams = z.infer<typeof solarParamsSchema>;
@@ -51,6 +62,11 @@ export const SOLAR_PARAMS_DEFAULT: SolarParams = {
   comissaoPct: PRICING_DEFAULTS.comissaoPct,
   eficiencia: 0.75,
   overloadDesejado: 0.15,
+  simultaneidade: 0.7,
+  fioBPct: 0.7,
+  iluminacaoPublica: 4,
+  inflacaoTarifa: 0.1,
+  degradacao: 0.005,
 };
 
 /** Parâmetros vigentes: salvos pelo admin, com fallback nos defaults. */

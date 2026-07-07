@@ -11,7 +11,8 @@ import { useEffect, useState } from "react";
 type ParamKey =
   | "fator" | "instalacaoPorPainel" | "materialCaPorWp" | "deslocamentoUnit"
   | "viagens" | "art" | "cartorio" | "impostoPct" | "comissaoPct"
-  | "eficiencia" | "overloadDesejado";
+  | "eficiencia" | "overloadDesejado"
+  | "simultaneidade" | "fioBPct" | "iluminacaoPublica" | "inflacaoTarifa" | "degradacao";
 
 type Params = Record<ParamKey, number>;
 
@@ -52,6 +53,16 @@ const CAMPOS: { titulo: string; campos: CampoDef[] }[] = [
     campos: [
       { key: "eficiencia", label: "Eficiência do sistema (%)", help: "Perdas globais consideradas na geração (padrão 75%)", kind: "pct" },
       { key: "overloadDesejado", label: "Overload desejado (%)", help: "Alvo de sobrecarga do inversor na sugestão (padrão 15%)", kind: "pct" },
+    ],
+  },
+  {
+    titulo: "Economia e payback",
+    campos: [
+      { key: "simultaneidade", label: "Consumo simultâneo (%)", help: "Parte gerada e consumida na hora; o resto é injetado e paga Fio B (padrão 70%)", kind: "pct" },
+      { key: "fioBPct", label: "% Fio B ano atual (%)", help: "Percentual do Fio B cobrado neste ano (Lei 14.300; padrão 70%)", kind: "pct" },
+      { key: "iluminacaoPublica", label: "Iluminação pública (R$)", help: "Custo fixo mensal na conta", kind: "dec" },
+      { key: "inflacaoTarifa", label: "Inflação da tarifa (% a.a.)", help: "Reajuste anual estimado da energia (padrão 10%)", kind: "pct" },
+      { key: "degradacao", label: "Degradação dos módulos (% a.a.)", help: "Perda de geração por ano (padrão 0,5%)", kind: "pct" },
     ],
   },
 ];

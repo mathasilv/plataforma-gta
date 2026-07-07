@@ -8,6 +8,9 @@ import { simularGeracao } from "@/services/solar/generation";
 import { gerarBom } from "@/services/solar/bom";
 import { precificar } from "@/services/solar/pricing";
 import { getSolarParams } from "@/services/solar/params";
+import { DISPONIBILIDADE } from "@/services/solar/sizing";
+import { getFioB } from "@/services/solar/tarifas";
+import { simularEconomia } from "@/services/solar/economia";
 import { parseNumber } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -30,6 +33,10 @@ const schema = z.object({
   fator: z.coerce.number().optional(),
   viagens: z.coerce.number().int().min(0).optional(),
   execucaoCivil: z.union([z.string(), z.number()]).optional(),
+  // economia (opcional)
+  distribuidora: z.string().optional(),
+  subgrupo: z.enum(["B1", "B2", "B3"]).default("B1"),
+  tarifaEnergia: z.union([z.string(), z.number()]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -96,6 +103,26 @@ export async function POST(req: Request) {
     });
   }
 
+  // Economia e payback (precisa de tarifa + investimento calculado)
+  let economia = null;
+  const tarifaEnergia = parseNumber(i.tarifaEnergia ?? 0);
+  if (tarifaEnergia > 0 && pricing) {
+    economia = simularEconomia({
+      consumo: i.consumo,
+      geracaoMensal: geracao.linhas.map((l) => l.energia),
+      disponibilidade: DISPONIBILIDADE[i.tipoConexao],
+      tarifaEnergia,
+      fioB: i.distribuidora ? getFioB(i.distribuidora, i.subgrupo) : 0,
+      simultaneidade: params.simultaneidade,
+      fioBPctAtual: params.fioBPct,
+      iluminacao: params.iluminacaoPublica,
+      investimento: pricing.valorTotal,
+      inflacaoTarifa: params.inflacaoTarifa,
+      degradacao: params.degradacao,
+      anos: 25,
+    });
+  }
+
   return NextResponse.json({
     sizing,
     // o que foi de fato usado no cálculo (preenche o formulário quando "auto")
@@ -106,5 +133,6 @@ export async function POST(req: Request) {
     geracao,
     bom,
     pricing,
+    economia,
   });
 }
