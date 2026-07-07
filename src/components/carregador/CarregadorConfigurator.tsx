@@ -50,7 +50,7 @@ const FORM_INICIAL: Form = {
 
 interface Sizing {
   tensao: number; correnteNominal: number; correnteProjeto: number; disjuntorA: number;
-  polos: number; secaoMm2: number; quedaPct: number; nCondutores: number;
+  polos: number; secaoMm2: number; quedaPct: number; nCondutores: number; nDps: number; eletroduto: string;
 }
 interface BomItem { categoria: string; descricao: string; unidade: string; qtd: number; precoUnit: number; precoTotal: number }
 interface Bom { itens: BomItem[]; custoMateriais: number }
@@ -132,8 +132,8 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
     const base = sizing
       ? `Base de dimensionamento (NBR 5410) — Carregador ${nf(parseBR(form.potenciaKw), parseBR(form.potenciaKw) % 1 ? 1 : 0)} kW ${form.fase === "mono" ? "monofásico (220 V)" : "trifásico (380 V)"} · ` +
         `Corrente nominal: ${nf(sizing.correnteNominal, 1)} A · Corrente de projeto: ${nf(sizing.correnteProjeto, 1)} A · ` +
-        `Disjuntor: ${sizing.disjuntorA} A curva C (${sizing.polos}P) + DR Tipo A · Condutor: ${sizing.secaoMm2} mm² (queda ${nf(sizing.quedaPct * 100, 1)}%) · ` +
-        `Proteção contra surtos (DPS Classe II) e aterramento dedicado. Distância considerada: ${nf(parseBR(form.distanciaM), 0)} m.`
+        `Disjuntor: ${sizing.disjuntorA} A curva C (${sizing.polos}P) + DR Tipo A · Condutor: ${sizing.nCondutores} × ${sizing.secaoMm2} mm² (queda ${nf(sizing.quedaPct * 100, 1)}%) em eletroduto ${sizing.eletroduto} · ` +
+        `${sizing.nDps} DPS Classe II e aterramento dedicado. Distância considerada: ${nf(parseBR(form.distanciaM), 0)} m.`
       : "";
     return [base, ...form.observacoesExtra.split("\n")].filter((l) => l.trim());
   }
@@ -230,11 +230,11 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
             <Kpi label="Disjuntor" value={`${sizing.disjuntorA} A · ${sizing.polos}P`} destaque />
             <Kpi label="Corrente nominal" value={`${nf(sizing.correnteNominal, 1)} A`} />
             <Kpi label="Corrente de projeto" value={`${nf(sizing.correnteProjeto, 1)} A`} />
-            <Kpi label="Condutor" value={`${sizing.secaoMm2} mm²`} />
+            <Kpi label="Condutor" value={`${sizing.nCondutores} × ${sizing.secaoMm2} mm²`} />
+            <Kpi label="Eletroduto" value={sizing.eletroduto} />
             <Kpi label="Queda de tensão" value={`${nf(sizing.quedaPct * 100, 2)}%`} />
-            <Kpi label="DR" value={`${sizing.disjuntorA} A Tipo A`} />
-            <Kpi label="DPS" value="Classe II" />
-            <Kpi label="Aterramento" value="Dedicado" />
+            <Kpi label="DR" value={`${sizing.disjuntorA} A · ${sizing.polos}P`} />
+            <Kpi label="DPS" value={`${sizing.nDps} × Classe II`} />
           </div>
         )}
         {!sizing && (
