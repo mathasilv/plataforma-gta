@@ -39,6 +39,15 @@ export default async function NovaPropostaPage({
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{service.description}</p>
         </div>
 
+        {service.emDesenvolvimento && (
+          <div className="mb-6 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300">
+            <span aria-hidden>🚧</span>
+            <p>
+              <strong>Serviço em desenvolvimento.</strong> A precificação automática e o layout da proposta ainda estão sendo ajustados ao padrão da plataforma (como Solar, Carregador e SPDA). O documento é gerado normalmente — confira os valores antes de enviar.
+            </p>
+          </div>
+        )}
+
         {service.key === "solar" ? (
           <SolarConfigurator propostaId={proposta} />
         ) : service.key === "projeto-subestacao" ? (

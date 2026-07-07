@@ -24,9 +24,17 @@ export default async function DashboardPage() {
               href={`/nova/${s.key}`}
               className="group block h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-gta-indigo hover:shadow-md sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-gta-indigo"
             >
-              <span className="inline-flex rounded-lg bg-gta-indigo/10 p-2.5 text-gta-indigo dark:bg-gta-indigo/20 dark:text-indigo-300">
-                <ServiceIcon serviceKey={s.key} className="h-6 w-6" />
-              </span>
+              <div className="flex items-start justify-between gap-2">
+                <span className="inline-flex rounded-lg bg-gta-indigo/10 p-2.5 text-gta-indigo dark:bg-gta-indigo/20 dark:text-indigo-300">
+                  <ServiceIcon serviceKey={s.key} className="h-6 w-6" />
+                </span>
+                {s.emDesenvolvimento && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+                    Em desenvolvimento
+                  </span>
+                )}
+              </div>
               <div className="mt-3 font-semibold text-gta-navy group-hover:text-gta-indigo dark:text-slate-100">
                 {s.label}
               </div>

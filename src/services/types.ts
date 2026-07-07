@@ -99,6 +99,12 @@ export interface ServiceModule {
    * formulário dinâmico genérico. A geração do .docx continua igual.
    */
   usesConfigurator?: boolean;
+  /**
+   * Se true, o serviço ainda não está no padrão completo da plataforma
+   * (precificação automatizada + proposta no layout solar/carregador). Exibe um
+   * selo "Em desenvolvimento" no card e um aviso na tela. Remover ao concluir.
+   */
+  emDesenvolvimento?: boolean;
   /** Definição do formulário dinâmico */
   formSchema: FormSchema;
   /** Schema de validação (Zod) dos dados do formulário */

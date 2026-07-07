@@ -42,6 +42,7 @@ export const conexaoConcessionariaService: ServiceModule = {
   icon: "🔌",
   referencePrefix: "CONEXAO",
   validityDays: 20,
+  emDesenvolvimento: true,
   templateFile: TEMPLATE_SERVICOS,
   formSchema: {
     sections: [

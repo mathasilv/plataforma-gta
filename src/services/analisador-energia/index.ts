@@ -38,6 +38,7 @@ export const analisadorEnergiaService: ServiceModule = {
   icon: "📈",
   referencePrefix: "ANALISADOR",
   validityDays: 20,
+  emDesenvolvimento: true,
   templateFile: TEMPLATE_SERVICOS,
   formSchema: {
     sections: [

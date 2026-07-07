@@ -36,6 +36,8 @@ export interface CpqConfig {
   observacoesPadrao: string[];
   prazoPadrao: string;
   descricaoServicoSecao?: string;
+  /** Marca o serviço como "em desenvolvimento" (selo no card + aviso na tela). */
+  emDesenvolvimento?: boolean;
 }
 
 /** Linhas extras digitadas pelo orçamentista (escopo adicional). */
@@ -77,6 +79,9 @@ export function criarServicoCpq(cfg: CpqConfig): ServiceModule {
     icon: cfg.icon,
     referencePrefix: cfg.referencePrefix,
     validityDays: validade,
+    // Serviços genéricos do CPQ ainda não estão no padrão completo. Ao virarem
+    // configurador próprio (como Solar/SPDA), saem da fábrica e perdem o selo.
+    emDesenvolvimento: cfg.emDesenvolvimento ?? true,
     templateFile: TEMPLATE_SERVICOS,
     formSchema: {
       sections: [

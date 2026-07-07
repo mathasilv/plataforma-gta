@@ -13,6 +13,7 @@ export async function GET() {
     label: s.label,
     icon: s.icon,
     usesConfigurator: !!s.usesConfigurator,
+    emDesenvolvimento: !!s.emDesenvolvimento,
   }));
   return NextResponse.json({ services });
 }
