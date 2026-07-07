@@ -12,13 +12,14 @@ export default async function PropostasPage() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gta-navy">Propostas salvas</h1>
+            <h1 className="text-2xl font-bold text-gta-navy">Orçamentos gerados</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Rascunhos e propostas geradas. Reabra para continuar, atualizar o preço ou gerar o documento.
+              Todas as propostas geradas na plataforma, de qualquer serviço. Filtre por cliente, serviço
+              ou status; as de Solar podem ser reabertas para continuar.
             </p>
           </div>
-          <Link href="/nova/solar" className="btn-primary">
-            + Nova proposta solar
+          <Link href="/" className="btn-primary whitespace-nowrap">
+            + Nova proposta
           </Link>
         </div>
 

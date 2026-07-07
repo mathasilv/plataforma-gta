@@ -3,11 +3,23 @@ import fs from "node:fs";
 import path from "node:path";
 import { getService } from "@/services/registry";
 import { renderDocx } from "@/lib/docx/generate";
+import { getCurrentUser } from "@/lib/session";
+import { getPropostaStore } from "@/lib/propostas/store";
 
 export const runtime = "nodejs";
 
+/** Extrai um nome de cliente razoável do formData de qualquer serviço. */
+function extrairCliente(formData: Record<string, unknown>): string {
+  const cand = formData.clienteNome ?? formData.cliente ?? formData.nomeCliente ?? formData.contratante;
+  const s = typeof cand === "string" ? cand.trim() : "";
+  return s || "—";
+}
+
 export async function POST(req: Request) {
-  let body: { serviceKey?: string; formData?: unknown };
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
+  let body: { serviceKey?: string; formData?: unknown; propostaId?: string };
   try {
     body = await req.json();
   } catch {
@@ -38,6 +50,28 @@ export async function POST(req: Request) {
 
     const ref = (data as Record<string, unknown>).referencia as string | undefined;
     const filename = `${ref ?? service.key}.docx`;
+
+    // Registro no histórico (best-effort: nunca bloqueia o download).
+    // - Configurador (Solar) manda propostaId -> apenas marca como "gerada".
+    // - Demais serviços -> cria um registro "gerada" com o formData.
+    try {
+      const store = getPropostaStore();
+      const cliente = extrairCliente(parsed.data as Record<string, unknown>);
+      if (body.propostaId) {
+        await store.update(body.propostaId, { status: "gerada", cliente, referencia: ref ?? "" });
+      } else {
+        await store.create({
+          serviceKey: service.key,
+          cliente,
+          referencia: ref ?? "",
+          status: "gerada",
+          dados: parsed.data as Record<string, unknown>,
+          criadoPor: user.email,
+        });
+      }
+    } catch (e) {
+      console.error("Falha ao registrar proposta gerada:", e);
+    }
 
     return new NextResponse(out as BodyInit, {
       status: 200,

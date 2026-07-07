@@ -1,21 +1,30 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 
 const NAV = [
-  { href: "/", label: "Propostas" },
-  { href: "/propostas", label: "Salvas" },
+  { href: "/", label: "Nova proposta" },
+  { href: "/propostas", label: "Orçamentos" },
   { href: "/tarefas", label: "Tarefas" },
 ];
 
 export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [menuAberto, setMenuAberto] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const nav = isAdmin
-    ? [...NAV, { href: "/admin/usuarios", label: "Usuários" }, { href: "/admin/parametros", label: "Parâmetros" }]
-    : NAV;
+  // fecha o menu do usuário ao clicar fora
+  useEffect(() => {
+    if (!menuAberto) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuAberto(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [menuAberto]);
 
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
@@ -37,7 +46,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
             <span className="text-lg font-bold tracking-tight">GTA Energia</span>
           </Link>
           <nav className="flex items-center gap-1 text-sm">
-            {nav.map((item) => (
+            {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -52,18 +61,62 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          {userName && (
-            <Link href="/conta" className="hidden text-slate-300 hover:text-white sm:inline" title="Minha conta">
-              {userName}
-            </Link>
-          )}
-          <button onClick={logout} className="rounded border border-white/30 px-3 py-1 hover:bg-white/10">
-            Sair
-          </button>
-        </div>
+
+        {userName && (
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuAberto((v) => !v)}
+              className="flex items-center gap-2 rounded border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10"
+              aria-haspopup="menu"
+              aria-expanded={menuAberto}
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                {userName.trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="hidden max-w-[160px] truncate sm:inline">{userName}</span>
+              <svg className={`h-3 w-3 transition ${menuAberto ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none">
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {menuAberto && (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-700 shadow-lg"
+              >
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <div className="text-xs text-slate-400">Sessão</div>
+                  <div className="truncate text-sm font-semibold text-gta-navy">{userName}</div>
+                </div>
+                <MenuLink href="/conta" onNavigate={() => setMenuAberto(false)}>
+                  Minha conta
+                </MenuLink>
+                {isAdmin && (
+                  <MenuLink href="/admin/usuarios" onNavigate={() => setMenuAberto(false)}>
+                    Gerenciar usuários
+                  </MenuLink>
+                )}
+                <button
+                  onClick={logout}
+                  role="menuitem"
+                  className="block w-full border-t border-slate-100 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-slate-50"
+                >
+                  Sair
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="h-1 w-full bg-gta-orange" />
     </header>
+  );
+}
+
+function MenuLink({ href, onNavigate, children }: { href: string; onNavigate: () => void; children: React.ReactNode }) {
+  return (
+    <Link href={href} role="menuitem" onClick={onNavigate} className="block px-4 py-2.5 text-sm hover:bg-slate-50">
+      {children}
+    </Link>
   );
 }

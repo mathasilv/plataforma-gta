@@ -356,10 +356,17 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
     setGerando(true);
     setErro(null);
     try {
+      // Garante um registro no histórico antes de gerar (evita duplicar:
+      // o /api/gerar apenas marca este id como "gerada").
+      let id = savedId;
+      if (!id) {
+        id = (await salvar(true)) ?? undefined;
+        if (!id) return; // salvar já reportou o erro
+      }
       const res = await fetch("/api/gerar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceKey: "solar", formData }),
+        body: JSON.stringify({ serviceKey: "solar", formData, propostaId: id }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -375,8 +382,7 @@ export function SolarConfigurator({ propostaId, isAdmin }: { propostaId?: string
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-      setStatus("Documento gerado e baixado.");
-      await salvar(true); // marca como salva/atualizada
+      setStatus("Documento gerado e baixado. Registrado no histórico.");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao gerar.");
     } finally {
