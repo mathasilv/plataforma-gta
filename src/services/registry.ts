@@ -1,35 +1,43 @@
 import type { ServiceModule } from "./types";
 import { solarService } from "./solar";
-import { limpezaService } from "./limpeza";
-import { inspecaoSeService } from "./inspecao-se";
-import { spdaService } from "./spda";
-import { carregadorEvService } from "./carregador-ev";
-import { qgbtService } from "./qgbt";
-import { projetoSeService } from "./projeto-se";
-import { projetoRedeMtService } from "./projeto-rede-mt";
-import { execucaoRedeMtService } from "./execucao-rede-mt";
-import { execucaoSeService } from "./execucao-se";
-import { loteamentoMtbtService } from "./loteamento-mtbt";
+import { conexaoConcessionariaService } from "./conexao-concessionaria";
+import { analisadorEnergiaService } from "./analisador-energia";
+import {
+  projetoSubestacaoService,
+  execucaoSubestacaoService,
+  spdaService,
+  laudoInspecaoService,
+  carregadorEvService,
+  redeMtService,
+  projetoEletricoBtService,
+  qgbtService,
+  limpezaPlacasService,
+} from "./_cpq/catalog";
 
 /**
  * Registro central de serviços da plataforma.
  *
- * Para adicionar um serviço novo: crie a pasta (config + template.docx + mapper),
- * importe o módulo e adicione-o a este array. O dashboard, o formulário dinâmico
- * e o endpoint de geração passam a reconhecê-lo automaticamente.
+ * - Solar: configurador próprio (dimensionamento + economia).
+ * - Demais: serviços CPQ de engenharia elétrica, com precificação base derivada
+ *   das propostas reais da GTA (ver src/services/_cpq). Conexão e Analisador têm
+ *   regras fixas de gestão.
+ *
+ * O dashboard, o formulário e o endpoint de geração reconhecem automaticamente
+ * qualquer serviço deste array.
  */
 export const SERVICES: ServiceModule[] = [
   solarService,
-  limpezaService,
-  inspecaoSeService,
+  projetoSubestacaoService,
+  execucaoSubestacaoService,
+  conexaoConcessionariaService,
+  redeMtService,
   spdaService,
+  laudoInspecaoService,
+  analisadorEnergiaService,
   carregadorEvService,
   qgbtService,
-  projetoSeService,
-  projetoRedeMtService,
-  execucaoRedeMtService,
-  execucaoSeService,
-  loteamentoMtbtService,
+  projetoEletricoBtService,
+  limpezaPlacasService,
 ];
 
 export function getService(key: string): ServiceModule | undefined {
