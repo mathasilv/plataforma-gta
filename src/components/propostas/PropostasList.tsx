@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ServiceIcon } from "@/components/ServiceIcon";
 import { statusPropostaLabel, STATUS_PROPOSTA, type Proposta } from "@/lib/propostas/types";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -87,8 +88,7 @@ export function PropostasList() {
   }
 
   function rotuloServico(key: string) {
-    const s = serviceMap.get(key);
-    return s ? `${s.icon} ${s.label}` : key;
+    return serviceMap.get(key)?.label ?? key;
   }
 
   const limparFiltros = () => { setBusca(""); setFServico(""); setFStatus(""); setFCriador(""); };
@@ -118,7 +118,7 @@ export function PropostasList() {
           <select className="field-input" value={fServico} onChange={(e) => setFServico(e.target.value)}>
             <option value="">Todos</option>
             {servicosComPropostas.map((s) => (
-              <option key={s.key} value={s.key}>{s.icon} {s.label}</option>
+              <option key={s.key} value={s.key}>{s.label}</option>
             ))}
           </select>
         </div>
@@ -175,7 +175,12 @@ export function PropostasList() {
               return (
                 <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/60 dark:border-slate-700 dark:hover:bg-slate-700/40">
                   <td className="px-4 py-2 font-medium text-gta-navy dark:text-slate-100">{p.cliente}</td>
-                  <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{rotuloServico(p.serviceKey)}</td>
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1.5">
+                      <ServiceIcon serviceKey={p.serviceKey} className="h-4 w-4 text-gta-indigo dark:text-indigo-300" />
+                      {rotuloServico(p.serviceKey)}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">{p.referencia || "—"}</td>
                   <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{nomeCriador(p)}</td>
                   <td className="px-4 py-2">
