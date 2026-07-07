@@ -54,8 +54,8 @@ export const ANALISADOR_CONFIG: ServicoSimplesConfig = {
   ],
   prazoPadrao: "Conforme o período de medição + emissão do relatório",
   campos: [
-    { name: "semanas", label: "Semanas de medição", type: "number", width: "sm:col-span-2", default: "1" },
-    { name: "valorSemana", label: "Valor por semana (R$)", type: "currency", width: "sm:col-span-2", default: "1500" },
+    { name: "semanas", label: "Semanas de medição", type: "number", width: "sm:col-span-2", default: "1", help: "1 semana (7 dias) = locação básica." },
+    { name: "valorSemana", label: "Valor por semana (R$)", type: "currency", width: "sm:col-span-2", default: "1500", help: "Tabela: R$ 1.500/semana (diagnóstico básico, 7 dias). Análises completas — comparação c/ concessionária (30 d) ou laudo PRODIST Mód. 8 — ficam ~R$ 5.000 por escopo; ajuste o valor." },
   ],
   calcularPreco: (v) => parseBR(v.valorSemana) * inteiro(v.semanas),
   ajudaPreco: (v, p) => `${inteiro(v.semanas)} semana(s) × ${brl(parseBR(v.valorSemana))} = ${brl(p)}`,
@@ -63,7 +63,7 @@ export const ANALISADOR_CONFIG: ServicoSimplesConfig = {
     const s = inteiro(v.semanas);
     return `Locação de analisador de energia por ${s} semana${s > 1 ? "s" : ""}, incluindo instalação, medição e relatório técnico`;
   },
-  condicao: "100% na retirada do relatório",
+  condicao: "50% na contratação e 50% na entrega do relatório",
 };
 
 export const LAUDO_CONFIG: ServicoSimplesConfig = {
@@ -80,7 +80,7 @@ export const LAUDO_CONFIG: ServicoSimplesConfig = {
   prazoPadrao: "10 a 15 dias após a vistoria",
   campos: [
     { name: "qtdUnidades", label: "Nº de unidades (torres/edificações)", type: "number", width: "sm:col-span-2", default: "1" },
-    { name: "valorUnidade", label: "Valor por unidade (R$)", type: "currency", width: "sm:col-span-2", default: "2500" },
+    { name: "valorUnidade", label: "Valor por unidade (R$)", type: "currency", width: "sm:col-span-2", default: "2500", help: "Base real: R$ 2.500/subestação (KIPAO); R$ 2.000/torre em laudos multi-torre (Av. Parque). Inspeção de SE com termografia pode chegar a ~R$ 15.000." },
     { name: "escopoLaudo", label: "Escopo do laudo", type: "text", width: "sm:col-span-2", default: "instalações elétricas, SPDA e iluminação de emergência" },
   ],
   calcularPreco: (v) => parseBR(v.valorUnidade) * inteiro(v.qtdUnidades),
@@ -89,7 +89,7 @@ export const LAUDO_CONFIG: ServicoSimplesConfig = {
     const q = inteiro(v.qtdUnidades);
     return `Vistoria técnica, laudo e ART (${v.escopoLaudo}) — ${q} ${q > 1 ? "unidades" : "unidade"}`;
   },
-  condicao: "",
+  condicao: "50% na contratação e 50% na entrega do laudo",
 };
 
 export const LIMPEZA_CONFIG: ServicoSimplesConfig = {
