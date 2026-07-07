@@ -10,7 +10,7 @@ import { laudoInspecaoService } from "./laudo-inspecao";
 import { limpezaPlacasService } from "./limpeza";
 import { conexaoConcessionariaService } from "./conexao-concessionaria";
 import { analisadorEnergiaService } from "./analisador-energia";
-import { projetoEletricoBtService } from "./_cpq/catalog";
+import { projetoEletricoBtService } from "./projeto-bt";
 
 /**
  * Registro central de serviços da plataforma.

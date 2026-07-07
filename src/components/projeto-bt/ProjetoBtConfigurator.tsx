@@ -1,0 +1,213 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+const nf = (v: number, d = 2) =>
+  (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const brl = (v: number) => "R$ " + nf(v, 2);
+const parseBR = (s: string) => {
+  const t = String(s ?? "").trim();
+  if (!t) return 0;
+  return t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
+};
+const HOJE = new Date().toISOString().slice(0, 10);
+
+/**
+ * Disciplinas do projeto elétrico BT, com valor sugerido e âncora histórica.
+ * Fiel às propostas reais (CCB somou predial + telecom em itens separados).
+ */
+const DISCIPLINAS = [
+  { id: "predial", nome: "Instalação elétrica predial (força + iluminação)", def: "8000", ajuda: "Projeto completo de força e iluminação. Histórico: predial R$ 5.000–18.450.", descricao: "Projeto elétrico predial de baixa tensão (força e iluminação), com pranchas, memoriais e lista de quantitativos" },
+  { id: "forca", nome: "Projeto de força (tomadas — TUG/TUE)", def: "6000", ajuda: "Circuitos de tomadas isolados. Histórico industrial (Geolab): R$ 20.000.", descricao: "Projeto elétrico de força — dimensionamento dos circuitos de tomadas de uso geral (TUG) e específico (TUE)" },
+  { id: "iluminacao", nome: "Projeto luminotécnico (iluminação)", def: "4000", ajuda: "Projeto de iluminação isolado.", descricao: "Projeto luminotécnico — dimensionamento dos circuitos e pontos de iluminação" },
+  { id: "telecom", nome: "Projeto de telecomunicação / cabeamento estruturado", def: "6000", ajuda: "Rede lógica/telefonia. Histórico (CCB): R$ 6.150.", descricao: "Projeto de telecomunicação e cabeamento estruturado (rede lógica e telefonia)" },
+  { id: "retrofit", nome: "Retrofit / adequação de instalação existente", def: "5000", ajuda: "Modernização e correção de não conformidades da instalação existente.", descricao: "Retrofit e adequação da instalação elétrica predial existente, com correção de não conformidades" },
+] as const;
+
+type Vals = Record<string, string>;
+
+const OBJ_PADRAO =
+  "Elaboração de projeto elétrico de baixa tensão em conformidade com a ABNT NBR 5410, contemplando as disciplinas contratadas, com pranchas técnicas (DWG/PDF), memoriais descritivo e de cálculo, lista de quantitativos e ART junto ao CREA/GO.";
+const OBS_PADRAO = [
+  "Projeto conforme a ABNT NBR 5410 e demais normas técnicas aplicáveis.",
+  "Inclui até 2 (duas) revisões por adequação de escopo dentro do objeto contratado.",
+  "Emissão de ART inclusa; emolumentos do CREA/GO por conta do contratante.",
+  "Não inclui execução física, fornecimento de materiais nem projeto de SPDA/subestação (orçados à parte).",
+];
+
+export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
+  const router = useRouter();
+
+  const inicial = (): Vals => ({
+    clienteNome: "", cidadeUf: "", localAtividade: "", porte: "",
+    referenciaSeq: "1", dataEmissao: HOJE, validadeDias: "20",
+    formaPagamento: "20% na assinatura, 50% na entrega do projeto executivo e 30% na aprovação",
+    objeto: OBJ_PADRAO, prazoExecucao: "60 dias corridos após a assinatura do contrato",
+    observacoesExtra: OBS_PADRAO.join("\n"),
+    // disciplinas: on/valor por id
+    ...Object.fromEntries(DISCIPLINAS.flatMap((d) => [[`on_${d.id}`, d.id === "predial" ? "1" : ""], [`v_${d.id}`, d.def]])),
+  });
+
+  const [form, setForm] = useState<Vals>(inicial);
+  const [erro, setErro] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [gerando, setGerando] = useState(false);
+  const [savedId, setSavedId] = useState<string | undefined>(propostaId);
+
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const toggle = (id: string) => setForm((f) => ({ ...f, [`on_${id}`]: f[`on_${id}`] ? "" : "1" }));
+
+  useEffect(() => {
+    if (propostaId) {
+      fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
+        if (d.proposta?.dados) setForm((f) => ({ ...f, ...(d.proposta.dados as Vals) }));
+      }).catch(() => {});
+    } else {
+      fetch(`/api/propostas/proximo?serviceKey=projeto-bt`).then((r) => r.json()).then((d) => {
+        if (d.seq) setForm((f) => ({ ...f, referenciaSeq: String(d.seq) }));
+      }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propostaId]);
+
+  const porteSufixo = form.porte?.trim() ? ` — ${form.porte.trim()}` : "";
+  const selecionadas = DISCIPLINAS.filter((d) => form[`on_${d.id}`]);
+  const total = selecionadas.reduce((s, d) => s + parseBR(form[`v_${d.id}`]), 0);
+
+  function montarItens() {
+    return selecionadas.map((d) => ({ descricao: `${d.descricao}${porteSufixo}`, valor: nf(parseBR(form[`v_${d.id}`]), 2), condicao: "" }));
+  }
+  function montarObservacoes() {
+    return (form.observacoesExtra ?? "").split("\n").filter((l) => l.trim());
+  }
+
+  async function salvar(silencioso = false) {
+    if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
+    setSalvando(true); setErro(null);
+    try {
+      const payload = { serviceKey: "projeto-bt", cliente: form.clienteNome, status: total > 0 ? "precificada" : "rascunho", dados: form };
+      const res = savedId
+        ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao salvar.");
+      const id = data.proposta?.id ?? savedId;
+      setSavedId(id);
+      if (!silencioso) setStatusMsg("Proposta salva.");
+      return id;
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar."); return null;
+    } finally { setSalvando(false); }
+  }
+
+  async function gerar() {
+    if (!form.clienteNome) { setErro("Informe o nome do cliente."); return; }
+    if (!form.cidadeUf) { setErro("Informe a Cidade/UF."); return; }
+    if (selecionadas.length === 0) { setErro("Selecione ao menos uma disciplina."); return; }
+    if (total <= 0) { setErro("Informe o valor das disciplinas selecionadas."); return; }
+    setGerando(true); setErro(null);
+    try {
+      let id = savedId;
+      if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
+      const formData = {
+        clienteNome: form.clienteNome, cidadeUf: form.cidadeUf, localAtividade: form.localAtividade,
+        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: form.formaPagamento,
+        titulo: "PROPOSTA TÉCNICA E COMERCIAL — PROJETO ELÉTRICO DE BAIXA TENSÃO",
+        objeto: form.objeto, prazoExecucao: form.prazoExecucao, itens: montarItens(), observacoes: montarObservacoes(),
+      };
+      const res = await fetch("/api/gerar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ serviceKey: "projeto-bt", formData, propostaId: id }) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? "Falha ao gerar."); }
+      const blob = await res.blob();
+      const disp = res.headers.get("Content-Disposition") ?? "";
+      const m = disp.match(/filename="?([^"]+)"?/);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = m ? decodeURIComponent(m[1]) : "projeto-bt.docx"; a.click();
+      URL.revokeObjectURL(url);
+      setStatusMsg("Documento gerado e baixado. Registrado no histórico.");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao gerar.");
+    } finally { setGerando(false); }
+  }
+
+  const inputCls = "field-input";
+  const sec = "rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800";
+  const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
+
+  return (
+    <div className="space-y-6">
+      {erro && <p className="field-error">{erro}</p>}
+
+      {/* Cliente e local */}
+      <section className={sec}>
+        <h2 className={h2}>Cliente e local</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-3"><label className="field-label">Nome do cliente *</label><input className={inputCls} value={form.clienteNome} onChange={(e) => set("clienteNome", e.target.value)} /></div>
+          <div className="sm:col-span-3"><label className="field-label">Cidade/UF *</label><input className={inputCls} value={form.cidadeUf} onChange={(e) => set("cidadeUf", e.target.value)} placeholder="Ex.: Goiânia/GO" /></div>
+          <div className="sm:col-span-3"><label className="field-label">Local / obra</label><input className={inputCls} value={form.localAtividade} onChange={(e) => set("localAtividade", e.target.value)} /></div>
+          <div className="sm:col-span-3"><label className="field-label">Porte / referência</label><input className={inputCls} value={form.porte} onChange={(e) => set("porte", e.target.value)} placeholder="Ex.: edifício 21 pav. / 800 m² / galpão industrial" /></div>
+          <div className="sm:col-span-1"><label className="field-label">Validade (dias)</label><input type="number" className={inputCls} value={form.validadeDias} onChange={(e) => set("validadeDias", e.target.value)} /></div>
+          <div className="sm:col-span-2"><label className="field-label">Emissão</label><input type="date" className={inputCls} value={form.dataEmissao} onChange={(e) => set("dataEmissao", e.target.value)} /></div>
+        </div>
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">A referência é gerada automaticamente ao salvar. O porte entra na descrição de cada disciplina.</p>
+      </section>
+
+      {/* Disciplinas */}
+      <section className={sec}>
+        <h2 className={h2}>Disciplinas do projeto</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Marque as disciplinas contratadas — cada uma vira um item na proposta. Ajuste os valores conforme o porte.</p>
+        <div className="mt-4 space-y-2">
+          {DISCIPLINAS.map((d) => {
+            const on = !!form[`on_${d.id}`];
+            return (
+              <div key={d.id} className={`rounded-lg border p-3 transition ${on ? "border-gta-indigo/40 bg-indigo-50/40 dark:border-indigo-400/30 dark:bg-indigo-500/10" : "border-slate-200 dark:border-slate-700"}`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="flex flex-1 cursor-pointer items-start gap-2.5">
+                    <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-gta-indigo focus:ring-gta-indigo" checked={on} onChange={() => toggle(d.id)} />
+                    <span>
+                      <span className="block text-sm font-medium text-gta-navy dark:text-slate-100">{d.nome}</span>
+                      <span className="block text-xs text-slate-400 dark:text-slate-500">{d.ajuda}</span>
+                    </span>
+                  </label>
+                  <div className="w-full sm:w-40">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                      <input className={`${inputCls} pl-8 text-right`} inputMode="decimal" value={form[`v_${d.id}`] ?? ""} disabled={!on} onChange={(e) => set(`v_${d.id}`, e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex items-center justify-between rounded-md bg-gta-navy p-3 text-white shadow-sm">
+          <div className="text-sm text-slate-300">Total do projeto ({selecionadas.length} {selecionadas.length === 1 ? "disciplina" : "disciplinas"})</div>
+          <div className="text-xl font-bold">{brl(total)}</div>
+        </div>
+      </section>
+
+      {/* Textos */}
+      <details className={sec}>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
+        <div className="mt-4 space-y-3">
+          <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
+          <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[110px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div><label className="field-label">Prazo de entrega</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
+            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
+          </div>
+        </div>
+      </details>
+
+      {/* Ações */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
+        <button className="btn-primary" onClick={gerar} disabled={gerando || total <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
+        {statusMsg && <span className="text-sm text-green-600 dark:text-green-400">{statusMsg}</span>}
+      </div>
+    </div>
+  );
+}
