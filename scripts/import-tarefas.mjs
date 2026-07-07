@@ -56,6 +56,16 @@ const LINHAS = [
 
 const STATUS_MAP = { "A iniciar": "afazer", "Em andamento": "andamento", "Em Atraso": "andamento" };
 
+// Mapeia os nomes da planilha para os e-mails dos usuários cadastrados, para o
+// responsável ficar vinculado à conta (e o filtro não duplicar a mesma pessoa).
+const NOME_EMAIL = {
+  Gabriel: "gabriel@gtaenergia.com",
+  Marcela: "marcela@gtaenergia.com",
+  Matheus: "matheus@gtaenergia.com",
+  "Paulo Vitor": "paulovitor@gtaenergia.com",
+  Tito: "tito@gtaenergia.com",
+};
+
 function toISODate(br) {
   if (!br || br === "-") return "";
   const [d, m, y] = br.split("/");
@@ -71,12 +81,13 @@ function splitObs(obs) {
 }
 
 const now = new Date();
-function buildTask([titulo, cliente, responsavel, termino, statusBr, obs]) {
+function buildTask([titulo, cliente, nome, termino, statusBr, obs]) {
+  const responsavel = NOME_EMAIL[nome] ?? nome; // e-mail do usuário (ou o nome, se não cadastrado)
   const partes = splitObs(obs);
   const descricao = partes.length ? partes[0] : "";
   const comentarios = partes.slice(1).map((texto, i) => ({
     id: crypto.randomUUID(),
-    autor: responsavel,
+    autor: nome, // autor do comentário exibido pelo nome
     texto,
     em: new Date(now.getTime() + i * 1000).toISOString(),
   }));
