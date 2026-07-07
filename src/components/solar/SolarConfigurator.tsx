@@ -330,6 +330,12 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
       valorKit: form.kit,
       valorGta: calc.pricing ? nf(calc.pricing.servicos, 2) : "0",
       prazoExecucao: form.prazoExecucao,
+      // economia/payback (entra no .docx quando calculada)
+      economiaMensal: calc.economia ? brl(calc.economia.economiaMensalMedia) : "",
+      economiaAno1: calc.economia ? brl(calc.economia.economiaAno1) : "",
+      paybackTexto: calc.economia
+        ? (calc.economia.paybackAnos <= 25 ? paybackTexto(calc.economia.paybackMeses) : "acima de 25 anos")
+        : "",
     };
   }
 
@@ -814,7 +820,6 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
               </div>
               <Kpi label="Economia em 25 anos" value={brl(calc.economia.economiaHorizonte)} />
             </div>
-            <PaybackChart saldo={calc.economia.saldo} paybackAnos={calc.economia.paybackAnos} />
             <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
               Considera inflação da tarifa, degradação dos módulos, Fio B progressivo e o consumo simultâneo
               (ajustáveis nos Parâmetros). Gasto atual ≈ {brl(calc.economia.gastoSemSolarAno1 / 12)}/mês → com solar ≈ {brl(calc.economia.gastoComSolarAno1 / 12)}/mês.
@@ -823,7 +828,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         ) : (
           <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
             Preencha o <strong>valor do kit</strong>, a <strong>distribuidora</strong> e a <strong>tarifa</strong> para
-            ver a economia mensal e o gráfico de payback.
+            ver a economia mensal e o payback.
           </p>
         )}
       </section>
@@ -889,59 +894,6 @@ function paybackTexto(meses: number): string {
   const pa = anos > 0 ? `${anos} ano${anos > 1 ? "s" : ""}` : "";
   const pm = m > 0 ? `${m} m${m > 1 ? "eses" : "ês"}` : "";
   return [pa, pm].filter(Boolean).join(" e ") || "menos de 1 mês";
-}
-
-/** Gráfico de payback: saldo acumulado (R$) ao longo dos anos, cruzando o zero. */
-function PaybackChart({ saldo, paybackAnos }: { saldo: number[]; paybackAnos: number }) {
-  const W = 640, H = 220, padL = 52, padR = 12, padT = 12, padB = 26;
-  const n = saldo.length; // anos+1 (0..N)
-  const min = Math.min(...saldo, 0);
-  const max = Math.max(...saldo, 0);
-  const x = (i: number) => padL + ((W - padL - padR) * i) / (n - 1);
-  const y = (v: number) => padT + (H - padT - padB) * (1 - (v - min) / (max - min || 1));
-  const zeroY = y(0);
-  const pts = saldo.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-  const areaNeg = `${x(0)},${zeroY} ${pts} ${x(n - 1)},${zeroY}`;
-  const money = (v: number) => "R$ " + Math.round(v).toLocaleString("pt-BR");
-  // rótulos do eixo Y espaçados (evita sobrepor o investimento, minúsculo na escala de 25 anos)
-  const marks = [0, max / 2, max];
-
-  return (
-    <div className="mt-4 overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[560px]">
-        {/* eixos de referência */}
-        {marks.map((v, i) => (
-          <g key={i}>
-            <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="currentColor" strokeOpacity="0.12" />
-            <text x={padL - 6} y={y(v) + 3} textAnchor="end" fontSize="9" fill="currentColor" fillOpacity="0.5">{money(v)}</text>
-          </g>
-        ))}
-        {/* linha do zero destacada */}
-        <line x1={padL} y1={zeroY} x2={W - padR} y2={zeroY} stroke="currentColor" strokeOpacity="0.35" strokeDasharray="4 3" />
-        {/* área e curva do saldo */}
-        <polyline points={areaNeg} fill="#1B7A3E" fillOpacity="0.12" stroke="none" />
-        <polyline points={pts} fill="none" stroke="#1B7A3E" strokeWidth="2" />
-        {/* rótulo do investimento inicial */}
-        <text x={x(0) + 4} y={y(saldo[0]) - 4} fontSize="8.5" fill="#F26522">{money(saldo[0])}</text>
-        {/* marcador do payback */}
-        {paybackAnos <= n - 1 && (
-          <g>
-            <line x1={x(paybackAnos)} y1={padT} x2={x(paybackAnos)} y2={H - padB} stroke="#F26522" strokeWidth="1.5" strokeDasharray="3 3" />
-            <circle cx={x(paybackAnos)} cy={zeroY} r="4" fill="#F26522" />
-          </g>
-        )}
-        {/* rótulos de anos */}
-        {saldo.map((_, i) => (i % 5 === 0 ? (
-          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="9" fill="currentColor" fillOpacity="0.5">{i}</text>
-        ) : null))}
-      </svg>
-      <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400">
-        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 bg-[#1B7A3E]" /> Saldo acumulado</span>
-        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 bg-[#F26522]" /> Payback</span>
-        <span>Eixo X: anos</span>
-      </div>
-    </div>
-  );
 }
 
 function Kpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {

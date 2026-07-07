@@ -153,6 +153,10 @@ export const solarZodSchema = z.object({
   valorKit: naoVazio("Informe o valor do kit"),
   valorGta: naoVazio("Informe o valor GTA"),
   prazoExecucao: naoVazio("Informe o prazo de execução"),
+  // Economia/payback (opcional — preenchido pelo configurador quando calculado)
+  economiaMensal: z.string().optional().default(""),
+  economiaAno1: z.string().optional().default(""),
+  paybackTexto: z.string().optional().default(""),
 });
 
 export type SolarFormData = z.infer<typeof solarZodSchema>;

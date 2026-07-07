@@ -91,6 +91,12 @@ export function mapSolar(form: SolarFormData): MapResult {
     valorTotal: formatBRL(valorTotalNum),
     valorTotalExtenso: capitalize(moneyToWords(valorTotalNum)) + ".",
 
+    // economia/payback (bloco condicional — só aparece quando calculado)
+    temEconomia: Boolean(form.economiaMensal?.trim()),
+    economiaMensal: form.economiaMensal ?? "",
+    economiaAno1: form.economiaAno1 ?? "",
+    paybackTexto: form.paybackTexto ?? "",
+
     // garantia
     textoGarantia: dist.garantia,
 
