@@ -31,6 +31,13 @@ body {
          dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100
          dark:placeholder-slate-500 dark:disabled:bg-slate-900;
 }
+/* No dark, a lista de um <select> herda o fundo/cor do próprio elemento — em
+   selects com "badge" colorido (ex.: status das tarefas) isso deixa as opções
+   ilegíveis (texto escuro sobre fundo escuro). Força cores sólidas e legíveis. */
+.dark option {
+  background-color: #1e293b; /* slate-800 */
+  color: #f1f5f9; /* slate-100 */
+}
 .field-error {
   @apply mt-1 text-xs text-red-600 dark:text-red-400;
 }
