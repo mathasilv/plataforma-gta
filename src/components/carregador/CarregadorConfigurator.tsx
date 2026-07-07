@@ -63,7 +63,7 @@ interface Sizing {
 }
 interface BomItem { categoria: string; descricao: string; unidade: string; qtd: number; precoUnit: number; precoTotal: number }
 interface Bom { itens: BomItem[]; custoMateriais: number }
-interface Preco { custoMateriais: number; maoObra: number; custoGeral: number; preco: number; margem: number; lucro: number }
+interface Preco { custoMateriais: number; maoObra: number; custoGeral: number; fatorK: number; preco: number; impostos: number; lucro: number; margem: number }
 
 export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
@@ -128,7 +128,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       descricao:
         `Projeto, infraestrutura elétrica, instalação, parametrização e comissionamento de ${n > 1 ? `${n} pontos` : "1 ponto"} de carregamento veicular ` +
         `(${nf(parseBR(form.potenciaKw), parseBR(form.potenciaKw) % 1 ? 1 : 0)} kW, ${form.fase === "mono" ? "monofásico" : "trifásico"}), incluindo materiais, ` +
-        `proteções (disjuntor ${sizing.disjuntorA} A, DR Tipo A e DPS), aterramento e ART, conforme a NBR 5410`,
+        `proteções (disjuntor ${sizing.disjuntorA} A, DR Tipo ${sizing.drTipo} e DPS), aterramento e ART, conforme as NBR 5410 e NBR 17019`,
       valor: nf(parseBR(form.valorServico), 2),
       condicao: "50% na contratação e 50% na entrega",
     }];
@@ -303,7 +303,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
           <div className="sm:col-span-2">
             <label className="field-label">Valor do serviço (R$) *</label>
             <input className={inputCls} value={form.valorServico} onChange={(e) => { precoTocado.current = true; set("valorServico", e.target.value); }} placeholder="Ex.: 5.000,00" />
-            {preco ? <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">materiais {brl(preco.custoMateriais)} + MO {brl(preco.maoObra)} = custo {brl(preco.custoGeral)} · margem {nf(preco.margem * 100, 0)}% → sugerido {brl(preco.preco)}</p> : null}
+            {preco ? <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">custo {brl(preco.custoGeral)} × Fator K {nf(preco.fatorK, 2)} → sugerido {brl(preco.preco)} · margem líq. {nf(preco.margem * 100, 0)}%</p> : null}
           </div>
           <div className="sm:col-span-2">
             <label className="field-label">Equipamento / carregador (R$)</label>
@@ -317,6 +317,25 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
             </div>
           </div>
         </div>
+
+        {preco && (
+          <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Composição do faturamento (uso interno)</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-4 dark:bg-slate-900/50">
+              <Kpi label="Custo materiais" value={brl(preco.custoMateriais)} />
+              <Kpi label="Mão de obra" value={brl(preco.maoObra)} />
+              <Kpi label="Custo geral" value={brl(preco.custoGeral)} />
+              <Kpi label="Fator K (markup)" value={`× ${nf(preco.fatorK, 2)}`} />
+              <Kpi label="Faturamento" value={brl(preco.preco)} destaque />
+              <Kpi label="Impostos" value={brl(preco.impostos)} />
+              <Kpi label="Lucro líquido" value={brl(preco.lucro)} />
+              <Kpi label="Margem líquida" value={`${nf(preco.margem * 100, 1)}%`} destaque />
+            </div>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Faturamento = custo geral × Fator K. Margem líquida = (faturamento − impostos − custo) / faturamento. Ajuste o Fator K e os impostos em “Parâmetros de preço”.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Textos */}
@@ -334,8 +353,8 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
 
       {/* Parâmetros */}
       <details className={sec}>
-        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Parâmetros de preço (mão de obra, margem, Fator K)</summary>
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Preço = (materiais × Fator K + mão de obra) / (1 − margem). Ao salvar, valem para todos os próximos cálculos.</p>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Parâmetros de preço (mão de obra, Fator K, impostos)</summary>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Faturamento = (materiais + mão de obra) × Fator K. Padrão GTA: Fator K 1,65 e impostos 7,01% → margem líquida ≈ 30%. Ao salvar, valem para todos os próximos cálculos.</p>
         <div className="mt-4"><CarregadorParamsForm onSaved={aplicarParams} /></div>
       </details>
 

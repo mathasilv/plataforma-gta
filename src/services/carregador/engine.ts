@@ -1,11 +1,17 @@
 /**
  * Carregador veicular (EV) — dimensionamento (NBR 5410) + lista de materiais
- * paramétrica + precificação por custo. Codifica a planilha real da GTA
- * (Eduardo): In = P/V, Ib = In×1,25, disjuntor comercial, seção por ampacidade
- * e queda de tensão; o eletroduto é dimensionado pela taxa de ocupação (≤40%),
- * e os materiais mudam conforme a potência (seção) e o tipo (mono/tri: nº de
- * condutores, polos do disjuntor/DR, nº de DPS e porte do quadro).
- * Preço = (materiais×fatorK + mão de obra) / (1 − margem).
+ * paramétrica + precificação pelo modelo comercial real da GTA.
+ * Dimensionamento (planilha do Eduardo): In = P/V, Ib = In×1,25, disjuntor
+ * comercial, seção por ampacidade e queda de tensão; eletroduto pela taxa de
+ * ocupação (≤40%); os materiais mudam conforme a potência (seção) e o tipo
+ * (mono/tri: nº de condutores, polos do disjuntor/DR, nº de DPS, porte do quadro).
+ *
+ * Preço (planilha "Carregadores Avenida Parque — versão revisada"):
+ *   custoGeral   = materiais + mão de obra
+ *   faturamento  = custoGeral × Fator K      (Fator K = markup; padrão 1,65)
+ *   impostos     = faturamento × alíquota    (padrão 7,01% = 5% + 2,01%)
+ *   lucro        = faturamento − impostos − custoGeral
+ *   margem líq.  = lucro / faturamento       (≈ 30% com K=1,65)
  */
 
 export type Fase = "mono" | "tri";
@@ -127,7 +133,7 @@ export interface BomItemEV {
   precoTotal: number;
 }
 
-export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number, fatorK = 1): { itens: BomItemEV[]; custoMateriais: number } {
+export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number): { itens: BomItemEV[]; custoMateriais: number } {
   const L = Math.max(1, distanciaM);
   const n = Math.max(1, qtd);
   const tri = s.polos === 4;
@@ -135,7 +141,7 @@ export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number, fatorK 
   const barras = Math.ceil(L / 3);
 
   const item = (categoria: string, descricao: string, unidade: string, qtdLiquida: number, precoUnit: number): BomItemEV => {
-    const q = Math.ceil(qtdLiquida * fatorK);
+    const q = Math.ceil(qtdLiquida);
     return { categoria, descricao, unidade, qtd: q, precoUnit, precoTotal: q * precoUnit };
   };
 
@@ -172,23 +178,30 @@ export function gerarBomEV(s: SizingEV, distanciaM: number, qtd: number, fatorK 
 
 export interface PrecoEVParams {
   maoObraPorPonto: number;
-  margem: number;
+  /** Fator K: markup aplicado sobre o custo geral (planilha revisada: 1,65). */
   fatorK: number;
+  /** Alíquota de impostos sobre o faturamento (planilha revisada: 0,0701). */
+  aliqImpostos: number;
 }
 export interface PrecoEVResult {
   custoMateriais: number;
   maoObra: number;
   custoGeral: number;
-  preco: number;
-  margem: number;
-  lucro: number;
+  fatorK: number;
+  preco: number; // faturamento (custo × Fator K, arredondado)
+  impostos: number;
+  lucro: number; // faturamento − impostos − custo
+  margem: number; // margem líquida = lucro / faturamento
 }
 
 export function precoEV(custoMateriais: number, qtd: number, p: PrecoEVParams): PrecoEVResult {
   const maoObra = p.maoObraPorPonto * Math.max(1, qtd);
   const custoGeral = custoMateriais + maoObra;
-  const m = Math.min(0.95, Math.max(0, p.margem));
-  const bruto = custoGeral / (1 - m);
-  const preco = Math.round(bruto / 10) * 10;
-  return { custoMateriais, maoObra, custoGeral, preco, margem: m, lucro: preco - custoGeral };
+  const k = Math.min(4, Math.max(1, p.fatorK));
+  const preco = Math.round((custoGeral * k) / 10) * 10;
+  const aliq = Math.min(0.5, Math.max(0, p.aliqImpostos));
+  const impostos = preco * aliq;
+  const lucro = preco - impostos - custoGeral;
+  const margem = preco > 0 ? lucro / preco : 0;
+  return { custoMateriais, maoObra, custoGeral, fatorK: k, preco, impostos, lucro, margem };
 }

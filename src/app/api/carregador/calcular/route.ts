@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   const params = await getCarregadorParams();
   const sizing = dimensionarEV(i);
-  const bom = gerarBomEV(sizing, i.distanciaM, i.qtdPontos, params.fatorK);
+  const bom = gerarBomEV(sizing, i.distanciaM, i.qtdPontos);
   const preco = precoEV(bom.custoMateriais, i.qtdPontos, params);
 
   return NextResponse.json({ sizing, bom, preco });

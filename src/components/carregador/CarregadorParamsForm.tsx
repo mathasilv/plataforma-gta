@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-type ParamKey = "maoObraPorPonto" | "margem" | "fatorK";
+type ParamKey = "maoObraPorPonto" | "fatorK" | "aliqImpostos";
 type Params = Record<ParamKey, number>;
 interface CampoDef { key: ParamKey; label: string; help: string; kind: "dec" | "pct" }
 
 const CAMPOS: CampoDef[] = [
   { key: "maoObraPorPonto", label: "Mão de obra / ponto (R$)", help: "Serviço e despesas por carregador", kind: "dec" },
-  { key: "margem", label: "Margem (%)", help: "Aplicada sobre o custo geral", kind: "pct" },
-  { key: "fatorK", label: "Fator K (perdas/sobras)", help: "Multiplica as quantidades de material (1,0 = sem folga)", kind: "dec" },
+  { key: "fatorK", label: "Fator K (markup)", help: "Multiplica o custo p/ chegar ao faturamento. 1,65 = padrão GTA (planilha revisada)", kind: "dec" },
+  { key: "aliqImpostos", label: "Impostos (%)", help: "Alíquota sobre o faturamento (padrão 7,01% = 5% + 2,01%)", kind: "pct" },
 ];
 
 function parseDec(s: string): number {
