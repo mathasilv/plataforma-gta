@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QgbtParamsForm } from "./QgbtParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -272,6 +273,16 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || valorServico <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <BaixarPlanilhaButton serviceKey="qgbt" disabled={valorServico <= 0} nome={`qgbt-${form.clienteNome || "proposta"}`} dados={() => ({
+          cliente: form.clienteNome,
+          especificacao: form.especificacao,
+          custoUnitario: parseBR(form.custoUnitario),
+          qtdQuadros: form.qtdQuadros,
+          custo: preco?.custo,
+          valorServico,
+          fatorK: preco?.fatorK ?? 1.55,
+          aliqImpostos: preco && preco.faturamento > 0 ? preco.impostos / preco.faturamento : 0.15,
+        })} />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>

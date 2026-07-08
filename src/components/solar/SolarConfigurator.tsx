@@ -11,6 +11,7 @@ import {
 import { SolarParamsForm } from "@/components/admin/SolarParamsForm";
 import { CopyButton } from "@/components/CopyButton";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 /** Formatação pt-BR local (sem depender de libs de servidor). */
 const nf = (v: number, d = 2) =>
@@ -19,6 +20,12 @@ const brl = (v: number) => "R$ " + nf(v, 2);
 const pct = (v: number) => nf(v * 100, 2) + "%";
 /** kW sem casas desnecessárias: 3.5 -> "3,5" · 10 -> "10" */
 const kw = (v: number) => nf(v, Number.isInteger(v) ? 0 : 1);
+/** "18.400,27" -> 18400.27 (número no formato BR). */
+const parseBR = (s: string) => {
+  const t = String(s ?? "").trim();
+  if (!t) return 0;
+  return t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
+};
 /** Busca sem acento/caixa. */
 const normalizar = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
@@ -875,6 +882,32 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         <button className="btn-primary" onClick={gerar} disabled={gerando || !calc?.pricing} title={!calc?.pricing ? "Informe o valor do kit para gerar" : undefined}>
           {gerando ? "Gerando..." : "Gerar .docx"}
         </button>
+        <BaixarPlanilhaButton
+          serviceKey="solar"
+          disabled={!calc?.pricing}
+          nome={`solar-${form.clienteNome || "proposta"}`}
+          dados={() => ({
+            cliente: form.clienteNome,
+            referencia: String(form.referenciaSeq),
+            kit: parseBR(form.kit),
+            fator: form.fator,
+            valorTotal: calc?.pricing?.valorTotal ?? 0,
+            servicos: calc?.pricing?.servicos ?? 0,
+            kwp: calc?.kwpTotal ?? 0,
+            eficiencia: form.eficiencia,
+            custos: calc?.pricing
+              ? {
+                  instalacao: calc.pricing.custos.instalacao,
+                  materialCa: calc.pricing.custos.materialCa,
+                  deslocamento: calc.pricing.custos.deslocamento,
+                  art: calc.pricing.custos.art,
+                  imposto: calc.pricing.custos.imposto,
+                  comissao: calc.pricing.custos.comissao,
+                }
+              : undefined,
+            geracao: calc?.geracao?.linhas.map((l) => ({ mes: l.mes, hsp: l.insolacao })) ?? [],
+          })}
+        />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>
           Ver propostas
         </button>

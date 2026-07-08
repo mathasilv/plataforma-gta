@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { RedeMtParamsForm } from "./RedeMtParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -72,6 +73,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
   const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const [custoRows, setCustoRows] = useState<CustoRow[]>(CUSTO_ROWS_PADRAO);
   const [preco, setPreco] = useState<Preco | null>(null);
+  const [params, setParams] = useState<{ fatorKProjeto: number; nfProjeto: number; fatorKExecucao: number; nfExecucao: number } | null>(null);
   const [recalcNonce, setRecalcNonce] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -115,6 +117,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
         if (res.ok) {
           const d = await res.json();
           setPreco(d.preco);
+          if (d.params) setParams(d.params);
           if (!precoTocado.current) setForm((f) => ({ ...f, valorProjeto: nf(d.preco.faturamentoProjeto, 2), valorExecucao: nf(d.preco.faturamentoExecucao, 2) }));
         }
       } catch { /* ignora */ }
@@ -331,6 +334,15 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || totalCliente <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <BaixarPlanilhaButton serviceKey="rede-mt" nome={`rede-mt-${form.clienteNome || "proposta"}`} dados={() => ({
+          cliente: form.clienteNome,
+          referencia: form.referenciaSeq ? String(form.referenciaSeq) : undefined,
+          custoRows: custoRows.map((r) => ({ etapa: r.etapa, descricao: r.descricao, qtd: parseBR(r.qtd), valorUnit: parseBR(r.valorUnit) })),
+          fatorKProjeto: params?.fatorKProjeto ?? preco?.fatorKProjeto ?? 1.889,
+          nfProjeto: params?.nfProjeto ?? 0.15,
+          fatorKExecucao: params?.fatorKExecucao ?? preco?.fatorKExecucao ?? 1.7,
+          nfExecucao: params?.nfExecucao ?? 0.06,
+        })} />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>

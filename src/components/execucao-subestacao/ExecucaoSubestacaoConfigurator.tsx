@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExecSeParamsForm } from "./ExecSeParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -297,6 +298,24 @@ export function ExecucaoSubestacaoConfigurator({ propostaId }: { propostaId?: st
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || valorServico <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <BaixarPlanilhaButton
+          serviceKey="execucao-subestacao"
+          nome={`execucao-subestacao-${form.clienteNome || "proposta"}`}
+          disabled={valorServico <= 0}
+          dados={() => ({
+            cliente: form.clienteNome,
+            referencia: form.referenciaSeq ? String(form.referenciaSeq) : undefined,
+            potenciaKva: form.potenciaKva.trim(),
+            tipo: form.tipo,
+            custoMateriais: parseBR(form.custoMateriais),
+            custoMaoObra: parseBR(form.custoMaoObra),
+            custoProjetoOutros: parseBR(form.custoProjetoOutros),
+            valorServico,
+            valorEquipamento: parseBR(form.valorEquipamento),
+            fatorK: preco?.fatorK ?? 1.7,
+            aliqImpostos: preco && preco.faturamento > 0 ? preco.impostos / preco.faturamento : 0.06,
+          })}
+        />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>

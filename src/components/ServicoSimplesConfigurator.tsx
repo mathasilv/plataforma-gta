@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SERVICOS_SIMPLES } from "./servicos-simples-configs";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -224,6 +225,11 @@ export function ServicoSimplesConfigurator({ serviceKey, propostaId }: { service
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || valorServico <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <BaixarPlanilhaButton serviceKey={config.serviceKey} disabled={valorServico <= 0} nome={`${config.serviceKey}-${form.clienteNome || "proposta"}`} dados={() => ({
+          cliente: form.clienteNome, servico: config.tituloSecao,
+          itens: [{ descricao: config.montarDescricao(driver()), valor: valorServico }],
+          total: valorServico,
+        })} />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {statusMsg && <span className="text-sm text-green-600 dark:text-green-400">{statusMsg}</span>}
       </div>

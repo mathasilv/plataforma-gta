@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { SpdaParamsForm } from "./SpdaParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -67,6 +68,7 @@ export function SpdaConfigurator({ propostaId }: { propostaId?: string }) {
   const [gerando, setGerando] = useState(false);
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
   const [aliq, setAliq] = useState(0.15);
+  const [params, setParams] = useState({ valorPorBloco: 1650, precoPorM2: 3, pisoMinimo: 2500, aliqImpostos: 0.15 });
   const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const precoTocado = useRef(false);
 
@@ -98,6 +100,7 @@ export function SpdaConfigurator({ propostaId }: { propostaId?: string }) {
         if (res.ok) {
           const d = await res.json();
           setPreco(d.preco);
+          if (d.params) setParams(d.params);
           if (d.params?.aliqImpostos != null) setAliq(d.params.aliqImpostos);
           if (!precoTocado.current) setForm((f) => ({ ...f, valorProjeto: nf(d.preco.design, 2) }));
         }
@@ -311,6 +314,19 @@ export function SpdaConfigurator({ propostaId }: { propostaId?: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || valorTotalProjeto <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <BaixarPlanilhaButton
+          serviceKey="spda"
+          nome={`spda-${form.clienteNome || "proposta"}`}
+          dados={() => ({
+            cliente: form.clienteNome,
+            nBlocos: form.nBlocos,
+            valorPorBloco: params.valorPorBloco,
+            area: parseBR(form.areaM2),
+            precoPorM2: params.precoPorM2,
+            piso: params.pisoMinimo,
+            aliqImpostos: aliq,
+          })}
+        />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>

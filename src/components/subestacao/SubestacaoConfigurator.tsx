@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { SubestacaoParamsForm } from "./SubestacaoParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -108,6 +109,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
   const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const [sizing, setSizing] = useState<Sizing | null>(null);
   const [preco, setPreco] = useState<Preco | null>(null);
+  const [params, setParams] = useState<{ valorHora: number; artProjeto: number; margemProjeto: number } | null>(null);
   const [recalcNonce, setRecalcNonce] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -140,6 +142,13 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
       }).catch(() => {});
     }
   }, [propostaId]);
+
+  // parâmetros de preço (valor/hora, ART, margem) — para a planilha .xlsx
+  useEffect(() => {
+    fetch("/api/subestacao/config").then((r) => r.json()).then((d) => {
+      if (d.params) setParams({ valorHora: d.params.valorHora, artProjeto: d.params.artProjeto, margemProjeto: d.params.margemProjeto });
+    }).catch(() => {});
+  }, [recalcNonce]);
 
   // cálculo ao vivo (debounce)
   const calcKey = JSON.stringify([
@@ -509,6 +518,20 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || sizing.trafoKva === 0 || parseBR(form.valorProjeto) <= 0}>
           {gerando ? "Gerando..." : "Gerar .docx"}
         </button>
+        <BaixarPlanilhaButton
+          serviceKey="projeto-subestacao"
+          nome={`projeto-subestacao-${form.clienteNome || "proposta"}`}
+          disabled={!preco || !sizing || sizing.trafoKva === 0}
+          dados={() => ({
+            cliente: form.clienteNome,
+            referencia: `Nº ${form.referenciaSeq}`,
+            horas: preco?.horas ?? 0,
+            valorHora: params?.valorHora ?? 150,
+            art: params?.artProjeto ?? 500,
+            margem: preco?.margem ?? params?.margemProjeto ?? 0.5,
+            kVA: sizing?.trafoKva ?? 0,
+          })}
+        />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>

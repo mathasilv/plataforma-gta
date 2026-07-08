@@ -157,3 +157,46 @@ export async function planilhaBuffer(wb: ExcelJS.Workbook): Promise<Buffer> {
   const ab = await wb.xlsx.writeBuffer();
   return Buffer.from(ab);
 }
+
+// ------------------------------------------------------------------ Helpers de builder
+
+/** Coerção segura para número finito. */
+export const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+/** Faixa de título + subtítulo (cliente/ref) no topo da aba. */
+export function cabecalho(a: Aba, titulo: string, d: { cliente?: string; referencia?: string }) {
+  const sub = [d.cliente ? `Cliente: ${d.cliente}` : "", d.referencia ? `Ref.: ${d.referencia}` : ""].filter(Boolean).join("  ·  ");
+  a.titulo(titulo, sub || undefined);
+}
+
+/**
+ * Bloco "custo × Fator K" (Carregador/QGBT/Execução SE): recebe a ref da célula
+ * do custo e escreve Fator K (editável) → faturamento → impostos → lucro → margem,
+ * tudo como fórmula viva.
+ */
+export function blocoFatorK(a: Aba, custoRef: string, custo: number, fatorK: number, aliq: number, labelFat = "Faturamento (preço ao cliente)") {
+  const kRef = a.campo("Fator K (markup)", fatorK, { fmt: NUM, nota: "editável — recalcula abaixo" });
+  const fat = custo * fatorK;
+  const fatRef = a.formula(labelFat, `${custoRef}*${kRef}`, fat, { fmt: BRL, destaque: true });
+  const impRef = a.campo("Impostos / NF", aliq, { fmt: PCT });
+  const imp = fat * aliq;
+  const impValRef = a.formula("Impostos (R$)", `${fatRef}*${impRef}`, imp, {});
+  const lucro = fat - custo - imp;
+  const lucroRef = a.formula("Lucro", `${fatRef}-${custoRef}-${impValRef}`, lucro, {});
+  a.formula("Margem líquida", `${lucroRef}/${fatRef}`, fat > 0 ? lucro / fat : 0, { fmt: PCT, destaque: true });
+}
+
+/**
+ * Tabela de composição de custo (descrição, un, qtd, valor unit, total=qtd*unit).
+ * Retorna a ref da célula com a SOMA dos totais.
+ */
+export function tabelaCusto(a: Aba, itens: { descricao: string; unidade?: string; qtd: number; precoUnit: number }[], labelSoma = "Custo total"): string {
+  const dataStart = a.linhaAtual + 1;
+  const linhas = itens.map((m, i) => {
+    const rn = dataStart + i;
+    return [m.descricao || "—", m.unidade || "un", num(m.qtd), num(m.precoUnit), { formula: `C${rn}*D${rn}`, result: num(m.qtd) * num(m.precoUnit) }];
+  });
+  const t = a.tabela(["Descrição", "Un.", "Qtd", "Valor unit.", "Total"], linhas, [undefined, undefined, NUM, BRL, BRL]);
+  const soma = itens.reduce((s, m) => s + num(m.qtd) * num(m.precoUnit), 0);
+  return a.formula(labelSoma, `SUM(E${t.primeira}:E${t.ultima})`, soma, { bold: true });
+}
