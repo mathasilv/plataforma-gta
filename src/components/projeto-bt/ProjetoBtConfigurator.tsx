@@ -20,11 +20,30 @@ const HOJE = new Date().toISOString().slice(0, 10);
  * `frag` = fragmento usado para compor o objeto dinâmico da proposta.
  */
 const DISCIPLINAS = [
-  { id: "forca", nome: "Força — tomadas (TUG/TUE)", def: "6000", ajuda: "Circuitos de tomadas de uso geral e específico.", descricao: "Projeto elétrico de força — dimensionamento e individualização dos circuitos de tomadas de uso geral (TUG) e específico (TUE)", frag: "projeto elétrico de força (circuitos de tomadas de uso geral e específico)" },
-  { id: "iluminacao", nome: "Iluminação (luminotécnico)", def: "4000", ajuda: "Circuitos e pontos de iluminação.", descricao: "Projeto luminotécnico — dimensionamento dos circuitos e pontos de iluminação", frag: "projeto luminotécnico" },
-  { id: "telecom", nome: "Telecom / cabeamento estruturado", def: "6000", ajuda: "Rede lógica e telefonia. Histórico (CCB): R$ 6.150.", descricao: "Projeto de telecomunicação e cabeamento estruturado (rede lógica e telefonia)", frag: "projeto de telecomunicações e cabeamento estruturado" },
-  { id: "retrofit", nome: "Retrofit / adequação de existente", def: "5000", ajuda: "Modernização e correção de não conformidades da instalação existente.", descricao: "Retrofit e adequação da instalação elétrica predial existente, com correção de não conformidades", frag: "retrofit e adequação da instalação elétrica predial existente" },
+  { id: "forca", nome: "Força — tomadas (TUG/TUE)", taxaM2: 11, piso: 2500, ajuda: "Circuitos de tomadas de uso geral e específico.", descricao: "Projeto elétrico de força — dimensionamento e individualização dos circuitos de tomadas de uso geral (TUG) e específico (TUE)", frag: "projeto elétrico de força (circuitos de tomadas de uso geral e específico)" },
+  { id: "iluminacao", nome: "Iluminação (luminotécnico)", taxaM2: 7, piso: 2000, ajuda: "Circuitos e pontos de iluminação.", descricao: "Projeto luminotécnico — dimensionamento dos circuitos e pontos de iluminação", frag: "projeto luminotécnico" },
+  { id: "telecom", nome: "Telecom / cabeamento estruturado", taxaM2: 5, piso: 2000, ajuda: "Rede lógica e telefonia. Histórico (CCB): R$ 6.150.", descricao: "Projeto de telecomunicação e cabeamento estruturado (rede lógica e telefonia)", frag: "projeto de telecomunicações e cabeamento estruturado" },
+  { id: "retrofit", nome: "Retrofit / adequação de existente", taxaM2: 10, piso: 2500, ajuda: "Modernização e correção de não conformidades da instalação existente.", descricao: "Retrofit e adequação da instalação elétrica predial existente, com correção de não conformidades", frag: "retrofit e adequação da instalação elétrica predial existente" },
 ] as const;
+
+type Disciplina = (typeof DISCIPLINAS)[number];
+
+/**
+ * Preço por disciplina = área (m²) × taxa R$/m² × multiplicador do tipo,
+ * com piso mínimo. Taxas ancoradas no CPMG Itapuranga (677 m² → ~R$ 18/m² do
+ * projeto elétrico predial) e repartidas por disciplina. Multiplicador industrial
+ * (Geolab) sobe a complexidade de força/iluminação.
+ */
+const TIPOS = [
+  { id: "comercial", nome: "Residencial / Comercial", mult: 1 },
+  { id: "industrial", nome: "Industrial", mult: 1.4 },
+] as const;
+const multTipo = (id: string) => TIPOS.find((t) => t.id === id)?.mult ?? 1;
+/** Sugestão de preço de uma disciplina (arredondada a R$ 10, com piso). */
+function sugestaoDisc(d: Disciplina, areaM2: number, tipoId: string): number {
+  const bruto = areaM2 * d.taxaM2 * multTipo(tipoId);
+  return Math.max(Math.round(bruto / 10) * 10, d.piso);
+}
 
 type Vals = Record<string, string>;
 
@@ -72,8 +91,10 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
     formaPagamento: "20% na assinatura, 50% na entrega do projeto executivo e 30% na aprovação",
     objeto: montarObjeto(["forca", "iluminacao"]), prazoExecucao: "60 dias corridos após a assinatura do contrato",
     observacoesExtra: OBS_PADRAO.join("\n"),
-    // disciplinas: on/valor por id (padrão: predial completo = força + iluminação)
-    ...Object.fromEntries(DISCIPLINAS.flatMap((d) => [[`on_${d.id}`, d.id === "forca" || d.id === "iluminacao" ? "1" : ""], [`v_${d.id}`, d.def]])),
+    areaM2: "", tipo: "comercial", custoExecucao: "",
+    // disciplinas: on/valor por id (padrão: predial completo = força + iluminação;
+    // valor inicial = sugestão a área 0, que cai no piso)
+    ...Object.fromEntries(DISCIPLINAS.flatMap((d) => [[`on_${d.id}`, d.id === "forca" || d.id === "iluminacao" ? "1" : ""], [`v_${d.id}`, String(d.piso)]])),
   });
 
   const [form, setForm] = useState<Vals>(inicial);
@@ -85,6 +106,8 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   // Objeto: enquanto o vendedor não editar o texto à mão, ele é recomposto
   // automaticamente a partir das disciplinas marcadas.
   const objetoTocado = useRef(false);
+  // Disciplinas cujo valor o vendedor editou à mão (não sobrescrever c/ a sugestão).
+  const valoresTocados = useRef<Set<string>>(new Set());
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const toggle = (id: string) => setForm((f) => ({ ...f, [`on_${id}`]: f[`on_${id}`] ? "" : "1" }));
@@ -92,7 +115,7 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) { setForm((f) => ({ ...f, ...(d.proposta.dados as Vals) })); objetoTocado.current = true; }
+        if (d.proposta?.dados) { setForm((f) => ({ ...f, ...(d.proposta.dados as Vals) })); objetoTocado.current = true; DISCIPLINAS.forEach((di) => valoresTocados.current.add(di.id)); }
       }).catch(() => {});
     } else {
       fetch(`/api/propostas/proximo?serviceKey=projeto-bt`).then((r) => r.json()).then((d) => {
@@ -109,9 +132,27 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
     setForm((f) => ({ ...f, objeto: montarObjeto(idsSelecionados ? idsSelecionados.split(",") : []) }));
   }, [idsSelecionados]);
 
+  // Valor por disciplina: auto-preenchido pela sugestão (área × taxa × mult, com
+  // piso) até o vendedor editar aquela disciplina à mão.
+  const areaM2 = parseBR(form.areaM2);
+  const tipoId = form.tipo || "comercial";
+  useEffect(() => {
+    setForm((f) => {
+      const next = { ...f };
+      for (const d of DISCIPLINAS) {
+        if (!valoresTocados.current.has(d.id)) next[`v_${d.id}`] = nf(sugestaoDisc(d, areaM2, tipoId), 2);
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaM2, tipoId]);
+  const setValorDisc = (id: string, v: string) => { valoresTocados.current.add(id); set(`v_${id}`, v); };
+
   const porteSufixo = form.porte?.trim() ? ` — ${form.porte.trim()}` : "";
   const selecionadas = DISCIPLINAS.filter((d) => form[`on_${d.id}`]);
   const total = selecionadas.reduce((s, d) => s + parseBR(form[`v_${d.id}`]), 0);
+  const custoExec = parseBR(form.custoExecucao);
+  const pctExec = custoExec > 0 ? (total / custoExec) * 100 : null;
 
   function montarItens() {
     return selecionadas.map((d) => ({ descricao: `${d.descricao}${porteSufixo}`, valor: nf(parseBR(form[`v_${d.id}`]), 2), condicao: "" }));
@@ -192,15 +233,41 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
       </section>
 
       {/* Disciplinas */}
+      {/* Porte do projeto (dirige o preço por m²) */}
+      <section className={sec}>
+        <h2 className={h2}>Porte do projeto</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">A <strong>área construída</strong> dirige a sugestão de preço de cada disciplina (R$/m²). Em branco, cada disciplina parte do piso e você ajusta à mão.</p>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-2">
+            <label className="field-label">Área construída (m²)</label>
+            <input className={inputCls} inputMode="decimal" value={form.areaM2} onChange={(e) => set("areaM2", e.target.value)} placeholder="Ex.: 800" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Tipo de edificação</label>
+            <select className={inputCls} value={form.tipo} onChange={(e) => set("tipo", e.target.value)}>
+              {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.nome}{t.mult !== 1 ? ` (×${nf(t.mult, 1)})` : ""}</option>)}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Custo de execução (R$) <span className="font-normal text-slate-400">— opcional</span></label>
+            <input className={inputCls} inputMode="decimal" value={form.custoExecucao} onChange={(e) => set("custoExecucao", e.target.value)} placeholder="p/ conferir o % (honorário/obra)" />
+          </div>
+        </div>
+      </section>
+
+      {/* Disciplinas */}
       <section className={sec}>
         <h2 className={h2}>Disciplinas do projeto</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Marque as disciplinas contratadas — cada uma vira um item na proposta. Ajuste os valores conforme o porte.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Marque as disciplinas contratadas — cada uma vira um item na proposta, precificada pela área. O valor é editável por disciplina.</p>
         <div className="mt-4 space-y-2">
           {DISCIPLINAS.map((d) => {
             const on = !!form[`on_${d.id}`];
+            const sug = sugestaoDisc(d, areaM2, tipoId);
+            const mult = multTipo(tipoId);
+            const editado = valoresTocados.current.has(d.id);
             return (
               <div key={d.id} className={`rounded-lg border p-3 transition ${on ? "border-gta-indigo/40 bg-indigo-50/40 dark:border-indigo-400/30 dark:bg-indigo-500/10" : "border-slate-200 dark:border-slate-700"}`}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <label className="flex flex-1 cursor-pointer items-start gap-2.5">
                     <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-gta-indigo focus:ring-gta-indigo" checked={on} onChange={() => toggle(d.id)} />
                     <span>
@@ -208,11 +275,17 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
                       <span className="block text-xs text-slate-400 dark:text-slate-500">{d.ajuda}</span>
                     </span>
                   </label>
-                  <div className="w-full sm:w-40">
+                  <div className="w-full sm:w-48">
                     <div className="relative">
                       <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
-                      <input className={`${inputCls} pl-8 text-right`} inputMode="decimal" value={form[`v_${d.id}`] ?? ""} disabled={!on} onChange={(e) => set(`v_${d.id}`, e.target.value)} />
+                      <input className={`${inputCls} pl-8 text-right`} inputMode="decimal" value={form[`v_${d.id}`] ?? ""} disabled={!on} onChange={(e) => setValorDisc(d.id, e.target.value)} />
                     </div>
+                    {on && (
+                      <p className="mt-1 flex items-center justify-end gap-1.5 text-right text-[11px] text-slate-400 dark:text-slate-500">
+                        <span>{areaM2 > 0 ? `${brl(d.taxaM2)}/m² × ${nf(areaM2, 0)}${mult !== 1 ? ` × ${nf(mult, 1)}` : ""} → ` : `piso `}{brl(sug)}</span>
+                        {editado && <button type="button" className="text-gta-indigo hover:underline" onClick={() => { valoresTocados.current.delete(d.id); set(`v_${d.id}`, nf(sug, 2)); }}>usar</button>}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -223,6 +296,11 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
           <div className="text-sm text-slate-300">Total do projeto ({selecionadas.length} {selecionadas.length === 1 ? "disciplina" : "disciplinas"})</div>
           <div className="text-xl font-bold">{brl(total)}</div>
         </div>
+        {pctExec !== null && (
+          <p className={`mt-2 text-xs ${pctExec < 1.5 || pctExec > 6 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>
+            Conferência: honorário = <strong>{nf(pctExec, 2)}%</strong> do custo de execução informado. Referência real (CPMG): ~2,4%; faixa usual de projeto: 2–6%.
+          </p>
+        )}
         <p className="mt-3 rounded-md bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
           <span className="font-medium text-slate-600 dark:text-slate-300">Objeto{objetoTocado.current ? " (editado)" : ""}:</span> {form.objeto}
         </p>
