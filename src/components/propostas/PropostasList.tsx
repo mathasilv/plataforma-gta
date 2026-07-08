@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { Badge, EmptyState, type Tone } from "@/components/ui";
 import { statusPropostaLabel, STATUS_PROPOSTA, type Proposta } from "@/lib/propostas/types";
@@ -24,11 +25,13 @@ function fmtData(iso: string) {
   return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function PropostasList() {
+export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
+  const router = useRouter();
   const [propostas, setPropostas] = useState<Proposta[]>([]);
   const [services, setServices] = useState<ServiceMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
 
   // filtros
   const [busca, setBusca] = useState("");
@@ -86,6 +89,24 @@ export function PropostasList() {
     const res = await fetch(`/api/propostas/${p.id}`, { method: "DELETE" });
     if (res.ok) setPropostas((prev) => prev.filter((x) => x.id !== p.id));
     else setErro("Falha ao excluir.");
+  }
+
+  async function enviarParaAprovacao(p: Proposta) {
+    setErro(null);
+    setEnviandoId(p.id);
+    try {
+      const res = await fetch("/api/orcamentos/da-proposta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propostaId: p.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao enviar para aprovação.");
+      router.push(`/aprovacoes/${data.orcamento.id}`);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro.");
+      setEnviandoId(null);
+    }
   }
 
   function rotuloServico(key: string) {
@@ -172,7 +193,16 @@ export function PropostasList() {
                 <span>{nomeCriador(p)}</span>
                 <span>{fmtData(p.atualizadoEm)}</span>
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
+                {podeEnviar && (
+                  <button
+                    onClick={() => enviarParaAprovacao(p)}
+                    disabled={enviandoId === p.id}
+                    className="btn-primary flex-1 justify-center !py-2 text-xs"
+                  >
+                    {enviandoId === p.id ? "Enviando..." : "Enviar p/ aprovação"}
+                  </button>
+                )}
                 {podeReabrir && (
                   <Link href={`/nova/${p.serviceKey}?proposta=${p.id}`} className="btn-secondary flex-1 justify-center !py-2 text-xs">
                     Abrir
@@ -227,6 +257,15 @@ export function PropostasList() {
                   <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{fmtData(p.atualizadoEm)}</td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-3 text-xs">
+                      {podeEnviar && (
+                        <button
+                          onClick={() => enviarParaAprovacao(p)}
+                          disabled={enviandoId === p.id}
+                          className="font-medium text-gta-indigo hover:underline disabled:opacity-50"
+                        >
+                          {enviandoId === p.id ? "Enviando..." : "Enviar p/ aprovação"}
+                        </button>
+                      )}
                       {podeReabrir && (
                         <Link href={`/nova/${p.serviceKey}?proposta=${p.id}`} className="text-gta-indigo hover:underline">
                           Abrir

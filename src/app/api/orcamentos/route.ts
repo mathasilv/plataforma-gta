@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApi, requirePermissaoApi } from "@/lib/rbac/guards";
-import { getOrcamentoStore } from "@/lib/orcamentos/store";
+import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
 import { criarOrcamentoSchema } from "@/lib/orcamentos/types";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ export async function GET() {
   const guard = await requireApi();
   if ("error" in guard) return guard.error;
   const store = getOrcamentoStore();
-  return NextResponse.json({ orcamentos: await store.list() });
+  return NextResponse.json({ orcamentos: (await store.list()).map(redigirOrcamento) });
 }
 
 /** Cria um orçamento (entra como rascunho). */
@@ -44,5 +44,5 @@ export async function POST(req: Request) {
     criadoPor: me.email,
     criadoPorNome: me.name || me.email,
   });
-  return NextResponse.json({ orcamento: novo }, { status: 201 });
+  return NextResponse.json({ orcamento: redigirOrcamento(novo) }, { status: 201 });
 }

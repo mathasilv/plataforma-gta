@@ -1,16 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   estacaoLabel,
   type AcaoTransicao,
+  type AnexoRef,
   type Orcamento,
   type RegistroValidacao,
 } from "@/lib/orcamentos/types";
 import type { PermissaoKey } from "@/lib/rbac/permissoes";
-import { Badge, KpiGrid, Kpi, type Tone } from "@/components/ui";
-import { formatBRL, formatDecimal } from "@/lib/format";
+import { Badge, type Tone } from "@/components/ui";
 
 const ESTACAO_TONE: Record<string, Tone> = {
   rascunho: "slate",
@@ -27,6 +28,8 @@ const HIST: Record<RegistroValidacao["tipo"], { label: string; tone: Tone }> = {
   auto: { label: "Validação automática", tone: "amber" },
 };
 
+const PRECISA_PARECER: AcaoTransicao[] = ["aprovar", "rejeitar", "cancelar"];
+
 function fmt(iso: string) {
   try {
     return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -35,36 +38,78 @@ function fmt(iso: string) {
   }
 }
 
+function fmtData(yyyymmdd?: string) {
+  if (!yyyymmdd) return null;
+  const d = new Date(`${yyyymmdd}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? yyyymmdd : d.toLocaleDateString("pt-BR");
+}
+
+function validadeTexto(meta?: Orcamento["meta"]) {
+  if (!meta?.dataEmissao || !meta.validadeDias) return null;
+  const d = new Date(`${meta.dataEmissao}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + meta.validadeDias);
+  return `${d.toLocaleDateString("pt-BR")} (${meta.validadeDias} dias)`;
+}
+
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Ações que abrem o campo de parecer (obrigatório em aprovar/rejeitar). */
-const PRECISA_PARECER: AcaoTransicao[] = ["aprovar", "rejeitar", "cancelar"];
+const revLabel = (r: number) => `Revisão ${String(r).padStart(2, "0")}`;
 
 export function OrcamentoDetalhe({
   inicial,
   perms,
+  currentEmail,
+  isAdmin,
 }: {
   inicial: Orcamento;
   perms: PermissaoKey[];
+  currentEmail: string;
+  isAdmin: boolean;
 }) {
+  const router = useRouter();
   const pode = (k: PermissaoKey) => perms.includes(k);
   const [orc, setOrc] = useState<Orcamento>(inicial);
   const [erro, setErro] = useState<string | null>(null);
+
   const [comentario, setComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
-
-  // anexos
-  const fileRef = useRef<HTMLInputElement>(null);
   const [anexando, setAnexando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
 
   // painel de parecer
   const [acaoAberta, setAcaoAberta] = useState<AcaoTransicao | null>(null);
   const [parecer, setParecer] = useState("");
   const [processando, setProcessando] = useState(false);
+
+  // menu de ajustes
+  const [ajuste, setAjuste] = useState({
+    cliente: inicial.cliente,
+    descricao: inicial.descricao,
+    dataEmissao: inicial.meta?.dataEmissao ?? "",
+    validadeDias: inicial.meta?.validadeDias != null ? String(inicial.meta.validadeDias) : "",
+    formaPagamento: inicial.meta?.formaPagamento ?? "",
+  });
+  const [salvandoAjuste, setSalvandoAjuste] = useState(false);
+
+  const souDono = isAdmin || orc.criadoPor === currentEmail;
+  const naoFinalizado = orc.estacao !== "aprovado" && orc.estacao !== "cancelado";
+  const podeEditar = orc.estacao === "rascunho" && souDono;
+  // Espelha o escopo do servidor (dono/revisor/admin) — não basta "orcamentos.criar".
+  const podeAnexar = (souDono || pode("orcamentos.revisar")) && naoFinalizado;
+
+  const podeEnviar = orc.estacao === "rascunho" && pode("orcamentos.criar");
+  const podeDecidir = orc.estacao === "em_revisao" && pode("orcamentos.aprovar");
+  const podeCancelar = naoFinalizado && pode("orcamentos.cancelar");
+  const semAcoes = !podeEnviar && !podeDecidir && !podeCancelar;
+
+  const revisoes = [...orc.anexos].sort((a, b) => a.revisao - b.revisao);
+  const temRev0 = orc.anexos.some((a) => a.revisao === 0);
+  const proximaRev = orc.anexos.reduce((m, a) => Math.max(m, a.revisao), -1) + 1;
 
   async function transicionar(acao: AcaoTransicao, comParecer?: string) {
     setErro(null);
@@ -97,6 +142,35 @@ export function OrcamentoDetalhe({
     }
   }
 
+  async function salvarAjustes(e: React.FormEvent) {
+    e.preventDefault();
+    setErro(null);
+    setSalvandoAjuste(true);
+    try {
+      const body = {
+        cliente: ajuste.cliente.trim(),
+        descricao: ajuste.descricao.trim(),
+        meta: {
+          dataEmissao: ajuste.dataEmissao || undefined,
+          validadeDias: ajuste.validadeDias.trim() ? Number(ajuste.validadeDias) : undefined,
+          formaPagamento: ajuste.formaPagamento.trim() || undefined,
+        },
+      };
+      const res = await fetch(`/api/orcamentos/${orc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao salvar.");
+      setOrc(data.orcamento);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro.");
+    } finally {
+      setSalvandoAjuste(false);
+    }
+  }
+
   async function comentar(e: React.FormEvent) {
     e.preventDefault();
     if (!comentario.trim()) return;
@@ -119,20 +193,17 @@ export function OrcamentoDetalhe({
     }
   }
 
-  async function enviarAnexo(e: React.FormEvent) {
-    e.preventDefault();
-    const file = fileRef.current?.files?.[0];
-    if (!file) return;
-    setAnexando(true);
+  async function uploadRevisao(file: File, revisao: number) {
     setErro(null);
+    setAnexando(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("revisao", String(revisao));
       const res = await fetch(`/api/orcamentos/${orc.id}/anexos`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Falha ao anexar.");
       setOrc(data.orcamento);
-      if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro.");
     } finally {
@@ -140,11 +211,26 @@ export function OrcamentoDetalhe({
     }
   }
 
-  async function removerAnexo(anexoId: string) {
-    if (!window.confirm("Remover este anexo?")) return;
+  async function gerarDocx() {
+    setErro(null);
+    setAnexando(true);
+    try {
+      const res = await fetch(`/api/orcamentos/${orc.id}/gerar-docx`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao gerar o documento.");
+      setOrc(data.orcamento);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro.");
+    } finally {
+      setAnexando(false);
+    }
+  }
+
+  async function removerRevisao(anexoId: string) {
+    if (!window.confirm("Remover esta revisão?")) return;
     setErro(null);
     const res = await fetch(`/api/orcamentos/${orc.id}/anexos/${anexoId}`, { method: "DELETE" });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setErro(data.error ?? "Falha ao remover.");
       return;
@@ -152,14 +238,39 @@ export function OrcamentoDetalhe({
     setOrc(data.orcamento);
   }
 
-  const podeEnviar = orc.estacao === "rascunho" && pode("orcamentos.criar");
-  const podeDecidir = orc.estacao === "em_revisao" && pode("orcamentos.aprovar");
-  const podeCancelar = (orc.estacao === "rascunho" || orc.estacao === "em_revisao") && pode("orcamentos.cancelar");
-  const semAcoes = !podeEnviar && !podeDecidir && !podeCancelar;
-  const podeAnexar =
-    (pode("orcamentos.criar") || pode("orcamentos.revisar")) &&
-    orc.estacao !== "aprovado" &&
-    orc.estacao !== "cancelado";
+  async function excluirOrcamento() {
+    if (!window.confirm("Excluir este orçamento e seus anexos? Esta ação não pode ser desfeita.")) return;
+    setExcluindo(true);
+    setErro(null);
+    const res = await fetch(`/api/orcamentos/${orc.id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/aprovacoes");
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    setErro(data.error ?? "Falha ao excluir.");
+    setExcluindo(false);
+  }
+
+  // input de arquivo reutilizável
+  function FileBtn({ revisao, children }: { revisao: number; children: React.ReactNode }) {
+    return (
+      <label className="btn-secondary cursor-pointer text-xs">
+        {children}
+        <input
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          disabled={anexando}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) uploadRevisao(f, revisao);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -177,19 +288,20 @@ export function OrcamentoDetalhe({
           <Badge tone={ESTACAO_TONE[orc.estacao] ?? "slate"}>{estacaoLabel(orc.estacao)}</Badge>
         </div>
         {orc.descricao && <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{orc.descricao}</p>}
-        <div className="mt-3 flex flex-wrap gap-4 text-sm">
-          <span className="text-slate-500 dark:text-slate-400">
-            Origem: <strong className="text-slate-700 dark:text-slate-200">{orc.fonte === "externo" ? "Externo (arquivo)" : "Interno (plataforma)"}</strong>
-          </span>
-          {orc.valor != null && (
-            <span className="text-slate-500 dark:text-slate-400">
-              Valor: <strong className="text-gta-navy dark:text-slate-100">{formatBRL(orc.valor)}</strong>
-            </span>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+          {fmtData(orc.meta?.dataEmissao) && (
+            <span>Emissão: <strong className="text-slate-700 dark:text-slate-200">{fmtData(orc.meta?.dataEmissao)}</strong></span>
           )}
-          <span className="text-slate-500 dark:text-slate-400">Criado por {orc.criadoPorNome ?? orc.criadoPor}</span>
+          {validadeTexto(orc.meta) && (
+            <span>Validade: <strong className="text-slate-700 dark:text-slate-200">{validadeTexto(orc.meta)}</strong></span>
+          )}
+          {orc.meta?.formaPagamento && (
+            <span>Pagamento: <strong className="text-slate-700 dark:text-slate-200">{orc.meta.formaPagamento}</strong></span>
+          )}
+          <span>Criado por {orc.criadoPorNome ?? orc.criadoPor}</span>
         </div>
 
-        {orc.decididoPor && (
+        {orc.decididoPor && (orc.estacao === "aprovado" || orc.estacao === "cancelado") && (
           <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/50">
             <strong>{estacaoLabel(orc.estacao)}</strong> por {orc.decididoPor}
             {orc.decididoEm ? ` em ${fmt(orc.decididoEm)}` : ""}
@@ -203,46 +315,69 @@ export function OrcamentoDetalhe({
         )}
       </div>
 
-      {/* Ficha externa */}
-      {orc.fonte === "externo" && orc.ficha && (
-        <KpiGrid>
-          <Kpi label="Custo base" value={formatBRL(orc.ficha.custoBase)} />
-          <Kpi label="Fator" value={formatDecimal(orc.ficha.fator, 3)} />
-          <Kpi label="Faturamento" value={formatBRL(orc.ficha.faturamento)} destaque />
-          <Kpi label="Margem líquida" value={`${formatDecimal(orc.ficha.margemLiquida * 100, 1)}%`} />
-        </KpiGrid>
-      )}
-
       {erro && <p className="field-error">{erro}</p>}
 
-      {/* Anexos */}
+      {/* Menu de ajustes (rascunho) */}
+      {podeEditar && (
+        <form onSubmit={salvarAjustes} className="card p-4">
+          <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Ajustes</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
+            <div className="sm:col-span-3">
+              <label className="field-label">Cliente *</label>
+              <input className="field-input" value={ajuste.cliente} onChange={(e) => setAjuste({ ...ajuste, cliente: e.target.value })} required />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="field-label">Forma de pagamento</label>
+              <input className="field-input" value={ajuste.formaPagamento} onChange={(e) => setAjuste({ ...ajuste, formaPagamento: e.target.value })} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="field-label">Data de emissão</label>
+              <input type="date" className="field-input" value={ajuste.dataEmissao} onChange={(e) => setAjuste({ ...ajuste, dataEmissao: e.target.value })} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="field-label">Prazo/validade (dias)</label>
+              <input type="number" min={0} className="field-input" value={ajuste.validadeDias} onChange={(e) => setAjuste({ ...ajuste, validadeDias: e.target.value })} />
+            </div>
+            <div className="sm:col-span-6">
+              <label className="field-label">Descrição</label>
+              <input className="field-input" value={ajuste.descricao} onChange={(e) => setAjuste({ ...ajuste, descricao: e.target.value })} />
+            </div>
+          </div>
+          <div className="mt-3">
+            <button type="submit" className="btn-primary" disabled={salvandoAjuste || !ajuste.cliente.trim()}>
+              {salvandoAjuste ? "Salvando..." : "Salvar ajustes"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Revisões */}
       <div className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Anexos (PDF e planilha)</h2>
-        {orc.anexos.length === 0 ? (
-          <p className="text-sm text-slate-400 dark:text-slate-500">Nenhum anexo.</p>
-        ) : (
+        <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Revisões da proposta</h2>
+
+        {revisoes.length === 0 && !podeAnexar && (
+          <p className="text-sm text-slate-400 dark:text-slate-500">Nenhuma revisão.</p>
+        )}
+
+        {revisoes.length > 0 && (
           <ul className="space-y-2">
-            {orc.anexos.map((a) => (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/50"
-              >
+            {revisoes.map((a: AnexoRef) => (
+              <li key={a.id} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/50">
                 <div className="min-w-0">
-                  <a
-                    href={`/api/orcamentos/${orc.id}/anexos/${a.id}/download`}
-                    className="block truncate font-medium text-gta-indigo hover:underline"
-                  >
-                    {a.nome}
-                  </a>
-                  <div className="text-xs text-slate-400 dark:text-slate-500">
-                    {a.tipo === "pdf" ? "PDF" : "Planilha"} · {formatBytes(a.tamanho)} · {a.enviadoPor}
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 rounded bg-gta-navy/10 px-1.5 py-0.5 text-xs font-semibold text-gta-navy dark:bg-white/10 dark:text-slate-200">
+                      {revLabel(a.revisao)}
+                    </span>
+                    <a href={`/api/orcamentos/${orc.id}/anexos/${a.id}/download`} className="truncate font-medium text-gta-indigo hover:underline">
+                      {a.nome}
+                    </a>
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                    {a.tipo === "docx" ? "Documento da plataforma (.docx)" : a.tipo === "pdf" ? "PDF" : "Planilha"} · {formatBytes(a.tamanho)} · {a.enviadoPor}
                   </div>
                 </div>
                 {podeAnexar && (
-                  <button
-                    onClick={() => removerAnexo(a.id)}
-                    className="shrink-0 text-xs text-red-500 hover:underline dark:text-red-400"
-                  >
+                  <button onClick={() => removerRevisao(a.id)} className="shrink-0 text-xs text-red-500 hover:underline dark:text-red-400">
                     Remover
                   </button>
                 )}
@@ -250,22 +385,28 @@ export function OrcamentoDetalhe({
             ))}
           </ul>
         )}
+
         {podeAnexar && (
-          <form onSubmit={enviarAnexo} className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.xlsx,.xls,.csv"
-              className="text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-gta-indigo/10 file:px-2 file:py-1 file:text-gta-indigo dark:text-slate-300"
-            />
-            <button type="submit" className="btn-secondary" disabled={anexando}>
-              {anexando ? "Enviando..." : "Anexar"}
-            </button>
-          </form>
+          <div className="mt-3 space-y-2">
+            {!temRev0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700">
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                  <strong>Revisão 00</strong> — escolha manter o documento gerado pela plataforma ou anexar o PDF que você alterou:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {orc.propostaId && (
+                    <button className="btn-secondary text-xs" onClick={gerarDocx} disabled={anexando}>
+                      {anexando ? "..." : "Usar documento da plataforma (.docx)"}
+                    </button>
+                  )}
+                  <FileBtn revisao={0}>Anexar PDF (alterado)</FileBtn>
+                </div>
+              </div>
+            ) : (
+              <FileBtn revisao={proximaRev}>+ Adicionar {revLabel(proximaRev)} (PDF)</FileBtn>
+            )}
+          </div>
         )}
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          PDF ou planilha, até 4 MB. Após aprovado/cancelado, os arquivos ficam disponíveis por 7/3 dias e então são removidos.
-        </p>
       </div>
 
       {/* Ações */}
@@ -274,9 +415,7 @@ export function OrcamentoDetalhe({
           <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Ações</h2>
           {acaoAberta ? (
             <div className="space-y-2">
-              <label className="field-label">
-                Parecer {acaoAberta === "cancelar" ? "(opcional)" : "*"}
-              </label>
+              <label className="field-label">Parecer {acaoAberta === "cancelar" ? "(opcional)" : "*"}</label>
               <textarea
                 className="field-input min-h-20"
                 value={parecer}
@@ -292,7 +431,7 @@ export function OrcamentoDetalhe({
                   {processando ? "Processando..." : `Confirmar ${HIST[acaoAberta].label.toLowerCase()}`}
                 </button>
                 <button className="btn-secondary" onClick={() => setAcaoAberta(null)} disabled={processando}>
-                  Cancelar
+                  Voltar
                 </button>
               </div>
             </div>
@@ -327,7 +466,7 @@ export function OrcamentoDetalhe({
         </div>
       )}
 
-      {/* Comentários de revisão */}
+      {/* Revisão / comentários */}
       <div className="card p-4">
         <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Revisão</h2>
         {orc.comentarios.length === 0 ? (
@@ -360,7 +499,7 @@ export function OrcamentoDetalhe({
         )}
       </div>
 
-      {/* Histórico do fluxo de aprovação */}
+      {/* Histórico */}
       <div className="card p-4">
         <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Histórico</h2>
         {orc.historico.length === 0 ? (
@@ -374,15 +513,26 @@ export function OrcamentoDetalhe({
                 </Badge>
                 <div className="min-w-0">
                   <p className="text-slate-600 dark:text-slate-300">{h.mensagem}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
-                    {h.autor} · {fmt(h.em)}
-                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{h.autor} · {fmt(h.em)}</p>
                 </div>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {/* Excluir */}
+      {souDono && (
+        <div className="flex justify-end">
+          <button
+            onClick={excluirOrcamento}
+            disabled={excluindo}
+            className="text-xs text-red-500 hover:underline disabled:opacity-50 dark:text-red-400"
+          >
+            {excluindo ? "Excluindo..." : "Excluir orçamento"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

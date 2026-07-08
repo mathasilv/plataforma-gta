@@ -3,7 +3,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { OrcamentoDetalhe } from "@/components/orcamentos/OrcamentoDetalhe";
 import { requirePageUser } from "@/lib/session";
 import { permissoesDoUsuario } from "@/lib/rbac/resolve";
-import { getOrcamentoStore } from "@/lib/orcamentos/store";
+import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
 
 export default async function OrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePageUser();
@@ -16,7 +16,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <OrcamentoDetalhe inicial={orc} perms={perms} />
+        <OrcamentoDetalhe inicial={redigirOrcamento(orc)!} perms={perms} currentEmail={user.email} isAdmin={user.role === "admin"} />
       </main>
     </div>
   );

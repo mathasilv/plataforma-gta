@@ -48,11 +48,13 @@ export interface FichaExterna {
   observacoes?: string;
 }
 
-export type AnexoTipo = "pdf" | "planilha";
+export type AnexoTipo = "pdf" | "planilha" | "docx";
 
-/** Referência a um arquivo anexado (PDF ou planilha), guardado no Blob ou fs local. */
+/** Referência a um arquivo anexado (uma REVISÃO da proposta), no Blob ou fs local. */
 export interface AnexoRef {
   id: string;
+  /** Número da revisão: 0 = Rev 00 (.docx da plataforma ou 1º PDF), 1+ = PDF. */
+  revisao: number;
   nome: string; // nome original do arquivo
   tipo: AnexoTipo;
   contentType: string;
@@ -64,6 +66,9 @@ export interface AnexoRef {
   enviadoPor: string;
   em: string; // ISO
 }
+
+/** Nº do content-type do .docx (usado na Rev 00 gerada pela plataforma). */
+export const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /**
  * Limite por anexo: 4 MB. O upload trafega pelo route handler e o corpo de uma
@@ -79,10 +84,12 @@ export const ANEXO_CONTENT_TYPES: Record<string, AnexoTipo> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "planilha", // .xlsx
   "application/vnd.ms-excel": "planilha", // .xls
   "text/csv": "planilha",
+  [DOCX_CONTENT_TYPE]: "docx", // .docx (Rev 00 gerada pela plataforma)
 };
 const ANEXO_EXTENSOES: Record<AnexoTipo, string[]> = {
   pdf: [".pdf"],
   planilha: [".xlsx", ".xls", ".csv"],
+  docx: [".docx"],
 };
 
 export function anexoTipoDoContentType(ct: string): AnexoTipo | null {
@@ -112,6 +119,13 @@ export function conteudoBateComTipo(tipo: AnexoTipo, nome: string, buf: Uint8Arr
   return true; // .csv
 }
 
+/** Dados da proposta exibidos/ajustáveis no orçamento (sem preço). */
+export interface OrcamentoMeta {
+  dataEmissao?: string; // yyyy-mm-dd — data de geração/emissão da proposta
+  validadeDias?: number; // prazo em dias
+  formaPagamento?: string;
+}
+
 export interface Orcamento {
   id: string;
   referencia: string; // GTA-ANO-CLIENTE-ORC-00N
@@ -121,6 +135,8 @@ export interface Orcamento {
   serviceKey: string; // preenchido quando interno
   propostaId?: string; // vínculo quando interno
   descricao: string;
+  /** Informações da proposta (data de emissão, validade, forma de pagamento). */
+  meta?: OrcamentoMeta;
   valor?: number; // valor total do orçamento (exibição/dashboard)
   ficha?: FichaExterna; // quando externo
   comentarios: ComentarioOrcamento[];
@@ -163,12 +179,27 @@ export const criarOrcamentoSchema = z
     path: ["ficha"],
   });
 
+export const metaSchema = z.object({
+  dataEmissao: z.string().trim().max(10).optional(),
+  validadeDias: z.number().int().min(0).max(3650).optional(),
+  formaPagamento: z.string().trim().max(200).optional(),
+});
+
 export const atualizarOrcamentoSchema = z.object({
   cliente: z.string().trim().min(1).max(200).optional(),
   descricao: z.string().trim().max(2000).optional(),
+  meta: metaSchema.optional(),
   valor: z.number().nonnegative().optional(),
   ficha: fichaExternaSchema.optional(),
 });
+
+/** Enviar uma proposta para a esteira de aprovação. */
+export const criarDaPropostaSchema = z.object({
+  propostaId: z.string().uuid("Proposta inválida"),
+});
+
+/** Nº da revisão informado no upload de anexo (0 = Rev 00, 1+ = revisões). */
+export const anexoRevisaoSchema = z.coerce.number().int().min(0).max(99);
 
 export const transicaoSchema = z
   .object({

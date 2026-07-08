@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { createPool, type VercelPool } from "@vercel/postgres";
-import type { AnexoRef, ComentarioOrcamento, FichaExterna, Orcamento, RegistroValidacao } from "./types";
+import type { AnexoRef, ComentarioOrcamento, FichaExterna, Orcamento, OrcamentoMeta, RegistroValidacao } from "./types";
 import { getDbUrl } from "../tasks/postgres-store";
 import { buildReference } from "../format";
 
@@ -143,6 +143,8 @@ class JsonOrcamentoStore implements OrcamentoStore {
     return this.mutate((items) => {
       const i = items.findIndex((o) => o.id === id);
       if (i < 0) return { items, result: null };
+      // Unicidade de revisão verificada DENTRO da seção serializada (evita corrida).
+      if (items[i].anexos.some((a) => a.revisao === anexo.revisao)) return { items, result: null };
       const updated = { ...items[i], anexos: [...items[i].anexos, anexo], atualizadoEm: new Date().toISOString() };
       const next = [...items];
       next[i] = updated;
@@ -183,6 +185,7 @@ interface Row {
   service_key: string;
   proposta_id: string | null;
   descricao: string;
+  meta: OrcamentoMeta | null;
   valor: number | null;
   ficha: FichaExterna | null;
   comentarios: ComentarioOrcamento[];
@@ -206,6 +209,7 @@ const rowTo = (r: Row): Orcamento => ({
   serviceKey: r.service_key ?? "",
   propostaId: r.proposta_id ?? undefined,
   descricao: r.descricao ?? "",
+  meta: r.meta ?? undefined,
   valor: r.valor ?? undefined,
   ficha: r.ficha ?? undefined,
   comentarios: r.comentarios ?? [],
@@ -239,6 +243,7 @@ class PostgresOrcamentoStore implements OrcamentoStore {
           service_key text NOT NULL DEFAULT '',
           proposta_id uuid,
           descricao text NOT NULL DEFAULT '',
+          meta jsonb,
           valor numeric,
           ficha jsonb,
           comentarios jsonb NOT NULL DEFAULT '[]',
@@ -254,8 +259,9 @@ class PostgresOrcamentoStore implements OrcamentoStore {
           atualizado_em timestamptz NOT NULL
         )
       `
-        // Garante a coluna anexos em tabelas criadas antes da Fase 2
+        // Garante colunas adicionadas depois da criação inicial da tabela
         .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS anexos jsonb NOT NULL DEFAULT '[]'`)
+        .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS meta jsonb`)
         .then(() => undefined);
     }
     return this.ready;
@@ -292,11 +298,11 @@ class PostgresOrcamentoStore implements OrcamentoStore {
     const referencia = buildReference(PREFIXO, data.cliente || "cliente", seq, new Date().getFullYear());
     await this.pool.sql`
       INSERT INTO orcamentos
-        (id, referencia, cliente, fonte, estacao, service_key, proposta_id, descricao, valor, ficha,
+        (id, referencia, cliente, fonte, estacao, service_key, proposta_id, descricao, meta, valor, ficha,
          comentarios, historico, anexos, parecer, decidido_por, decidido_em, expira_em, criado_por, criado_por_nome, criado_em, atualizado_em)
       VALUES
         (${id}, ${referencia}, ${data.cliente}, ${data.fonte}, ${data.estacao}, ${data.serviceKey},
-         ${data.propostaId ?? null}, ${data.descricao}, ${data.valor ?? null},
+         ${data.propostaId ?? null}, ${data.descricao}, ${data.meta ? JSON.stringify(data.meta) : null}::jsonb, ${data.valor ?? null},
          ${data.ficha ? JSON.stringify(data.ficha) : null}::jsonb,
          '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, ${data.parecer ?? null}, ${data.decididoPor ?? null}, ${data.decididoEm ?? null},
          ${data.expiraEm ?? null}, ${data.criadoPor}, ${data.criadoPorNome ?? null}, ${now}, ${now})
@@ -307,11 +313,13 @@ class PostgresOrcamentoStore implements OrcamentoStore {
     await this.ensureSchema();
     const atualizadoEm = new Date().toISOString();
     const fichaJson = patch.ficha === undefined ? null : JSON.stringify(patch.ficha);
+    const metaJson = patch.meta === undefined ? null : JSON.stringify(patch.meta);
     const { rows } = await this.pool.sql<Row>`
       UPDATE orcamentos SET
         cliente = COALESCE(${patch.cliente ?? null}::text, cliente),
         estacao = COALESCE(${patch.estacao ?? null}::text, estacao),
         descricao = COALESCE(${patch.descricao ?? null}::text, descricao),
+        meta = COALESCE(${metaJson}::jsonb, meta),
         valor = COALESCE(${patch.valor ?? null}::numeric, valor),
         ficha = COALESCE(${fichaJson}::jsonb, ficha),
         parecer = COALESCE(${patch.parecer ?? null}::text, parecer),
@@ -351,9 +359,10 @@ class PostgresOrcamentoStore implements OrcamentoStore {
   async addAnexo(id: string, anexo: AnexoRef) {
     await this.ensureSchema();
     const now = new Date().toISOString();
+    // Append condicional: só insere se a revisão ainda não existir (fecha a corrida).
     const { rows } = await this.pool.sql<Row>`
       UPDATE orcamentos SET anexos = anexos || ${JSON.stringify([anexo])}::jsonb, atualizado_em = ${now}
-      WHERE id = ${id}
+      WHERE id = ${id} AND NOT (anexos @> ${JSON.stringify([{ revisao: anexo.revisao }])}::jsonb)
       RETURNING *
     `;
     return rows[0] ? rowTo(rows[0]) : null;
@@ -392,4 +401,14 @@ export function getOrcamentoStore(): OrcamentoStore {
       : new JsonOrcamentoStore(path.join(process.cwd(), "data", "orcamentos.json"));
   }
   return g.__gtaOrcamentoStore;
+}
+
+/**
+ * Remove a URL crua dos anexos antes de enviar o orçamento ao cliente. O download
+ * sempre passa pela rota autenticada (que relê a URL do store), então o cliente
+ * nunca precisa da URL do Blob — evitando que ela vaze/seja repassada sem auth.
+ */
+export function redigirOrcamento(orc: Orcamento | null): Orcamento | null {
+  if (!orc) return null;
+  return { ...orc, anexos: orc.anexos.map((a) => ({ ...a, url: "" })) };
 }

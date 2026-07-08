@@ -18,6 +18,12 @@ export interface Proposta {
   status: StatusProposta;
   /** Configuração completa (entradas + resultados) para reabrir e continuar. */
   dados: Record<string, unknown>;
+  /**
+   * FormData TRANSFORMADO (schema-shaped) usado na geração do .docx — o que o
+   * zodSchema/mapper do serviço esperam. Difere de `dados` (form cru) nos
+   * configuradores; usado para regenerar o .docx (Rev 00 da esteira).
+   */
+  formGerado?: Record<string, unknown>;
   criadoPor: string;
   /** Nome do criador resolvido a partir do e-mail (apenas para exibição). */
   criadoPorNome?: string;

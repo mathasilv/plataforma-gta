@@ -19,3 +19,6 @@ scripts/_out_*.docx
 
 # Configurações locais do Claude Code
 .claude/settings.local.json
+
+.vercel
+.env*

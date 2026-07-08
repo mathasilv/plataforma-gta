@@ -57,15 +57,18 @@ export async function POST(req: Request) {
     try {
       const store = getPropostaStore();
       const cliente = extrairCliente(parsed.data as Record<string, unknown>);
+      const formGerado = parsed.data as Record<string, unknown>;
       if (body.propostaId) {
-        await store.update(body.propostaId, { status: "gerada", cliente, referencia: ref ?? "" });
+        // Guarda o formData transformado para permitir regenerar o .docx (Rev 00 da esteira).
+        await store.update(body.propostaId, { status: "gerada", cliente, referencia: ref ?? "", formGerado });
       } else {
         await store.create({
           serviceKey: service.key,
           cliente,
           referencia: ref ?? "",
           status: "gerada",
-          dados: parsed.data as Record<string, unknown>,
+          dados: formGerado,
+          formGerado,
           criadoPor: user.email,
         });
       }

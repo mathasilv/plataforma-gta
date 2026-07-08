@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/rbac/guards";
 import { temPermissao } from "@/lib/rbac/resolve";
-import { getOrcamentoStore } from "@/lib/orcamentos/store";
+import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
 import { transicaoSchema, type AcaoTransicao } from "@/lib/orcamentos/types";
 import { permissaoDaAcao, podeTransicionar } from "@/lib/orcamentos/machine";
 import { addDays } from "@/lib/format";
@@ -73,5 +73,5 @@ export async function PATCH(req: Request, ctx: Ctx) {
     expiraEm,
   });
 
-  return NextResponse.json({ orcamento: atualizado });
+  return NextResponse.json({ orcamento: redigirOrcamento(atualizado) });
 }

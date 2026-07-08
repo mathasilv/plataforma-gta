@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { requireApi } from "@/lib/rbac/guards";
 import { temPermissao } from "@/lib/rbac/resolve";
-import { getOrcamentoStore } from "@/lib/orcamentos/store";
-import { salvarAnexo } from "@/lib/orcamentos/anexo-store";
+import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
+import { salvarAnexo, removerAnexo } from "@/lib/orcamentos/anexo-store";
 import {
-  ANEXO_CONTENT_TYPES,
   ANEXO_MAX_BYTES,
   ANEXO_MAX_QTD,
+  anexoRevisaoSchema,
   anexoTipoDoContentType,
   conteudoBateComTipo,
   sanitizarNomeAnexo,
@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Anexa um arquivo (PDF ou planilha) ao orçamento. */
+/** Anexa uma revisão (PDF) ao orçamento. Revisão 00 pode vir do gerador (.docx). */
 export async function POST(req: Request, ctx: Ctx) {
   const guard = await requireApi();
   if ("error" in guard) return guard.error;
@@ -53,27 +53,39 @@ export async function POST(req: Request, ctx: Ctx) {
   }
   const contentType = file.type || "application/octet-stream";
   const tipo = anexoTipoDoContentType(contentType);
-  if (!tipo) {
-    return NextResponse.json(
-      { error: `Tipo não aceito. Envie PDF ou planilha (${Object.keys(ANEXO_CONTENT_TYPES).join(", ")}).` },
-      { status: 415 },
-    );
+  if (tipo !== "pdf") {
+    return NextResponse.json({ error: "Envie um arquivo PDF." }, { status: 415 });
   }
   if (file.size > ANEXO_MAX_BYTES) {
     return NextResponse.json({ error: `Arquivo acima do limite de ${ANEXO_MAX_BYTES / (1024 * 1024)} MB.` }, { status: 413 });
+  }
+
+  // Revisão: usa a informada ou o próximo número disponível.
+  const revRaw = form.get("revisao");
+  let revisao: number;
+  if (revRaw != null) {
+    const rp = anexoRevisaoSchema.safeParse(revRaw);
+    if (!rp.success) return NextResponse.json({ error: "Revisão inválida." }, { status: 422 });
+    revisao = rp.data;
+  } else {
+    revisao = orc.anexos.reduce((m, a) => Math.max(m, a.revisao), -1) + 1;
+  }
+  if (orc.anexos.some((a) => a.revisao === revisao)) {
+    return NextResponse.json({ error: `A Revisão ${String(revisao).padStart(2, "0")} já existe.` }, { status: 409 });
   }
 
   const anexoId = crypto.randomUUID();
   const bytes = Buffer.from(await file.arrayBuffer());
   // Defesa além do content-type declarado: confere extensão + magic bytes.
   if (!conteudoBateComTipo(tipo, file.name, bytes)) {
-    return NextResponse.json({ error: "O conteúdo do arquivo não corresponde a um PDF/planilha válido." }, { status: 415 });
+    return NextResponse.json({ error: "O conteúdo do arquivo não é um PDF válido." }, { status: 415 });
   }
   const nome = sanitizarNomeAnexo(file.name);
   const { url, blob } = await salvarAnexo(id, anexoId, nome, contentType, bytes);
 
   const anexo: AnexoRef = {
     id: anexoId,
+    revisao,
     nome,
     tipo,
     contentType,
@@ -84,5 +96,10 @@ export async function POST(req: Request, ctx: Ctx) {
     em: new Date().toISOString(),
   };
   const atualizado = await store.addAnexo(id, anexo);
-  return NextResponse.json({ orcamento: atualizado }, { status: 201 });
+  if (!atualizado) {
+    // corrida: a revisão passou a existir entre a checagem e a escrita — remove o órfão.
+    await removerAnexo(anexo);
+    return NextResponse.json({ error: "Essa revisão já existe. Recarregue e tente novamente." }, { status: 409 });
+  }
+  return NextResponse.json({ orcamento: redigirOrcamento(atualizado) }, { status: 201 });
 }

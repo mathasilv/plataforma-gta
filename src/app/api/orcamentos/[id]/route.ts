@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/rbac/guards";
-import { getOrcamentoStore } from "@/lib/orcamentos/store";
+import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
+import { removerAnexo } from "@/lib/orcamentos/anexo-store";
 import { atualizarOrcamentoSchema } from "@/lib/orcamentos/types";
 
 export const runtime = "nodejs";
@@ -14,7 +15,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const orc = await getOrcamentoStore().get(id);
   if (!orc) return NextResponse.json({ error: "Orçamento não encontrado." }, { status: 404 });
-  return NextResponse.json({ orcamento: orc });
+  return NextResponse.json({ orcamento: redigirOrcamento(orc) });
 }
 
 /** Edita dados do orçamento — apenas o criador (ou admin) e somente em rascunho. */
@@ -47,5 +48,30 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   const atualizado = await store.update(id, parsed.data);
-  return NextResponse.json({ orcamento: atualizado });
+  return NextResponse.json({ orcamento: redigirOrcamento(atualizado) });
+}
+
+/** Exclui o orçamento e seus anexos — apenas o criador ou admin. */
+export async function DELETE(_req: Request, ctx: Ctx) {
+  const guard = await requireApi();
+  if ("error" in guard) return guard.error;
+  const { id } = await ctx.params;
+
+  const store = getOrcamentoStore();
+  const orc = await store.get(id);
+  if (!orc) return NextResponse.json({ error: "Orçamento não encontrado." }, { status: 404 });
+
+  const me = guard.me;
+  if (me.email !== orc.criadoPor && me.role !== "admin") {
+    return NextResponse.json({ error: "Só o criador ou um administrador pode excluir." }, { status: 403 });
+  }
+  // Orçamento finalizado guarda a auditoria da decisão — só admin pode excluir.
+  if ((orc.estacao === "aprovado" || orc.estacao === "cancelado") && me.role !== "admin") {
+    return NextResponse.json({ error: "Orçamento finalizado — apenas um administrador pode excluir." }, { status: 409 });
+  }
+
+  // Remove os arquivos do storage (best-effort) antes de apagar o registro.
+  for (const anexo of orc.anexos) await removerAnexo(anexo);
+  await store.remove(id);
+  return NextResponse.json({ ok: true });
 }
