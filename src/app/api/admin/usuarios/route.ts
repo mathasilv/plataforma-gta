@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       email: parsed.data.email,
       name: parsed.data.name,
       role: parsed.data.role,
+      cargoId: parsed.data.cargoId,
       passwordHash: hashPassword(senhaProvisoria),
       mustChangePassword: true,
       active: true,

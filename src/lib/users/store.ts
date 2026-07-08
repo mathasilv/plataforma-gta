@@ -26,9 +26,13 @@ export interface NewUser {
   name: string;
   passwordHash: string;
   role: Role;
+  cargoId?: string;
   mustChangePassword: boolean;
   active: boolean;
 }
+
+/** `cargoId: null` limpa o cargo; ausente = não altera. */
+export type UserPatch = Partial<Pick<User, "name" | "role" | "active">> & { cargoId?: string | null };
 
 export interface UserStore {
   list(): Promise<User[]>;
@@ -36,7 +40,7 @@ export interface UserStore {
   getByEmail(email: string): Promise<User | null>;
   getById(id: string): Promise<User | null>;
   create(u: NewUser): Promise<User>;
-  update(id: string, patch: Partial<Pick<User, "name" | "role" | "active">>): Promise<User | null>;
+  update(id: string, patch: UserPatch): Promise<User | null>;
   setPassword(id: string, passwordHash: string, mustChangePassword: boolean): Promise<User | null>;
   remove(id: string): Promise<boolean>;
 }
@@ -94,11 +98,13 @@ class JsonUserStore implements UserStore {
       return { users: [...users, user], result: user };
     });
   }
-  async update(id: string, patch: Partial<Pick<User, "name" | "role" | "active">>) {
+  async update(id: string, patch: UserPatch) {
     return this.mutate((users) => {
       const i = users.findIndex((u) => u.id === id);
       if (i < 0) return { users, result: null };
-      const updated = { ...users[i], ...patch, atualizadoEm: new Date().toISOString() };
+      const merged = { ...users[i], ...patch, atualizadoEm: new Date().toISOString() };
+      // cargoId null (limpar) -> sem cargo (undefined)
+      const updated: User = { ...merged, cargoId: merged.cargoId ?? undefined };
       const next = [...users];
       next[i] = updated;
       return { users: next, result: updated };
@@ -130,6 +136,7 @@ interface Row {
   name: string;
   password_hash: string;
   role: string;
+  cargo_id: string | null;
   must_change_password: boolean;
   active: boolean;
   criado_em: string;
@@ -141,6 +148,7 @@ const rowToUser = (r: Row): User => ({
   name: r.name,
   passwordHash: r.password_hash,
   role: r.role as Role,
+  cargoId: r.cargo_id ?? undefined,
   mustChangePassword: r.must_change_password,
   active: r.active,
   criadoEm: new Date(r.criado_em).toISOString(),
@@ -167,7 +175,10 @@ class PostgresUserStore implements UserStore {
           criado_em timestamptz NOT NULL,
           atualizado_em timestamptz NOT NULL
         )
-      `.then(() => undefined);
+      `
+        // Garante a coluna cargo_id em tabelas criadas antes do RBAC por cargos
+        .then(() => this.pool.sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS cargo_id text`)
+        .then(() => undefined);
     }
     return this.ready;
   }
@@ -197,8 +208,8 @@ class PostgresUserStore implements UserStore {
     const now = new Date().toISOString();
     try {
       const { rows } = await this.pool.sql<Row>`
-        INSERT INTO users (id, email, name, password_hash, role, must_change_password, active, criado_em, atualizado_em)
-        VALUES (${id}, ${norm(u.email)}, ${u.name}, ${u.passwordHash}, ${u.role}, ${u.mustChangePassword}, ${u.active}, ${now}, ${now})
+        INSERT INTO users (id, email, name, password_hash, role, cargo_id, must_change_password, active, criado_em, atualizado_em)
+        VALUES (${id}, ${norm(u.email)}, ${u.name}, ${u.passwordHash}, ${u.role}, ${u.cargoId ?? null}, ${u.mustChangePassword}, ${u.active}, ${now}, ${now})
         RETURNING *
       `;
       return rowToUser(rows[0]);
@@ -207,16 +218,19 @@ class PostgresUserStore implements UserStore {
       throw e;
     }
   }
-  async update(id: string, patch: Partial<Pick<User, "name" | "role" | "active">>) {
+  async update(id: string, patch: UserPatch) {
     await this.ensureSchema();
     const cur = await this.getById(id);
     if (!cur) return null;
-    const next = { ...cur, ...patch, atualizadoEm: new Date().toISOString() };
+    const merged = { ...cur, ...patch };
+    const cargoId = merged.cargoId ?? null; // null (limpar) -> sem cargo
+    const atualizadoEm = new Date().toISOString();
     await this.pool.sql`
-      UPDATE users SET name = ${next.name}, role = ${next.role}, active = ${next.active}, atualizado_em = ${next.atualizadoEm}
+      UPDATE users SET name = ${merged.name}, role = ${merged.role}, cargo_id = ${cargoId},
+        active = ${merged.active}, atualizado_em = ${atualizadoEm}
       WHERE id = ${id}
     `;
-    return next;
+    return { ...cur, ...patch, cargoId: cargoId ?? undefined, atualizadoEm };
   }
   async setPassword(id: string, passwordHash: string, mustChangePassword: boolean) {
     await this.ensureSchema();

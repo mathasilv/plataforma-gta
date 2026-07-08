@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { users } from "@/lib/users/store";
+import { users, type UserPatch } from "@/lib/users/store";
 import { updateUserSchema, toPublicUser } from "@/lib/users/types";
 
 export const runtime = "nodejs";
@@ -48,7 +48,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }
   }
 
-  const atualizado = await store.update(id, parsed.data);
+  // Repassa só o que veio: undefined = não altera; cargoId null = limpar o cargo.
+  const patch: UserPatch = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (parsed.data.role !== undefined) patch.role = parsed.data.role;
+  if (parsed.data.active !== undefined) patch.active = parsed.data.active;
+  if (parsed.data.cargoId !== undefined) patch.cargoId = parsed.data.cargoId;
+
+  const atualizado = await store.update(id, patch);
   return NextResponse.json({ user: atualizado ? toPublicUser(atualizado) : null });
 }
 

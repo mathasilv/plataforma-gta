@@ -1,0 +1,23 @@
+import { notFound } from "next/navigation";
+import { AppHeader } from "@/components/AppHeader";
+import { OrcamentoDetalhe } from "@/components/orcamentos/OrcamentoDetalhe";
+import { requirePageUser } from "@/lib/session";
+import { permissoesDoUsuario } from "@/lib/rbac/resolve";
+import { getOrcamentoStore } from "@/lib/orcamentos/store";
+
+export default async function OrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requirePageUser();
+  const { id } = await params;
+  const orc = await getOrcamentoStore().get(id);
+  if (!orc) notFound();
+  const perms = Array.from(await permissoesDoUsuario(user));
+
+  return (
+    <div className="min-h-screen">
+      <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        <OrcamentoDetalhe inicial={orc} perms={perms} />
+      </main>
+    </div>
+  );
+}

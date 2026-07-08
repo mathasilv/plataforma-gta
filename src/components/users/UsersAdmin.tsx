@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { ROLE_LABEL, type PublicUser, type Role } from "@/lib/users/types";
+import type { Cargo } from "@/lib/cargos/types";
 import { Badge, type Tone } from "@/components/ui";
 
 const ROLE_TONE: Record<Role, Tone> = { admin: "indigo", member: "slate" };
 
 export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
   const [usuarios, setUsuarios] = useState<PublicUser[]>([]);
+  const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
   // criação
   const [novoAberto, setNovoAberto] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role: "member" as Role, senhaProvisoria: "" });
+  const [form, setForm] = useState({ name: "", email: "", role: "member" as Role, cargoId: "", senhaProvisoria: "" });
   const [salvando, setSalvando] = useState(false);
 
   // senha provisória a exibir (após criar ou resetar)
@@ -21,10 +23,12 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
 
   async function carregar() {
     try {
-      const res = await fetch("/api/admin/usuarios");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Falha ao carregar usuários.");
-      setUsuarios(data.usuarios ?? []);
+      const [ru, rc] = await Promise.all([fetch("/api/admin/usuarios"), fetch("/api/admin/cargos")]);
+      const du = await ru.json();
+      if (!ru.ok) throw new Error(du.error ?? "Falha ao carregar usuários.");
+      setUsuarios(du.usuarios ?? []);
+      const dc = await rc.json();
+      if (rc.ok) setCargos(dc.cargos ?? []);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro.");
     } finally {
@@ -49,7 +53,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
       if (!res.ok) throw new Error(data.error ?? "Falha ao criar usuário.");
       setUsuarios((prev) => [...prev, data.user]);
       setCredencial({ email: data.user.email, senha: data.senhaProvisoria });
-      setForm({ name: "", email: "", role: "member", senhaProvisoria: "" });
+      setForm({ name: "", email: "", role: "member", cargoId: "", senhaProvisoria: "" });
       setNovoAberto(false);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao criar.");
@@ -145,9 +149,24 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
                 <option value="admin">Administrador</option>
               </select>
             </div>
-            <div className="sm:col-span-4">
+            <div className="sm:col-span-2">
+              <label className="field-label">Cargo</label>
+              <select
+                className="field-input"
+                value={form.cargoId}
+                onChange={(e) => setForm({ ...form, cargoId: e.target.value })}
+                disabled={form.role === "admin"}
+                title={form.role === "admin" ? "Administradores têm todas as permissões" : undefined}
+              >
+                <option value="">— Sem cargo —</option>
+                {cargos.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
               <label className="field-label">Senha provisória (opcional)</label>
-              <input className="field-input" value={form.senhaProvisoria} onChange={(e) => setForm({ ...form, senhaProvisoria: e.target.value })} placeholder="Deixe em branco para gerar automaticamente" />
+              <input className="field-input" value={form.senhaProvisoria} onChange={(e) => setForm({ ...form, senhaProvisoria: e.target.value })} placeholder="Gerada automaticamente se vazio" />
             </div>
           </div>
           <div className="mt-3">
@@ -178,6 +197,25 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
                 {u.active ? <span className="text-green-700 dark:text-green-400">Ativo</span> : <span className="text-slate-400 dark:text-slate-500">Inativo</span>}
                 {u.mustChangePassword && u.active && <span className="ml-1 text-amber-600 dark:text-amber-400">(troca pendente)</span>}
               </div>
+              <div className="mt-2 text-xs">
+                {u.role === "admin" ? (
+                  <span className="text-slate-400 dark:text-slate-500">Cargo: todas as permissões (admin)</span>
+                ) : (
+                  <label className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    Cargo:
+                    <select
+                      className="field-input !w-auto !py-1 !text-xs"
+                      value={u.cargoId ?? ""}
+                      onChange={(e) => patch(u.id, { cargoId: e.target.value })}
+                    >
+                      <option value="">— Sem cargo —</option>
+                      {cargos.map((c) => (
+                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <button className={`text-gta-indigo ${acaoCls}`} onClick={() => resetar(u)}>Resetar senha</button>
                 <button className={`text-slate-600 dark:text-slate-300 ${acaoCls}`} disabled={eu} onClick={() => patch(u.id, { role: u.role === "admin" ? "member" : "admin" })}>
@@ -201,6 +239,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
               <th>Nome</th>
               <th>E-mail</th>
               <th>Perfil</th>
+              <th>Cargo</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -216,6 +255,22 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
                   <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{u.email}</td>
                   <td className="px-4 py-2">
                     <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
+                  </td>
+                  <td className="px-4 py-2">
+                    {u.role === "admin" ? (
+                      <span className="text-xs text-slate-400 dark:text-slate-500">Todas (admin)</span>
+                    ) : (
+                      <select
+                        className="field-input !w-auto !py-1 !text-xs"
+                        value={u.cargoId ?? ""}
+                        onChange={(e) => patch(u.id, { cargoId: e.target.value })}
+                      >
+                        <option value="">— Sem cargo —</option>
+                        {cargos.map((c) => (
+                          <option key={c.id} value={c.id}>{c.nome}</option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     {u.active ? (

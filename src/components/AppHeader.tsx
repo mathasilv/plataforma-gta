@@ -8,6 +8,7 @@ import { Moon, Sun } from "lucide-react";
 const NAV = [
   { href: "/", label: "Nova proposta" },
   { href: "/propostas", label: "Propostas" },
+  { href: "/esteira", label: "Esteira" },
   { href: "/tarefas", label: "Tarefas" },
 ];
 
@@ -137,6 +138,11 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
                 {isAdmin && (
                   <MenuLink href="/admin/usuarios" onNavigate={() => setMenuAberto(false)}>
                     Gerenciar usuários
+                  </MenuLink>
+                )}
+                {isAdmin && (
+                  <MenuLink href="/admin/cargos" onNavigate={() => setMenuAberto(false)}>
+                    Cargos e permissões
                   </MenuLink>
                 )}
                 <button

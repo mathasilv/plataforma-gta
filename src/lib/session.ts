@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE, verifySession, type SessionPayload } from "./auth";
 import { users } from "./users/store";
 import type { User } from "./users/types";
+import { temPermissao } from "./rbac/resolve";
+import type { PermissaoKey } from "./rbac/permissoes";
 
 /** Payload da sessão a partir do cookie (edge/node). */
 export async function getSessionUser(): Promise<SessionPayload | null> {
@@ -41,5 +43,17 @@ export async function requirePageUser(opts: RequireOptions = {}): Promise<User> 
   if (!user) redirect("/login");
   if (!opts.allowMustChange && user.mustChangePassword) redirect("/trocar-senha");
   if (opts.requireAdmin && user.role !== "admin") redirect("/");
+  return user;
+}
+
+/**
+ * Igual a requirePageUser, mas exige uma permissão específica (via cargo).
+ * Sem a permissão, redireciona para a home. Admins passam sempre (super-usuário).
+ */
+export async function requirePagePermissao(chave: PermissaoKey): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/trocar-senha");
+  if (!(await temPermissao(user, chave))) redirect("/");
   return user;
 }

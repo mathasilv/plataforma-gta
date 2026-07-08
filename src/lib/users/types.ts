@@ -10,6 +10,8 @@ export interface User {
   name: string;
   passwordHash: string;
   role: Role;
+  /** Cargo atribuído (concede permissões granulares aos não-admins). */
+  cargoId?: string;
   /** Se true, é obrigado a definir nova senha no próximo acesso. */
   mustChangePassword: boolean;
   active: boolean;
@@ -33,18 +35,34 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 const senha = z.string().min(8, "A senha deve ter ao menos 8 caracteres").max(128);
 
+// Na criação: "" (sem cargo) vira undefined.
+const cargoIdCreate = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => (v ? v : undefined));
+
+// Na edição: ausente = não altera; "" ou null = limpar o cargo; string = atribuir.
+const cargoIdUpdate = z
+  .string()
+  .trim()
+  .nullish()
+  .transform((v) => (v == null ? v : v || null));
+
 /** Admin cria um usuário (senha provisória pode ser gerada pelo servidor). */
 export const createUserSchema = z.object({
   email: z.string().trim().toLowerCase().email("E-mail inválido"),
   name: z.string().trim().min(1, "Informe o nome").max(120),
   role: z.enum(["admin", "member"]).default("member"),
+  cargoId: cargoIdCreate,
   senhaProvisoria: senha.optional(),
 });
 
-/** Admin edita nome/papel/ativação. */
+/** Admin edita nome/papel/cargo/ativação. */
 export const updateUserSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   role: z.enum(["admin", "member"]).optional(),
+  cargoId: cargoIdUpdate,
   active: z.boolean().optional(),
 });
 
