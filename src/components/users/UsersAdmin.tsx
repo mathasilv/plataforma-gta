@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ROLE_LABEL, type PublicUser, type Role } from "@/lib/users/types";
+import { Badge, type Tone } from "@/components/ui";
+
+const ROLE_TONE: Record<Role, Tone> = { admin: "indigo", member: "slate" };
 
 export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
   const [usuarios, setUsuarios] = useState<PublicUser[]>([]);
@@ -161,7 +164,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
           const eu = u.id === currentUserId;
           const acaoCls = "rounded-md border border-slate-200 px-2.5 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-700";
           return (
-            <div key={u.id} className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 ${!u.active ? "opacity-60" : ""}`}>
+            <div key={u.id} className={`card p-3 ${!u.active ? "opacity-60" : ""}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-medium text-gta-navy dark:text-slate-100">
@@ -169,9 +172,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
                   </div>
                   <div className="truncate text-sm text-slate-600 dark:text-slate-300">{u.email}</div>
                 </div>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-indigo-100 text-gta-indigo dark:bg-indigo-900/40 dark:text-indigo-300" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>
-                  {ROLE_LABEL[u.role]}
-                </span>
+                <Badge tone={ROLE_TONE[u.role]} className="shrink-0">{ROLE_LABEL[u.role]}</Badge>
               </div>
               <div className="mt-1.5 text-xs">
                 {u.active ? <span className="text-green-700 dark:text-green-400">Ativo</span> : <span className="text-slate-400 dark:text-slate-500">Inativo</span>}
@@ -193,30 +194,28 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
       </div>
 
       {/* tabela (desktop) */}
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block dark:border-slate-700 dark:bg-slate-800">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+      <div className="hidden overflow-x-auto md:block card">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">E-mail</th>
-              <th className="px-4 py-3">Perfil</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Ações</th>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Status</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {usuarios.map((u) => {
               const eu = u.id === currentUserId;
               return (
-                <tr key={u.id} className={`border-t border-slate-100 dark:border-slate-700 ${!u.active ? "opacity-50" : ""}`}>
+                <tr key={u.id} className={!u.active ? "opacity-50" : ""}>
                   <td className="px-4 py-2 font-medium text-gta-navy dark:text-slate-100">
                     {u.name} {eu && <span className="text-xs font-normal text-slate-400 dark:text-slate-500">(você)</span>}
                   </td>
                   <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{u.email}</td>
                   <td className="px-4 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.role === "admin" ? "bg-indigo-100 text-gta-indigo dark:bg-indigo-900/40 dark:text-indigo-300" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>
-                      {ROLE_LABEL[u.role]}
-                    </span>
+                    <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
                   </td>
                   <td className="px-4 py-2">
                     {u.active ? (

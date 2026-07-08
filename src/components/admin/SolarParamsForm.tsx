@@ -143,7 +143,7 @@ export function SolarParamsForm({ onSaved }: { onSaved?: (p: Params) => void }) 
   if (!texto) {
     return erro
       ? <p className="field-error">{erro}</p>
-      : <p className="text-sm text-slate-500 dark:text-slate-400">Carregando parâmetros...</p>;
+      : <p className="subtitle">Carregando parâmetros...</p>;
   }
 
   return (
@@ -161,7 +161,7 @@ export function SolarParamsForm({ onSaved }: { onSaved?: (p: Params) => void }) 
                   value={texto[c.key]}
                   onChange={(e) => setTexto({ ...texto, [c.key]: e.target.value })}
                 />
-                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{c.help}</p>
+                <p className="mt-1 hint">{c.help}</p>
               </div>
             ))}
           </div>

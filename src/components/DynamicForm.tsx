@@ -91,10 +91,10 @@ export function DynamicForm({
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
         {formSchema.sections.map((section) => (
-          <section key={section.title} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800">
-            <h2 className="text-lg font-semibold text-gta-navy dark:text-slate-100">{section.title}</h2>
+          <section key={section.title} className="section-card">
+            <h2 className="section-title">{section.title}</h2>
             {section.description && (
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{section.description}</p>
+              <p className="mt-1 subtitle">{section.description}</p>
             )}
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
               {section.fields.map((f) =>
@@ -157,7 +157,7 @@ function ScalarField({
           placeholder={field.placeholder}
         />
       )}
-      {field.help && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{field.help}</p>}
+      {field.help && <p className="mt-1 hint">{field.help}</p>}
       {err && <p className="field-error">{String(err.message ?? "Campo inválido")}</p>}
     </div>
   );

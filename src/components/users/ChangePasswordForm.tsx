@@ -63,7 +63,7 @@ export function ChangePasswordForm({
       <div>
         <label className="field-label">Nova senha</label>
         <input type="password" className="field-input" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" required />
-        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Mínimo de 8 caracteres.</p>
+        <p className="mt-1 hint">Mínimo de 8 caracteres.</p>
       </div>
       <div>
         <label className="field-label">Confirmar nova senha</label>

@@ -15,7 +15,7 @@ export default async function TrocarSenhaPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/gta-icon.png" alt="GTA Energia" className="mx-auto h-16 w-auto" />
             <h1 className="mt-3 text-lg font-bold text-gta-navy dark:text-slate-100">Defina sua senha</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 subtitle">
               {forcado
                 ? "Por segurança, crie uma nova senha para continuar."
                 : "Atualize a senha da sua conta."}

@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { TaskList } from "@/components/tasks/TaskList";
+import { PageHeader } from "@/components/ui";
 import { requirePageUser } from "@/lib/session";
 
 export default async function TarefasPage() {
@@ -9,10 +10,7 @@ export default async function TarefasPage() {
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="text-2xl font-bold text-gta-navy dark:text-slate-100">Tarefas</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Organize e acompanhe as tarefas da equipe GTA.
-        </p>
+        <PageHeader title="Tarefas" subtitle="Organize e acompanhe as tarefas da equipe GTA." />
         <div className="mt-6">
           <TaskList currentUserEmail={user.email} />
         </div>

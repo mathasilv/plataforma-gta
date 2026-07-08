@@ -51,9 +51,9 @@ export function CondicoesPagamento({ total, value, onChange }: { total: number; 
   const inputCls = "field-input";
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800">
+    <section className="section-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-gta-navy dark:text-slate-100">Condições de pagamento</h2>
+        <h2 className="section-title">Condições de pagamento</h2>
         <div className="inline-flex rounded-lg border border-slate-200 p-0.5 text-xs dark:border-slate-700">
           <button type="button" onClick={() => setModo("parcelas")} className={`rounded-md px-2.5 py-1 font-medium transition ${modo === "parcelas" ? "bg-gta-indigo text-white" : "text-slate-500 hover:text-gta-indigo dark:text-slate-400"}`}>Parcelado</button>
           <button type="button" onClick={() => setModo("combinar")} className={`rounded-md px-2.5 py-1 font-medium transition ${modo === "combinar" ? "bg-gta-indigo text-white" : "text-slate-500 hover:text-gta-indigo dark:text-slate-400"}`}>A combinar</button>
@@ -66,7 +66,7 @@ export function CondicoesPagamento({ total, value, onChange }: { total: number; 
         </p>
       ) : (
         <>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Cada parcela é uma % do total; o app calcula o valor em reais. As porcentagens devem somar 100%.</p>
+          <p className="mt-1 subtitle">Cada parcela é uma % do total; o app calcula o valor em reais. As porcentagens devem somar 100%.</p>
           <div className="mt-4 space-y-2">
             {parcelas.map((p, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export function CondicoesPagamento({ total, value, onChange }: { total: number; 
             ))}
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <button type="button" className="text-sm font-medium text-gta-indigo hover:underline" onClick={addParcela}>+ Adicionar parcela</button>
+            <button type="button" className="btn-link" onClick={addParcela}>+ Adicionar parcela</button>
             <div className="text-xs">
               <span className={pctOk ? "font-medium text-green-600 dark:text-green-400" : "font-semibold text-amber-600 dark:text-amber-400"}>Soma: {formatDecimal(somaPct, Number.isInteger(somaPct) ? 0 : 1)}%{pctOk ? " ✓" : " — deveria ser 100%"}</span>
               <span className="ml-3 text-slate-500 dark:text-slate-400">Total: {formatBRL(total)}</span>

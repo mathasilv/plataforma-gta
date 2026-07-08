@@ -72,7 +72,7 @@ export function ProjetoBtParamsForm({ onSaved }: { onSaved?: (p: Params) => void
     }
   }
 
-  if (!texto) return erro ? <p className="field-error">{erro}</p> : <p className="text-sm text-slate-500 dark:text-slate-400">Carregando parâmetros...</p>;
+  if (!texto) return erro ? <p className="field-error">{erro}</p> : <p className="subtitle">Carregando parâmetros...</p>;
 
   return (
     <div className="space-y-4">
@@ -94,7 +94,7 @@ export function ProjetoBtParamsForm({ onSaved }: { onSaved?: (p: Params) => void
       <div className="sm:w-1/2">
         <label className="field-label">{CAMPO_MULT.label}</label>
         <input className="field-input" inputMode="decimal" value={texto.multIndustrial} onChange={(e) => setTexto({ ...texto, multIndustrial: e.target.value })} />
-        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{CAMPO_MULT.help}</p>
+        <p className="mt-1 hint">{CAMPO_MULT.help}</p>
       </div>
       {erro && <p className="field-error">{erro}</p>}
       <div className="flex flex-wrap items-center gap-3">

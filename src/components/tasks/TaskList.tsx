@@ -9,6 +9,7 @@ import {
   type StatusTarefa,
   type Task,
 } from "@/lib/tasks/types";
+import { Badge, type Tone } from "@/components/ui";
 
 interface Usuario {
   email: string;
@@ -17,11 +18,7 @@ interface Usuario {
 
 const PRIORIDADE_PESO: Record<Prioridade, number> = { alta: 0, media: 1, baixa: 2 };
 
-const PRIORIDADE_BADGE: Record<Prioridade, string> = {
-  alta: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  media: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  baixa: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
-};
+const PRIORIDADE_TONE: Record<Prioridade, Tone> = { alta: "red", media: "amber", baixa: "slate" };
 
 const STATUS_BADGE: Record<StatusTarefa, string> = {
   afazer: "border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
@@ -347,17 +344,17 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
       )}
 
       {/* lista */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+      <div className="overflow-x-auto card">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-3 py-3 md:px-4">Status</th>
-              <th className="px-3 py-3 md:px-4">Tarefa</th>
-              <th className="hidden px-4 py-3 md:table-cell">Cliente</th>
-              <th className="hidden px-4 py-3 md:table-cell">Responsável</th>
-              <th className="hidden px-4 py-3 md:table-cell">Prioridade</th>
-              <th className="hidden px-4 py-3 md:table-cell">Prazo</th>
-              <th className="w-10 px-2 py-3" />
+              <th>Status</th>
+              <th>Tarefa</th>
+              <th className="hidden md:table-cell">Cliente</th>
+              <th className="hidden md:table-cell">Responsável</th>
+              <th className="hidden md:table-cell">Prioridade</th>
+              <th className="hidden md:table-cell">Prazo</th>
+              <th className="w-10" />
             </tr>
           </thead>
           <tbody>
@@ -468,7 +465,7 @@ function TaskRow({
 
   return (
     <>
-      <tr className={`border-t border-slate-100 dark:border-slate-700 ${concluida ? "opacity-50" : ""} ${late ? "bg-red-50/40 dark:bg-red-900/20" : ""}`}>
+      <tr className={`${concluida ? "opacity-50" : ""} ${late ? "bg-red-50/40 dark:bg-red-900/20" : ""}`}>
         <td className="px-3 py-2.5 align-top md:px-4 md:py-2 md:align-middle">
           <select
             value={t.status}
@@ -491,9 +488,9 @@ function TaskRow({
           )}
           {/* No mobile, prioridade/prazo/responsável ficam ocultos nas colunas — mostra o essencial aqui */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORIDADE_BADGE[t.prioridade]}`}>
+            <Badge tone={PRIORIDADE_TONE[t.prioridade]}>
               {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
-            </span>
+            </Badge>
             {t.prazo && (
               <span className={`text-[11px] ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
                 {formatPrazo(t.prazo)}{late ? " · atrasada" : ""}
@@ -505,9 +502,9 @@ function TaskRow({
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.cliente || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{nomeDe(t.responsavel)}</td>
         <td className="hidden px-4 py-2 md:table-cell">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORIDADE_BADGE[t.prioridade]}`}>
+          <Badge tone={PRIORIDADE_TONE[t.prioridade]}>
             {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
-          </span>
+          </Badge>
         </td>
         <td className={`hidden px-4 py-2 md:table-cell ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
           {formatPrazo(t.prazo)}
@@ -520,7 +517,7 @@ function TaskRow({
         </td>
       </tr>
       {aberta && (
-        <tr className="border-t border-slate-100 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/40">
+        <tr className="bg-slate-50/60 dark:bg-slate-900/40">
           <td colSpan={7} className="px-3 py-3 md:px-6 md:py-4">
             {!editando ? (
               <div className="space-y-3">

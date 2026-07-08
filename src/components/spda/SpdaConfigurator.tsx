@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { SpdaParamsForm } from "./SpdaParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
+import { Kpi } from "@/components/ui";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -201,8 +202,8 @@ export function SpdaConfigurator({ propostaId }: { propostaId?: string }) {
   }
 
   const inputCls = "field-input";
-  const sec = "rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800";
-  const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
+  const sec = "section-card";
+  const h2 = "section-title";
 
   return (
     <div className="space-y-6">
@@ -330,15 +331,6 @@ export function SpdaConfigurator({ propostaId }: { propostaId?: string }) {
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
-    </div>
-  );
-}
-
-function Kpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
-  return (
-    <div className={`rounded-md p-2 shadow-sm ${destaque ? "bg-gta-navy text-white" : "bg-white dark:bg-slate-800"}`}>
-      <div className={`text-xs ${destaque ? "text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{label}</div>
-      <div className="mt-0.5 font-semibold dark:text-slate-100">{value}</div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { SolarParamsForm } from "@/components/admin/SolarParamsForm";
 import { CopyButton } from "@/components/CopyButton";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
+import { Kpi } from "@/components/ui";
 
 /** Formatação pt-BR local (sem depender de libs de servidor). */
 const nf = (v: number, d = 2) =>
@@ -446,8 +447,8 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   }
 
   const inputCls = "field-input";
-  const sec = "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800";
-  const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
+  const sec = "section-card";
+  const h2 = "section-title";
 
   const painelSelect = painelCustom ? "outro" : String(form.potenciaPainel);
   const invSelect = invCustom ? "outro" : String(form.potenciaInversor);
@@ -543,7 +544,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         <h2 className={h2}>Dimensionamento</h2>
 
         {!calc && (
-          <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+          <p className="mt-2 subcard text-sm text-slate-500 dark:text-slate-400">
             Preencha a <strong>cidade da instalação</strong> e o <strong>consumo</strong> acima — o
             sistema sugere os painéis e o inversor automaticamente.
           </p>
@@ -844,7 +845,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
             </p>
           </>
         ) : (
-          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+          <p className="mt-4 subcard text-sm text-slate-500 dark:text-slate-400">
             Preencha o <strong>valor do kit</strong>, a <strong>distribuidora</strong> e a <strong>tarifa</strong> para
             ver a economia mensal e o payback.
           </p>
@@ -968,15 +969,6 @@ function paybackTexto(meses: number): string {
   const pa = anos > 0 ? `${anos} ano${anos > 1 ? "s" : ""}` : "";
   const pm = m > 0 ? `${m} m${m > 1 ? "eses" : "ês"}` : "";
   return [pa, pm].filter(Boolean).join(" e ") || "menos de 1 mês";
-}
-
-function Kpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
-  return (
-    <div className={`rounded-md p-2 shadow-sm ${destaque ? "bg-gta-navy text-white" : "bg-white dark:bg-slate-800"}`}>
-      <div className={`text-xs ${destaque ? "text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{label}</div>
-      <div className="mt-0.5 font-semibold dark:text-slate-100">{value}</div>
-    </div>
-  );
 }
 
 function GraficoGeracao({ linhas }: { linhas: { mes: string; energia: number; consumo: number }[] }) {

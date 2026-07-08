@@ -52,7 +52,7 @@ export default async function NovaPropostaPage({
             <ServiceIcon serviceKey={service.key} className="h-6 w-6 shrink-0 text-gta-indigo sm:h-7 sm:w-7 dark:text-indigo-300" />
             {service.label}
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{service.description}</p>
+          <p className="mt-1 subtitle">{service.description}</p>
         </div>
 
         {service.emDesenvolvimento && (

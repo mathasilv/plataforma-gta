@@ -63,7 +63,7 @@ export function CarregadorParamsForm({ onSaved }: { onSaved?: (p: Params) => voi
     }
   }
 
-  if (!texto) return erro ? <p className="field-error">{erro}</p> : <p className="text-sm text-slate-500 dark:text-slate-400">Carregando parâmetros...</p>;
+  if (!texto) return erro ? <p className="field-error">{erro}</p> : <p className="subtitle">Carregando parâmetros...</p>;
 
   return (
     <div className="space-y-4">
@@ -72,7 +72,7 @@ export function CarregadorParamsForm({ onSaved }: { onSaved?: (p: Params) => voi
           <div key={c.key}>
             <label className="field-label">{c.label}</label>
             <input className="field-input" inputMode="decimal" value={texto[c.key]} onChange={(e) => setTexto({ ...texto, [c.key]: e.target.value })} />
-            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{c.help}</p>
+            <p className="mt-1 hint">{c.help}</p>
           </div>
         ))}
       </div>

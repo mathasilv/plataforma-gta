@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { ChangePasswordForm } from "@/components/users/ChangePasswordForm";
+import { PageHeader } from "@/components/ui";
 import { requirePageUser } from "@/lib/session";
 import { ROLE_LABEL } from "@/lib/users/types";
 
@@ -11,9 +12,9 @@ export default async function ContaPage() {
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-xl px-4 py-8">
-        <h1 className="text-2xl font-bold text-gta-navy dark:text-slate-100">Minha conta</h1>
+        <PageHeader title="Minha conta" />
 
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <section className="section-card mt-6">
           <dl className="grid grid-cols-1 gap-y-1 text-sm sm:grid-cols-3 sm:gap-y-2">
             <dt className="text-slate-500 dark:text-slate-400">Nome</dt>
             <dd className="font-medium text-gta-navy sm:col-span-2 dark:text-slate-100">{user.name}</dd>
@@ -24,8 +25,8 @@ export default async function ContaPage() {
           </dl>
         </section>
 
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <h2 className="mb-4 text-lg font-semibold text-gta-navy dark:text-slate-100">Alterar senha</h2>
+        <section className="section-card mt-6">
+          <h2 className="section-title mb-4">Alterar senha</h2>
           <ChangePasswordForm requireCurrent />
         </section>
       </main>

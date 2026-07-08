@@ -252,8 +252,8 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   }
 
   const inputCls = "field-input";
-  const sec = "rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800";
-  const h2 = "text-lg font-semibold text-gta-navy dark:text-slate-100";
+  const sec = "section-card";
+  const h2 = "section-title";
 
   return (
     <div className="space-y-6">
