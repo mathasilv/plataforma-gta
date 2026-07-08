@@ -17,7 +17,7 @@ const MENSAGEM_PADRAO: Record<AcaoTransicao, string> = {
   cancelar: "Orçamento cancelado",
 };
 
-/** Avança/decide um orçamento na esteira. */
+/** Avança/decide um orçamento no fluxo de aprovação. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const guard = await requireApi();
   if ("error" in guard) return guard.error;

@@ -116,8 +116,8 @@ export function OrcamentoDetalhe({
 
   return (
     <div className="space-y-5">
-      <Link href="/esteira" className="text-sm text-gta-indigo hover:underline">
-        ← Voltar para a esteira
+      <Link href="/aprovacoes" className="text-sm text-gta-indigo hover:underline">
+        ← Voltar para aprovações
       </Link>
 
       {/* Cabeçalho */}
@@ -260,7 +260,7 @@ export function OrcamentoDetalhe({
         )}
       </div>
 
-      {/* Histórico da esteira */}
+      {/* Histórico do fluxo de aprovação */}
       <div className="card p-4">
         <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Histórico</h2>
         {orc.historico.length === 0 ? (

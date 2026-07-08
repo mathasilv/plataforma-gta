@@ -2,7 +2,7 @@ import type { AcaoTransicao, Estacao } from "./types";
 import type { PermissaoKey } from "@/lib/rbac/permissoes";
 
 /**
- * Máquina de estados da esteira (pura, sem I/O). Define as transições válidas.
+ * Máquina de estados do fluxo de aprovação (pura, sem I/O). Define as transições válidas.
  * A autorização por PERMISSÃO é aplicada nas rotas (Node) via `permissaoDaAcao`.
  *
  * rascunho   --enviar--->   em_revisao
@@ -19,7 +19,7 @@ const TRANSICOES: Record<Estacao, Partial<Record<AcaoTransicao, Estacao>>> = {
   cancelado: {},
 };
 
-/** Permissão exigida para cada ação da esteira. */
+/** Permissão exigida para cada ação do fluxo de aprovação. */
 export function permissaoDaAcao(acao: AcaoTransicao): PermissaoKey {
   switch (acao) {
     case "enviar":

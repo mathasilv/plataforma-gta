@@ -5,7 +5,7 @@ import { criarOrcamentoSchema } from "@/lib/orcamentos/types";
 
 export const runtime = "nodejs";
 
-/** Lista os orçamentos da esteira (filtros aplicados no cliente). */
+/** Lista os orçamentos em aprovação (filtros aplicados no cliente). */
 export async function GET() {
   const guard = await requireApi();
   if ("error" in guard) return guard.error;

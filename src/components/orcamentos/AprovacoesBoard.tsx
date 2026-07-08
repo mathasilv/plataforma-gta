@@ -21,7 +21,7 @@ const FILTROS: { value: Estacao | "todos"; label: string }[] = [
 
 const FICHA_VAZIA = { custoBase: "", fator: "", faturamento: "", impostosPct: "", margemLiquida: "", observacoes: "" };
 
-export function EsteiraBoard({ perms }: { perms: PermissaoKey[] }) {
+export function AprovacoesBoard({ perms }: { perms: PermissaoKey[] }) {
   const pode = (k: PermissaoKey) => perms.includes(k);
 
   const [lista, setLista] = useState<Orcamento[]>([]);
@@ -191,7 +191,7 @@ export function EsteiraBoard({ perms }: { perms: PermissaoKey[] }) {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {filtrada.map((o) => (
-            <Link key={o.id} href={`/esteira/${o.id}`} className="card block p-4 transition hover:shadow-md">
+            <Link key={o.id} href={`/aprovacoes/${o.id}`} className="card block p-4 transition hover:shadow-md">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate font-medium text-gta-navy dark:text-slate-100">{o.cliente}</div>

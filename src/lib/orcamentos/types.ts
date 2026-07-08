@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Modelo e validação da Esteira de Validação de Orçamentos. */
+/** Modelo e validação do fluxo de Aprovação de Orçamentos. */
 
 export const ESTACOES = [
   { value: "rascunho", label: "Rascunho" },
@@ -26,7 +26,7 @@ export interface ComentarioOrcamento {
   em: string; // ISO
 }
 
-/** Entrada do histórico da esteira (decisões humanas e checagens automáticas). */
+/** Entrada do histórico do fluxo de aprovação (decisões humanas e checagens automáticas). */
 export interface RegistroValidacao {
   id: string;
   estacao: Estacao;

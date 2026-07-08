@@ -7,7 +7,7 @@ import { getDbUrl } from "../tasks/postgres-store";
 import { buildReference } from "../format";
 
 /**
- * Camada de dados dos Orçamentos (esteira). Mesmo padrão de Propostas:
+ * Camada de dados dos Orçamentos (fluxo de aprovação). Mesmo padrão de Propostas:
  * Postgres em produção, arquivo JSON local em desenvolvimento.
  */
 

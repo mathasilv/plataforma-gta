@@ -9,7 +9,7 @@
 
 export const PERMISSOES = {
   "orcamentos.criar": "Criar e enviar orçamentos para revisão",
-  "orcamentos.revisar": "Revisar/comentar orçamentos na esteira",
+  "orcamentos.revisar": "Revisar/comentar orçamentos em aprovação",
   "orcamentos.aprovar": "Aprovar ou rejeitar orçamentos (com parecer)",
   "orcamentos.cancelar": "Cancelar orçamentos",
   "servicos.editar": "Usar os configuradores de serviços",
@@ -30,7 +30,7 @@ export function isPermissaoKey(v: unknown): v is PermissaoKey {
 /** Agrupamento por módulo para exibição na UI de cargos. */
 export const PERMISSOES_POR_MODULO: { modulo: string; chaves: PermissaoKey[] }[] = [
   {
-    modulo: "Orçamentos (esteira)",
+    modulo: "Orçamentos (aprovação)",
     chaves: ["orcamentos.criar", "orcamentos.revisar", "orcamentos.aprovar", "orcamentos.cancelar"],
   },
   {
