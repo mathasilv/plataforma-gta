@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import {
   PAINEIS_COMERCIAIS,
   INVERSORES_COMERCIAIS,
@@ -139,10 +140,18 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const [painelCustom, setPainelCustom] = useState(false);
   const [invCustom, setInvCustom] = useState(false);
   const [cond, setCond] = useState<CondPag>(COND_PADRAO);
+  // Lista de materiais EDITÁVEL (composição do sistema) — semeada pela sugestão
+  // do servidor (calc.bom) até o usuário editar/salvar.
+  const [materiais, setMateriais] = useState<{ qtde: string; descricao: string }[]>([]);
+  const pularReseed = useRef(false);
   // campos que o usuário já editou de propósito (a sugestão não sobrescreve)
   const touched = useRef({ nPaineis: false, inversor: false });
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const setMat = (i: number, k: "qtde" | "descricao", v: string) => setMateriais((ms) => ms.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
+  const addMat = () => setMateriais((ms) => [...ms, { qtde: "1", descricao: "" }]);
+  const removeMat = (i: number) => setMateriais((ms) => ms.filter((_, j) => j !== i));
+  const restaurarMat = () => { if (calc?.bom) setMateriais(calc.bom.map((b) => ({ qtde: b.qtde, descricao: b.descricao }))); };
 
   // carrega municípios, parâmetros padrão e (se reabrindo) a proposta salva
   useEffect(() => {
@@ -151,9 +160,10 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
         if (d.proposta?.dados) {
-          const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag };
+          const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag; materiais?: { qtde: string; descricao: string }[] };
           setForm({ ...FORM_INICIAL, ...dados });
           if (dados.cond) setCond(dados.cond as CondPag);
+          if (Array.isArray(dados.materiais) && dados.materiais.length) { setMateriais(dados.materiais); pularReseed.current = true; }
           // valores salvos são escolhas do usuário — não sobrescrever com sugestões
           touched.current = { nPaineis: (dados.nPaineis ?? 0) > 0, inversor: (dados.potenciaInversor ?? 0) > 0 };
           if (dados.potenciaPainel && !PAINEIS_COMERCIAIS.includes(dados.potenciaPainel)) setPainelCustom(true);
@@ -225,7 +235,14 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
             tarifaEnergia: form.tarifaEnergia,
           }),
         });
-        if (res.ok) setCalc(await res.json());
+        if (res.ok) {
+          const data = await res.json();
+          setCalc(data);
+          // semeia a lista editável com a sugestão — exceto logo após carregar
+          // uma proposta salva (preserva o que o usuário editou).
+          if (pularReseed.current) pularReseed.current = false;
+          else if (data.bom) setMateriais(data.bom.map((b: { qtde: string; descricao: string }) => ({ qtde: b.qtde, descricao: b.descricao })));
+        }
       } catch {
         /* ignora erro de cálculo transitório */
       }
@@ -318,7 +335,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         consumo: nf(l.consumo, 2),
       })),
       textoObservacao: form.textoObservacao,
-      materiais: calc.bom.map((b) => ({ qtde: b.qtde, descricao: b.descricao })),
+      materiais: materiais.filter((m) => m.descricao.trim()).map((m) => ({ qtde: m.qtde, descricao: m.descricao })),
       distribuidor: form.distribuidor,
       distribuidorNome: form.distribuidorNome,
       distribuidorCnpj: form.distribuidorCnpj,
@@ -344,7 +361,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     setErro(null);
     try {
       const st = calc?.pricing ? "precificada" : "rascunho";
-      const payload = { serviceKey: "solar", cliente: form.clienteNome, status: st, dados: { ...form, cond } };
+      const payload = { serviceKey: "solar", cliente: form.clienteNome, status: st, dados: { ...form, cond, materiais } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -686,24 +703,27 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         </section>
       )}
 
-      {/* 3 · Materiais genéricos */}
-      {calc?.bom && (
+      {/* Lista de materiais (editável) */}
+      {materiais.length > 0 && (
         <section className={sec}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className={h2}>Lista de materiais (para cotar)</h2>
-            <CopyButton label="Copiar lista" text={() => calc.bom.map((b) => `${b.qtde}\t${b.descricao}`).join("\n")} />
+            <div className="flex items-center gap-3">
+              {calc?.bom && <button type="button" className="text-xs text-gta-indigo hover:underline" onClick={restaurarMat}>Restaurar sugestão</button>}
+              <CopyButton label="Copiar lista" text={() => materiais.filter((m) => m.descricao.trim()).map((m) => `${m.qtde}\t${m.descricao}`).join("\n")} />
+            </div>
           </div>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Lista genérica (sem marca) para enviar ao distribuidor e obter o preço do kit.</p>
-          <table className="mt-3 w-full text-sm">
-            <tbody>
-              {calc.bom.map((b, i) => (
-                <tr key={i} className="border-t border-slate-100 dark:border-slate-700">
-                  <td className="w-20 py-1 font-medium text-gta-navy dark:text-slate-100">{b.qtde}</td>
-                  <td className="py-1 text-slate-700 dark:text-slate-300">{b.descricao}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Lista genérica (sem marca) para enviar ao distribuidor. Edite a qtde/descrição, adicione ou remova itens — vai assim para a proposta.</p>
+          <div className="mt-3 space-y-2">
+            {materiais.map((m, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input className={`${inputCls} w-24 shrink-0`} value={m.qtde} onChange={(e) => setMat(i, "qtde", e.target.value)} placeholder="Qtde" />
+                <input className={`${inputCls} flex-1`} value={m.descricao} onChange={(e) => setMat(i, "descricao", e.target.value)} placeholder="Descrição do item" />
+                <button type="button" className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20" onClick={() => removeMat(i)} aria-label="Remover item"><X className="h-4 w-4" /></button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="mt-3 text-sm font-medium text-gta-indigo hover:underline" onClick={addMat}>+ Adicionar material</button>
         </section>
       )}
 
