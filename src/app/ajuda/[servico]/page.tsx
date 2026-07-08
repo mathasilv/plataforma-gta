@@ -7,12 +7,45 @@ import { ServiceIcon } from "@/components/ServiceIcon";
 import { requirePageUser } from "@/lib/session";
 import { SERVICOS_COM_AJUDA } from "@/components/ajuda/disponivel";
 import { SolarAjuda } from "@/components/ajuda/SolarAjuda";
+import { CarregadorAjuda } from "@/components/ajuda/CarregadorAjuda";
+import { SpdaAjuda } from "@/components/ajuda/SpdaAjuda";
+import { ProjetoBtAjuda } from "@/components/ajuda/ProjetoBtAjuda";
+import { SubestacaoAjuda } from "@/components/ajuda/SubestacaoAjuda";
+import { ExecucaoSubestacaoAjuda } from "@/components/ajuda/ExecucaoSubestacaoAjuda";
+import { RedeMtAjuda } from "@/components/ajuda/RedeMtAjuda";
+import { QgbtAjuda } from "@/components/ajuda/QgbtAjuda";
+import { ConexaoAjuda } from "@/components/ajuda/ConexaoAjuda";
+import { AnalisadorAjuda } from "@/components/ajuda/AnalisadorAjuda";
+import { LaudoAjuda } from "@/components/ajuda/LaudoAjuda";
+import { LimpezaAjuda } from "@/components/ajuda/LimpezaAjuda";
 
 /** Conteúdo da ajuda por serviço. Adicione um case ao criar o componente. */
 function conteudoAjuda(servico: string) {
   switch (servico) {
     case "solar":
       return <SolarAjuda />;
+    case "carregador":
+      return <CarregadorAjuda />;
+    case "spda":
+      return <SpdaAjuda />;
+    case "projeto-bt":
+      return <ProjetoBtAjuda />;
+    case "projeto-subestacao":
+      return <SubestacaoAjuda />;
+    case "execucao-subestacao":
+      return <ExecucaoSubestacaoAjuda />;
+    case "rede-mt":
+      return <RedeMtAjuda />;
+    case "qgbt":
+      return <QgbtAjuda />;
+    case "conexao":
+      return <ConexaoAjuda />;
+    case "analisador":
+      return <AnalisadorAjuda />;
+    case "laudo-inspecao":
+      return <LaudoAjuda />;
+    case "limpeza":
+      return <LimpezaAjuda />;
     default:
       return null;
   }
