@@ -14,21 +14,48 @@ const parseBR = (s: string) => {
 const HOJE = new Date().toISOString().slice(0, 10);
 
 /**
- * Disciplinas do projeto elétrico BT, com valor sugerido e âncora histórica.
- * Fiel às propostas reais (CCB somou predial + telecom em itens separados).
+ * Disciplinas do projeto elétrico BT. Fiéis às propostas reais (CCB, Geolab):
+ * força e iluminação são separáveis (Geolab cotou só força); marcar as duas
+ * equivale ao "projeto predial completo".
+ * `frag` = fragmento usado para compor o objeto dinâmico da proposta.
  */
 const DISCIPLINAS = [
-  { id: "predial", nome: "Instalação elétrica predial (força + iluminação)", def: "8000", ajuda: "Projeto completo de força e iluminação. Histórico: predial R$ 5.000–18.450.", descricao: "Projeto elétrico predial de baixa tensão (força e iluminação), com pranchas, memoriais e lista de quantitativos" },
-  { id: "forca", nome: "Projeto de força (tomadas — TUG/TUE)", def: "6000", ajuda: "Circuitos de tomadas isolados. Histórico industrial (Geolab): R$ 20.000.", descricao: "Projeto elétrico de força — dimensionamento dos circuitos de tomadas de uso geral (TUG) e específico (TUE)" },
-  { id: "iluminacao", nome: "Projeto luminotécnico (iluminação)", def: "4000", ajuda: "Projeto de iluminação isolado.", descricao: "Projeto luminotécnico — dimensionamento dos circuitos e pontos de iluminação" },
-  { id: "telecom", nome: "Projeto de telecomunicação / cabeamento estruturado", def: "6000", ajuda: "Rede lógica/telefonia. Histórico (CCB): R$ 6.150.", descricao: "Projeto de telecomunicação e cabeamento estruturado (rede lógica e telefonia)" },
-  { id: "retrofit", nome: "Retrofit / adequação de instalação existente", def: "5000", ajuda: "Modernização e correção de não conformidades da instalação existente.", descricao: "Retrofit e adequação da instalação elétrica predial existente, com correção de não conformidades" },
+  { id: "forca", nome: "Força — tomadas (TUG/TUE)", def: "6000", ajuda: "Circuitos de tomadas de uso geral e específico.", descricao: "Projeto elétrico de força — dimensionamento e individualização dos circuitos de tomadas de uso geral (TUG) e específico (TUE)", frag: "projeto elétrico de força (circuitos de tomadas de uso geral e específico)" },
+  { id: "iluminacao", nome: "Iluminação (luminotécnico)", def: "4000", ajuda: "Circuitos e pontos de iluminação.", descricao: "Projeto luminotécnico — dimensionamento dos circuitos e pontos de iluminação", frag: "projeto luminotécnico" },
+  { id: "telecom", nome: "Telecom / cabeamento estruturado", def: "6000", ajuda: "Rede lógica e telefonia. Histórico (CCB): R$ 6.150.", descricao: "Projeto de telecomunicação e cabeamento estruturado (rede lógica e telefonia)", frag: "projeto de telecomunicações e cabeamento estruturado" },
+  { id: "retrofit", nome: "Retrofit / adequação de existente", def: "5000", ajuda: "Modernização e correção de não conformidades da instalação existente.", descricao: "Retrofit e adequação da instalação elétrica predial existente, com correção de não conformidades", frag: "retrofit e adequação da instalação elétrica predial existente" },
 ] as const;
 
 type Vals = Record<string, string>;
 
-const OBJ_PADRAO =
-  "Elaboração de projeto elétrico de baixa tensão em conformidade com a ABNT NBR 5410, contemplando as disciplinas contratadas, com pranchas técnicas (DWG/PDF), memoriais descritivo e de cálculo, lista de quantitativos e ART junto ao CREA/GO.";
+/** Junta em PT: [a]→"a"; [a,b]→"a e b"; [a,b,c]→"a, b e c". */
+function juntarPt(itens: string[]): string {
+  if (itens.length <= 1) return itens[0] ?? "";
+  return itens.slice(0, -1).join(", ") + " e " + itens[itens.length - 1];
+}
+
+/**
+ * Objeto DINÂMICO: compõe o texto a partir das disciplinas marcadas. Força +
+ * iluminação juntas viram "projeto elétrico predial (força e iluminação)".
+ */
+function fragOf(id: string): string {
+  return DISCIPLINAS.find((d) => d.id === id)?.frag ?? "";
+}
+function montarObjeto(ids: string[]): string {
+  const frags: string[] = [];
+  const temForca = ids.includes("forca");
+  const temIlum = ids.includes("iluminacao");
+  // Força + iluminação juntas = "projeto predial completo".
+  if (temForca && temIlum) frags.push("projeto elétrico predial de baixa tensão (força e iluminação)");
+  else {
+    if (temForca) frags.push(fragOf("forca"));
+    if (temIlum) frags.push(fragOf("iluminacao"));
+  }
+  if (ids.includes("telecom")) frags.push(fragOf("telecom"));
+  if (ids.includes("retrofit")) frags.push(fragOf("retrofit"));
+  if (frags.length === 0) return "Elaboração de projeto elétrico de baixa tensão em conformidade com a ABNT NBR 5410, com pranchas técnicas, memoriais, lista de quantitativos e ART junto ao CREA/GO.";
+  return `Elaboração ${juntarPt(frags.map((f) => `do ${f}`))}, em conformidade com a ABNT NBR 5410, com pranchas técnicas (DWG/PDF), memoriais descritivo e de cálculo, lista de quantitativos e ART junto ao CREA/GO.`;
+}
 const OBS_PADRAO = [
   "Projeto conforme a ABNT NBR 5410 e demais normas técnicas aplicáveis.",
   "Inclui até 2 (duas) revisões por adequação de escopo dentro do objeto contratado.",
@@ -43,10 +70,10 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
     clienteNome: "", cidadeUf: "", localAtividade: "", porte: "",
     referenciaSeq: "1", dataEmissao: HOJE, validadeDias: "20",
     formaPagamento: "20% na assinatura, 50% na entrega do projeto executivo e 30% na aprovação",
-    objeto: OBJ_PADRAO, prazoExecucao: "60 dias corridos após a assinatura do contrato",
+    objeto: montarObjeto(["forca", "iluminacao"]), prazoExecucao: "60 dias corridos após a assinatura do contrato",
     observacoesExtra: OBS_PADRAO.join("\n"),
-    // disciplinas: on/valor por id
-    ...Object.fromEntries(DISCIPLINAS.flatMap((d) => [[`on_${d.id}`, d.id === "predial" ? "1" : ""], [`v_${d.id}`, d.def]])),
+    // disciplinas: on/valor por id (padrão: predial completo = força + iluminação)
+    ...Object.fromEntries(DISCIPLINAS.flatMap((d) => [[`on_${d.id}`, d.id === "forca" || d.id === "iluminacao" ? "1" : ""], [`v_${d.id}`, d.def]])),
   });
 
   const [form, setForm] = useState<Vals>(inicial);
@@ -55,6 +82,9 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   const [salvando, setSalvando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
+  // Objeto: enquanto o vendedor não editar o texto à mão, ele é recomposto
+  // automaticamente a partir das disciplinas marcadas.
+  const objetoTocado = useRef(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const toggle = (id: string) => setForm((f) => ({ ...f, [`on_${id}`]: f[`on_${id}`] ? "" : "1" }));
@@ -62,7 +92,7 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) setForm((f) => ({ ...f, ...(d.proposta.dados as Vals) }));
+        if (d.proposta?.dados) { setForm((f) => ({ ...f, ...(d.proposta.dados as Vals) })); objetoTocado.current = true; }
       }).catch(() => {});
     } else {
       fetch(`/api/propostas/proximo?serviceKey=projeto-bt`).then((r) => r.json()).then((d) => {
@@ -71,6 +101,13 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propostaId]);
+
+  // Disciplinas marcadas (ids) — dispara a recomposição do objeto.
+  const idsSelecionados = DISCIPLINAS.filter((d) => form[`on_${d.id}`]).map((d) => d.id).join(",");
+  useEffect(() => {
+    if (objetoTocado.current) return;
+    setForm((f) => ({ ...f, objeto: montarObjeto(idsSelecionados ? idsSelecionados.split(",") : []) }));
+  }, [idsSelecionados]);
 
   const porteSufixo = form.porte?.trim() ? ` — ${form.porte.trim()}` : "";
   const selecionadas = DISCIPLINAS.filter((d) => form[`on_${d.id}`]);
@@ -186,13 +223,24 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
           <div className="text-sm text-slate-300">Total do projeto ({selecionadas.length} {selecionadas.length === 1 ? "disciplina" : "disciplinas"})</div>
           <div className="text-xl font-bold">{brl(total)}</div>
         </div>
+        <p className="mt-3 rounded-md bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
+          <span className="font-medium text-slate-600 dark:text-slate-300">Objeto{objetoTocado.current ? " (editado)" : ""}:</span> {form.objeto}
+        </p>
       </section>
 
       {/* Textos */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
         <div className="mt-4 space-y-3">
-          <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="field-label">Objeto <span className="font-normal text-slate-400">(gerado a partir das disciplinas)</span></label>
+              {objetoTocado.current && (
+                <button type="button" className="text-xs text-gta-indigo hover:underline" onClick={() => { objetoTocado.current = false; setForm((f) => ({ ...f, objeto: montarObjeto(idsSelecionados ? idsSelecionados.split(",") : []) })); }}>Recompor automático</button>
+              )}
+            </div>
+            <textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => { objetoTocado.current = true; set("objeto", e.target.value); }} />
+          </div>
           <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[110px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="field-label">Prazo de entrega</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
