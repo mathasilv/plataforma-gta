@@ -391,15 +391,19 @@ export function OrcamentoDetalhe({
             {!temRev0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700">
                 <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-                  <strong>Revisão 00</strong> — escolha manter o documento gerado pela plataforma ou anexar o PDF que você alterou:
+                  <strong>Revisão 00</strong>
+                  {" — "}
+                  {orc.propostaId && orc.meta?.regeneravel
+                    ? "mantenha o documento gerado pela plataforma ou anexe o PDF que você alterou:"
+                    : "anexe o PDF da proposta (exporte do .docx para PDF e envie aqui):"}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {orc.propostaId && (
+                  {orc.propostaId && orc.meta?.regeneravel && (
                     <button className="btn-secondary text-xs" onClick={gerarDocx} disabled={anexando}>
                       {anexando ? "..." : "Usar documento da plataforma (.docx)"}
                     </button>
                   )}
-                  <FileBtn revisao={0}>Anexar PDF (alterado)</FileBtn>
+                  <FileBtn revisao={0}>Anexar PDF{orc.meta?.regeneravel ? " (alterado)" : ""}</FileBtn>
                 </div>
               </div>
             ) : (

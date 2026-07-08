@@ -57,9 +57,11 @@ export async function POST(req: Request) {
     try {
       const store = getPropostaStore();
       const cliente = extrairCliente(parsed.data as Record<string, unknown>);
-      const formGerado = parsed.data as Record<string, unknown>;
+      // Guarda o formData de ENTRADA (não parsed.data): é o que o zodSchema revalida
+      // ao regenerar o .docx (Rev 00). A saída do schema (com transforms/coerce do
+      // Solar/carregador) não revalida contra o próprio schema.
+      const formGerado = body.formData as Record<string, unknown>;
       if (body.propostaId) {
-        // Guarda o formData transformado para permitir regenerar o .docx (Rev 00 da esteira).
         await store.update(body.propostaId, { status: "gerada", cliente, referencia: ref ?? "", formGerado });
       } else {
         await store.create({
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
           cliente,
           referencia: ref ?? "",
           status: "gerada",
-          dados: formGerado,
+          dados: parsed.data as Record<string, unknown>,
           formGerado,
           criadoPor: user.email,
         });

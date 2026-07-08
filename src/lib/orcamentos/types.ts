@@ -124,6 +124,8 @@ export interface OrcamentoMeta {
   dataEmissao?: string; // yyyy-mm-dd — data de geração/emissão da proposta
   validadeDias?: number; // prazo em dias
   formaPagamento?: string;
+  /** A proposta vinculada pode regenerar o .docx (tem formGerado)? Se não, só PDF manual. */
+  regeneravel?: boolean;
 }
 
 export interface Orcamento {

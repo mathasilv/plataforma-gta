@@ -35,25 +35,28 @@ export async function POST(req: Request) {
   const service = getService(proposta.serviceKey);
   const src = (proposta.formGerado ?? proposta.dados) as Record<string, unknown>;
 
-  // Forma de pagamento: em serviços com "Condições de pagamento" o texto final só
-  // aparece nos dados mapeados do .docx (não em src.formaPagamento). Tenta o mapper.
+  // Regenerável = o MESMO `src` que o gerar-docx usa valida contra o schema do serviço.
+  // Além disso, tenta o texto final da forma de pagamento via mapper (Condições de pagamento).
+  let regeneravel = false;
   let formaPagamento = typeof src.formaPagamento === "string" ? src.formaPagamento : undefined;
   try {
-    if (service && proposta.formGerado) {
-      const parsed = service.zodSchema.safeParse(proposta.formGerado);
+    if (service) {
+      const parsed = service.zodSchema.safeParse(src);
+      regeneravel = parsed.success;
       if (parsed.success) {
         const fp = (service.map(parsed.data).data as Record<string, unknown>).formaPagamento;
         if (typeof fp === "string" && fp.trim()) formaPagamento = fp;
       }
     }
   } catch {
-    // ignora — mantém o valor de src
+    regeneravel = false;
   }
 
   const meta: OrcamentoMeta = {
     dataEmissao: typeof src.dataEmissao === "string" ? src.dataEmissao : undefined,
     validadeDias: typeof src.validadeDias === "number" ? src.validadeDias : undefined,
     formaPagamento,
+    regeneravel,
   };
   const rotulo = service?.label ?? proposta.serviceKey;
   const descricao = proposta.referencia ? `${rotulo} — ${proposta.referencia}` : rotulo;
