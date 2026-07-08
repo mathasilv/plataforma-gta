@@ -2,14 +2,13 @@ import type { ReactNode } from "react";
 
 /** Primitivas visuais compartilhadas pelas páginas de ajuda "Como precificar". */
 
-const card =
-  "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800";
+const card = "section-card";
 
 /** Seção com título (e número opcional, para o passo a passo). */
 export function AjudaSecao({ n, titulo, children }: { n?: number; titulo: string; children: ReactNode }) {
   return (
     <section className={card}>
-      <h2 className="flex items-center gap-2.5 text-lg font-bold text-gta-navy dark:text-slate-100">
+      <h2 className="flex items-center gap-2.5 section-title">
         {n != null && (
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gta-indigo text-xs font-bold text-white">{n}</span>
         )}

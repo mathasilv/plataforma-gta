@@ -20,14 +20,43 @@ body {
   color: var(--foreground);
 }
 
-/* Inputs padronizados */
+/* ============================================================================
+   SISTEMA DE DESIGN — GTA
+   Primitivos compartilhados. Use estas classes (e os componentes de
+   src/components/ui.tsx) em vez de repetir strings de Tailwind inline.
+   ========================================================================= */
+
+/* ---- Superfícies ---------------------------------------------------------- */
+/* Cartão base (sem padding) — para listas/tabelas que controlam o próprio espaço. */
+.card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm
+         dark:border-slate-700 dark:bg-slate-800;
+}
+/* Seção de conteúdo — cartão com o padding padrão. */
+.section-card {
+  @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5
+         dark:border-slate-700 dark:bg-slate-800;
+}
+/* Caixa interna (KPIs, notas, destaques dentro de um cartão). */
+.subcard {
+  @apply rounded-lg border border-slate-200 bg-slate-50 p-4
+         dark:border-slate-700 dark:bg-slate-900/50;
+}
+
+/* ---- Tipografia ----------------------------------------------------------- */
+.page-title    { @apply text-2xl font-bold tracking-tight text-gta-navy dark:text-slate-100; }
+.section-title { @apply text-lg font-semibold text-gta-navy dark:text-slate-100; }
+.subtitle      { @apply text-sm text-slate-500 dark:text-slate-400; }
+.hint          { @apply text-xs text-slate-400 dark:text-slate-500; }
+
+/* ---- Formulários ---------------------------------------------------------- */
 .field-label {
   @apply block text-sm font-medium text-gta-navy/80 mb-1 dark:text-slate-300;
 }
 .field-input {
-  @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm
-         focus:border-gta-indigo focus:outline-none focus:ring-1 focus:ring-gta-indigo
-         disabled:bg-slate-100
+  @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm transition
+         focus:border-gta-indigo focus:outline-none focus:ring-2 focus:ring-gta-indigo/30
+         disabled:cursor-not-allowed disabled:bg-slate-100
          dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100
          dark:placeholder-slate-500 dark:disabled:bg-slate-900;
 }
@@ -41,13 +70,53 @@ body {
 .field-error {
   @apply mt-1 text-xs text-red-600 dark:text-red-400;
 }
+
+/* ---- Botões --------------------------------------------------------------- */
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-md bg-gta-indigo px-4 py-2
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-gta-indigo px-4 py-2
          text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a40b3]
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gta-indigo/50
          disabled:cursor-not-allowed disabled:opacity-60;
 }
 .btn-secondary {
-  @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white
          px-4 py-2 text-sm font-semibold text-gta-navy shadow-sm transition hover:bg-slate-50
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gta-indigo/40
+         disabled:cursor-not-allowed disabled:opacity-60
          dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700;
+}
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-red-200 bg-white
+         px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40
+         disabled:cursor-not-allowed disabled:opacity-60
+         dark:border-red-900/50 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-900/20;
+}
+/* Ação textual (links de "Abrir", "Ver mais"…). */
+.btn-link {
+  @apply inline-flex items-center gap-1 text-sm font-medium text-gta-indigo transition
+         hover:underline focus-visible:outline-none focus-visible:underline
+         disabled:cursor-not-allowed disabled:opacity-60 dark:text-indigo-300;
+}
+
+/* ---- Badges (pílulas de status) ------------------------------------------ */
+.badge        { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium; }
+.badge-slate  { @apply bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300; }
+.badge-green  { @apply bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300; }
+.badge-amber  { @apply bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300; }
+.badge-red    { @apply bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300; }
+.badge-indigo { @apply bg-gta-indigo/10 text-gta-indigo dark:bg-gta-indigo/20 dark:text-indigo-300; }
+
+/* ---- Tabela de dados ------------------------------------------------------ */
+/* Estrutura repetida (largura, cabeçalho, bordas/hover das linhas). O padding
+   das células do corpo fica inline, pois varia (linha de dados vs. estado vazio). */
+.data-table { @apply w-full text-sm; }
+.data-table thead {
+  @apply bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500
+         dark:bg-slate-900/50 dark:text-slate-400;
+}
+.data-table thead th { @apply px-4 py-3 font-semibold; }
+.data-table tbody tr {
+  @apply border-t border-slate-100 transition hover:bg-slate-50/60
+         dark:border-slate-700 dark:hover:bg-slate-700/40;
 }
