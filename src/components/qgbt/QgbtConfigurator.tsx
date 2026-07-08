@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QgbtParamsForm } from "./QgbtParamsForm";
+import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -61,6 +62,7 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
   const [salvando, setSalvando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
+  const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const precoTocado = useRef(false);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -69,7 +71,11 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) { setForm({ ...FORM_INICIAL, ...(d.proposta.dados as Partial<Form>) }); precoTocado.current = true; }
+        if (d.proposta?.dados) {
+          const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag };
+          setForm({ ...FORM_INICIAL, ...dados }); precoTocado.current = true;
+          if (dados.cond) setCond(dados.cond as CondPag);
+        }
       }).catch(() => {});
     } else {
       fetch("/api/propostas/proximo?serviceKey=qgbt").then((r) => r.json()).then((d) => {
@@ -107,7 +113,7 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
     return [{
       descricao: `Fornecimento de ${qtd > 1 ? `${qtd} QGBTs` : "QGBT"}${esp ? ` (${esp})` : ""} montado(s), identificado(s) e testado(s) em bancada, conforme a ABNT NBR IEC 61439`,
       valor: nf(valorServico, 2),
-      condicao: "50% na contratação e 50% na entrega",
+      condicao: "",
     }];
   }
 
@@ -119,7 +125,7 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
     if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
     setSalvando(true); setErro(null);
     try {
-      const payload = { serviceKey: "qgbt", cliente: form.clienteNome, status: valorServico > 0 ? "precificada" : "rascunho", dados: form };
+      const payload = { serviceKey: "qgbt", cliente: form.clienteNome, status: valorServico > 0 ? "precificada" : "rascunho", dados: { ...form, cond } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -144,7 +150,7 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
       if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
       const formData = {
         clienteNome: form.clienteNome, cidadeUf: form.cidadeUf, localAtividade: form.localAtividade,
-        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: form.formaPagamento,
+        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: montarFormaPagamento(cond, valorServico),
         titulo: "PROPOSTA TÉCNICA E COMERCIAL — FORNECIMENTO DE QGBT",
         objeto: form.objeto, prazoExecucao: form.prazoExecucao, itens: montarItens(), observacoes: montarObservacoes(),
       };
@@ -242,16 +248,16 @@ export function QgbtConfigurator({ propostaId }: { propostaId?: string }) {
         )}
       </section>
 
+      <CondicoesPagamento total={valorServico} value={cond} onChange={setCond} />
+
       {/* Textos */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
         <div className="mt-4 space-y-3">
           <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[90px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
-            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
-          </div>
+          <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
+          <p className="text-xs text-slate-400 dark:text-slate-500">A forma de pagamento é montada na seção “Condições de pagamento” acima.</p>
         </div>
       </details>
 

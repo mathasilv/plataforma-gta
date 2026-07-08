@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RedeMtParamsForm } from "./RedeMtParamsForm";
+import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -59,6 +60,7 @@ interface Preco {
 export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
+  const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const [preco, setPreco] = useState<Preco | null>(null);
   const [recalcNonce, setRecalcNonce] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) { setForm({ ...FORM_INICIAL, ...(d.proposta.dados as Partial<Form>) }); precoTocado.current = true; }
+        if (d.proposta?.dados) { const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag }; setForm({ ...FORM_INICIAL, ...dados }); precoTocado.current = true; if (dados.cond) setCond(dados.cond as CondPag); }
       }).catch(() => {});
     } else {
       fetch("/api/propostas/proximo?serviceKey=rede-mt").then((r) => r.json()).then((d) => {
@@ -115,14 +117,14 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
       itens.push({
         descricao: `Projeto executivo de rede de distribuição MT/BT${suf}, com dimensionamentos, diagramas, memoriais, lista de materiais, ART e acompanhamento da aprovação junto à concessionária`,
         valor: nf(valorProjeto, 2),
-        condicao: "50% na contratação e 50% na entrega/aprovação",
+        condicao: "",
       });
     }
     if (valorExecucao > 0) {
       itens.push({
         descricao: `Execução da rede de distribuição MT/BT${suf}: postes, estruturas, cabos, proteções, aterramento e comissionamento — materiais e equipamentos principais faturados diretamente ao cliente`,
         valor: nf(valorExecucao, 2),
-        condicao: "conforme cronograma físico-financeiro",
+        condicao: "",
       });
     }
     return itens;
@@ -136,7 +138,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
     if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
     setSalvando(true); setErro(null);
     try {
-      const payload = { serviceKey: "rede-mt", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: form };
+      const payload = { serviceKey: "rede-mt", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: { ...form, cond } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -161,7 +163,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
       if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
       const formData = {
         clienteNome: form.clienteNome, cidadeUf: form.cidadeUf, localAtividade: form.localAtividade,
-        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: form.formaPagamento,
+        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: montarFormaPagamento(cond, totalCliente),
         titulo: "PROPOSTA TÉCNICA E COMERCIAL — REDE DE DISTRIBUIÇÃO MT/BT",
         objeto: form.objeto, prazoExecucao: form.prazoExecucao, itens: montarItens(), observacoes: montarObservacoes(),
       };
@@ -266,16 +268,16 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
         )}
       </section>
 
+      {/* Condições de pagamento */}
+      <CondicoesPagamento total={totalCliente} value={cond} onChange={setCond} />
+
       {/* Textos */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
         <div className="mt-4 space-y-3">
           <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[90px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
-            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
-          </div>
+          <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
         </div>
       </details>
 

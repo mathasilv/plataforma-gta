@@ -9,6 +9,7 @@ import {
 } from "@/services/solar/commercial";
 import { SolarParamsForm } from "@/components/admin/SolarParamsForm";
 import { CopyButton } from "@/components/CopyButton";
+import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 
 /** Formatação pt-BR local (sem depender de libs de servidor). */
 const nf = (v: number, d = 2) =>
@@ -145,6 +146,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
   const [painelCustom, setPainelCustom] = useState(false);
   const [invCustom, setInvCustom] = useState(false);
+  const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   // campos que o usuário já editou de propósito (a sugestão não sobrescreve)
   const touched = useRef({ nPaineis: false, inversor: false });
 
@@ -157,8 +159,9 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
         if (d.proposta?.dados) {
-          const dados = d.proposta.dados as Partial<Form>;
+          const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag };
           setForm({ ...FORM_INICIAL, ...dados });
+          if (dados.cond) setCond(dados.cond as CondPag);
           // valores salvos são escolhas do usuário — não sobrescrever com sugestões
           touched.current = { nPaineis: (dados.nPaineis ?? 0) > 0, inversor: (dados.potenciaInversor ?? 0) > 0 };
           if (dados.potenciaPainel && !PAINEIS_COMERCIAIS.includes(dados.potenciaPainel)) setPainelCustom(true);
@@ -307,7 +310,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
       referenciaSeq: form.referenciaSeq,
       dataEmissao: form.dataEmissao,
       validadeDias: form.validadeDias,
-      formaPagamento: form.formaPagamento,
+      formaPagamento: montarFormaPagamento(cond, calc?.pricing?.valorTotal ?? 0),
       textoObjetivo: form.textoObjetivo,
       potenciaPainel: `${form.potenciaPainel} W`,
       qtdPaineis: `${calc.aplicado.nPaineis} unidades`,
@@ -349,7 +352,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
     setErro(null);
     try {
       const st = calc?.pricing ? "precificada" : "rascunho";
-      const payload = { serviceKey: "solar", cliente: form.clienteNome, status: st, dados: form };
+      const payload = { serviceKey: "solar", cliente: form.clienteNome, status: st, dados: { ...form, cond } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -770,6 +773,9 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         )}
       </section>
 
+      {/* Condições de pagamento (seção compartilhada) */}
+      <CondicoesPagamento total={calc?.pricing?.valorTotal ?? 0} value={cond} onChange={setCond} />
+
       {/* 5 · Economia e retorno */}
       <section className={sec}>
         <h2 className={h2}>Economia e retorno do investimento</h2>
@@ -855,7 +861,6 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           <div><label className="field-label">Observação técnica</label><textarea className={`${inputCls} min-h-[70px]`} value={form.textoObservacao} onChange={(e) => set("textoObservacao", e.target.value)} /></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
-            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
           </div>
         </div>
       </details>

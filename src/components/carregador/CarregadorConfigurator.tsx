@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { CarregadorParamsForm } from "./CarregadorParamsForm";
 import { CopyButton } from "@/components/CopyButton";
+import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -88,6 +89,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   const [salvando, setSalvando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [savedId, setSavedId] = useState<string | undefined>(propostaId);
+  const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const precoTocado = useRef(false);
   const pularReseed = useRef(false); // preserva os materiais salvos ao carregar uma proposta
 
@@ -97,10 +99,11 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        const dados = d.proposta?.dados as (Partial<Form> & { materiais?: MatRow[] }) | undefined;
+        const dados = d.proposta?.dados as (Partial<Form> & { materiais?: MatRow[]; cond?: CondPag }) | undefined;
         if (dados) {
           setForm({ ...FORM_INICIAL, ...dados });
           precoTocado.current = true;
+          if (dados.cond) setCond(dados.cond as CondPag);
           if (Array.isArray(dados.materiais) && dados.materiais.length) { setMateriais(dados.materiais); pularReseed.current = true; }
         }
       }).catch(() => {});
@@ -174,7 +177,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
     if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
     setSalvando(true); setErro(null);
     try {
-      const payload = { serviceKey: "carregador", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: { ...form, materiais } };
+      const payload = { serviceKey: "carregador", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: { ...form, materiais, cond } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -200,7 +203,7 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
       const formData = {
         clienteNome: form.clienteNome, cidadeUf: form.cidadeUf,
-        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: form.formaPagamento,
+        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: montarFormaPagamento(cond, totalCliente),
         subtitulo: form.subtitulo, objeto: form.objeto, textoObjetivo: form.textoObjetivo,
         potenciaKw: form.potenciaKw, sizing, materiais: montarMateriais(),
         valorServico: form.valorServico, valorEquipamento: form.valorEquipamento,
@@ -385,6 +388,8 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
         )}
       </section>
 
+      <CondicoesPagamento total={totalCliente} value={cond} onChange={setCond} />
+
       {/* Textos */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
@@ -392,10 +397,8 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
           <div><label className="field-label">Subtítulo do cabeçalho</label><input className={inputCls} value={form.subtitulo} onChange={(e) => set("subtitulo", e.target.value)} /></div>
           <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[60px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Texto do objetivo</label><textarea className={`${inputCls} min-h-[90px]`} value={form.textoObjetivo} onChange={(e) => set("textoObjetivo", e.target.value)} /></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
-            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
-          </div>
+          <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
+          <p className="text-xs text-slate-400 dark:text-slate-500">A forma de pagamento é montada na seção “Condições de pagamento” acima.</p>
         </div>
       </details>
 

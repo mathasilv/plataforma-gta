@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { SubestacaoParamsForm } from "./SubestacaoParamsForm";
+import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -104,6 +105,7 @@ interface Preco {
 export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
+  const [cond, setCond] = useState<CondPag>(COND_PADRAO);
   const [sizing, setSizing] = useState<Sizing | null>(null);
   const [preco, setPreco] = useState<Preco | null>(null);
   const [recalcNonce, setRecalcNonce] = useState(0);
@@ -126,7 +128,9 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
         if (d.proposta?.dados) {
-          setForm({ ...FORM_INICIAL, ...(d.proposta.dados as Partial<Form>) });
+          const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag };
+          setForm({ ...FORM_INICIAL, ...dados });
+          if (dados.cond) setCond(dados.cond as CondPag);
           precoTocado.current = true;
         }
       }).catch(() => {});
@@ -199,7 +203,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
           `(${nf(form.tensaoMt, form.tensaoMt % 1 ? 1 : 0)} kV / ${form.tensaoBt} V), conforme a NT.002 da concessionária: dimensionamento do ` +
           `transformador e da proteção, diagramas unifilares, memoriais, lista de materiais, ART e acompanhamento da aprovação`,
         valor: nf(parseBR(form.valorProjeto), 2),
-        condicao: "50% na contratação e 50% na entrega/aprovação",
+        condicao: "",
       },
     ];
     if (conexaoValor > 0) {
@@ -234,7 +238,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
     setSalvando(true);
     setErro(null);
     try {
-      const payload = { serviceKey: "projeto-subestacao", cliente: form.clienteNome, status: total > 0 ? "precificada" : "rascunho", dados: form };
+      const payload = { serviceKey: "projeto-subestacao", cliente: form.clienteNome, status: total > 0 ? "precificada" : "rascunho", dados: { ...form, cond } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -271,7 +275,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         referenciaSeq: form.referenciaSeq,
         dataEmissao: form.dataEmissao,
         validadeDias: form.validadeDias,
-        formaPagamento: form.formaPagamento,
+        formaPagamento: montarFormaPagamento(cond, total),
         titulo: tituloDoc(),
         objeto: form.objeto,
         prazoExecucao: form.prazoExecucao,
@@ -471,16 +475,16 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         </div>
       </section>
 
+      {/* Condições de pagamento */}
+      <CondicoesPagamento total={total} value={cond} onChange={setCond} />
+
       {/* Textos */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
         <div className="mt-4 space-y-3">
           <div><label className="field-label">Objeto</label><textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => set("objeto", e.target.value)} /></div>
           <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[70px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
-            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
-          </div>
+          <div><label className="field-label">Prazo de execução</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
         </div>
       </details>
 
