@@ -728,8 +728,8 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           <div className="mt-3 space-y-2">
             {materiais.map((m, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input className={`${inputCls} w-24 shrink-0`} value={m.qtde} onChange={(e) => setMat(i, "qtde", e.target.value)} placeholder="Qtde" />
-                <input className={`${inputCls} flex-1`} value={m.descricao} onChange={(e) => setMat(i, "descricao", e.target.value)} placeholder="Descrição do item" />
+                <input className={`${inputCls} shrink-0 grow-0 basis-20 text-center`} value={m.qtde} onChange={(e) => setMat(i, "qtde", e.target.value)} placeholder="Qtde" />
+                <input className={`${inputCls} min-w-0 flex-1`} value={m.descricao} onChange={(e) => setMat(i, "descricao", e.target.value)} placeholder="Descrição do item" />
                 <button type="button" className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20" onClick={() => removeMat(i)} aria-label="Remover item"><X className="h-4 w-4" /></button>
               </div>
             ))}
