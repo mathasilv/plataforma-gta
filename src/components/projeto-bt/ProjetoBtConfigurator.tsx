@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ProjetoBtParamsForm } from "./ProjetoBtParamsForm";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -35,14 +36,24 @@ type Disciplina = (typeof DISCIPLINAS)[number];
  * (Geolab) sobe a complexidade de força/iluminação.
  */
 const TIPOS = [
-  { id: "comercial", nome: "Residencial / Comercial", mult: 1 },
-  { id: "industrial", nome: "Industrial", mult: 1.4 },
+  { id: "comercial", nome: "Residencial / Comercial" },
+  { id: "industrial", nome: "Industrial" },
 ] as const;
-const multTipo = (id: string) => TIPOS.find((t) => t.id === id)?.mult ?? 1;
-/** Sugestão de preço de uma disciplina (arredondada a R$ 10, com piso). */
-function sugestaoDisc(d: Disciplina, areaM2: number, tipoId: string): number {
-  const bruto = areaM2 * d.taxaM2 * multTipo(tipoId);
-  return Math.max(Math.round(bruto / 10) * 10, d.piso);
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Taxas/pisos por disciplina + multiplicador industrial (ajustáveis em /api/projeto-bt/config). */
+type PrecoParams = Record<string, number>;
+/** Fallback client até a API carregar = os defaults das DISCIPLINAS. */
+const PARAMS_DEFAULT: PrecoParams = {
+  ...Object.fromEntries(DISCIPLINAS.flatMap((d) => [[`taxa${cap(d.id)}`, d.taxaM2], [`piso${cap(d.id)}`, d.piso]])),
+  multIndustrial: 1.4,
+};
+/** Sugestão de preço = área × taxa × mult(tipo), arredondada a R$ 10, com piso. */
+function sugestaoDisc(d: Disciplina, areaM2: number, tipoId: string, params: PrecoParams): number {
+  const taxa = params[`taxa${cap(d.id)}`] ?? d.taxaM2;
+  const piso = params[`piso${cap(d.id)}`] ?? d.piso;
+  const mult = tipoId === "industrial" ? (params.multIndustrial ?? 1.4) : 1;
+  return Math.max(Math.round((areaM2 * taxa * mult) / 10) * 10, piso);
 }
 
 type Vals = Record<string, string>;
@@ -108,6 +119,8 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   const objetoTocado = useRef(false);
   // Disciplinas cujo valor o vendedor editou à mão (não sobrescrever c/ a sugestão).
   const valoresTocados = useRef<Set<string>>(new Set());
+  // Taxas R$/m² por disciplina — carregadas dos parâmetros salvos (admin).
+  const [params, setParams] = useState<PrecoParams>(PARAMS_DEFAULT);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const toggle = (id: string) => setForm((f) => ({ ...f, [`on_${id}`]: f[`on_${id}`] ? "" : "1" }));
@@ -125,6 +138,11 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propostaId]);
 
+  // Parâmetros de preço salvos (taxas R$/m² por disciplina).
+  useEffect(() => {
+    fetch("/api/projeto-bt/config").then((r) => r.json()).then((d) => { if (d.params) setParams(d.params as PrecoParams); }).catch(() => {});
+  }, []);
+
   // Disciplinas marcadas (ids) — dispara a recomposição do objeto.
   const idsSelecionados = DISCIPLINAS.filter((d) => form[`on_${d.id}`]).map((d) => d.id).join(",");
   useEffect(() => {
@@ -133,20 +151,22 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   }, [idsSelecionados]);
 
   // Valor por disciplina: auto-preenchido pela sugestão (área × taxa × mult, com
-  // piso) até o vendedor editar aquela disciplina à mão.
+  // piso) até o vendedor editar aquela disciplina à mão. Recalcula ao mudar área,
+  // tipo ou os parâmetros salvos.
   const areaM2 = parseBR(form.areaM2);
   const tipoId = form.tipo || "comercial";
   useEffect(() => {
     setForm((f) => {
       const next = { ...f };
       for (const d of DISCIPLINAS) {
-        if (!valoresTocados.current.has(d.id)) next[`v_${d.id}`] = nf(sugestaoDisc(d, areaM2, tipoId), 2);
+        if (!valoresTocados.current.has(d.id)) next[`v_${d.id}`] = nf(sugestaoDisc(d, areaM2, tipoId, params), 2);
       }
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areaM2, tipoId]);
+  }, [areaM2, tipoId, params]);
   const setValorDisc = (id: string, v: string) => { valoresTocados.current.add(id); set(`v_${id}`, v); };
+  const aplicarParams = (p: PrecoParams) => setParams(p);
 
   const porteSufixo = form.porte?.trim() ? ` — ${form.porte.trim()}` : "";
   const selecionadas = DISCIPLINAS.filter((d) => form[`on_${d.id}`]);
@@ -245,7 +265,7 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
           <div className="sm:col-span-2">
             <label className="field-label">Tipo de edificação</label>
             <select className={inputCls} value={form.tipo} onChange={(e) => set("tipo", e.target.value)}>
-              {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.nome}{t.mult !== 1 ? ` (×${nf(t.mult, 1)})` : ""}</option>)}
+              {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.nome}{t.id === "industrial" ? ` (×${nf(params.multIndustrial ?? 1.4, 1)})` : ""}</option>)}
             </select>
           </div>
           <div className="sm:col-span-2">
@@ -262,8 +282,9 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
         <div className="mt-4 space-y-2">
           {DISCIPLINAS.map((d) => {
             const on = !!form[`on_${d.id}`];
-            const sug = sugestaoDisc(d, areaM2, tipoId);
-            const mult = multTipo(tipoId);
+            const taxa = params[`taxa${cap(d.id)}`] ?? d.taxaM2;
+            const mult = tipoId === "industrial" ? (params.multIndustrial ?? 1.4) : 1;
+            const sug = sugestaoDisc(d, areaM2, tipoId, params);
             const editado = valoresTocados.current.has(d.id);
             return (
               <div key={d.id} className={`rounded-lg border p-3 transition ${on ? "border-gta-indigo/40 bg-indigo-50/40 dark:border-indigo-400/30 dark:bg-indigo-500/10" : "border-slate-200 dark:border-slate-700"}`}>
@@ -282,7 +303,7 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
                     </div>
                     {on && (
                       <p className="mt-1 flex items-center justify-end gap-1.5 text-right text-[11px] text-slate-400 dark:text-slate-500">
-                        <span>{areaM2 > 0 ? `${brl(d.taxaM2)}/m² × ${nf(areaM2, 0)}${mult !== 1 ? ` × ${nf(mult, 1)}` : ""} → ` : `piso `}{brl(sug)}</span>
+                        <span>{areaM2 > 0 ? `${brl(taxa)}/m² × ${nf(areaM2, 0)}${mult !== 1 ? ` × ${nf(mult, 1)}` : ""} → ` : `piso `}{brl(sug)}</span>
                         {editado && <button type="button" className="text-gta-indigo hover:underline" onClick={() => { valoresTocados.current.delete(d.id); set(`v_${d.id}`, nf(sug, 2)); }}>usar</button>}
                       </p>
                     )}
@@ -325,6 +346,13 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
             <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
           </div>
         </div>
+      </details>
+
+      {/* Parâmetros de preço (taxas R$/m²) */}
+      <details className={sec}>
+        <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Parâmetros de preço (taxas R$/m² por disciplina)</summary>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Padrão ancorado no CPMG (677 m² → ~R$ 18/m² do predial elétrico). Ao salvar, valem para todas as novas propostas de Projeto BT.</p>
+        <div className="mt-4"><ProjetoBtParamsForm onSaved={aplicarParams} /></div>
       </details>
 
       {/* Ações */}
