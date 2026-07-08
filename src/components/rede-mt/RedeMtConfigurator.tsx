@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { RedeMtParamsForm } from "./RedeMtParamsForm";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
 
@@ -57,10 +58,19 @@ interface Preco {
   faturamentoTotal: number;
 }
 
+/** Linha da composição de custo: etapa + descrição + qtd × valor unitário. */
+type CustoRow = { etapa: "projeto" | "execucao"; descricao: string; qtd: string; valorUnit: string };
+const CUSTO_ROWS_PADRAO: CustoRow[] = [
+  { etapa: "projeto", descricao: "Projeto executivo da rede (dimensionamento, pranchas, memoriais, ART)", qtd: "1", valorUnit: "" },
+  { etapa: "execucao", descricao: "Postes, estruturas, cabos, proteções e aterramento", qtd: "1", valorUnit: "" },
+  { etapa: "execucao", descricao: "Mão de obra e comissionamento", qtd: "1", valorUnit: "" },
+];
+
 export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
   const [cond, setCond] = useState<CondPag>(COND_PADRAO);
+  const [custoRows, setCustoRows] = useState<CustoRow[]>(CUSTO_ROWS_PADRAO);
   const [preco, setPreco] = useState<Preco | null>(null);
   const [recalcNonce, setRecalcNonce] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
@@ -72,11 +82,18 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const aplicarParams = () => { precoTocado.current = false; setRecalcNonce((n) => n + 1); };
+  // Composição de custo editável: as somas por etapa viram o custo → Fator K.
+  const setRow = (i: number, patch: Partial<CustoRow>) => { precoTocado.current = false; setCustoRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r))); };
+  const addRow = () => setCustoRows((rs) => [...rs, { etapa: "execucao", descricao: "", qtd: "1", valorUnit: "" }]);
+  const removeRow = (i: number) => { precoTocado.current = false; setCustoRows((rs) => rs.filter((_, j) => j !== i)); };
+  const rowTotal = (r: CustoRow) => parseBR(r.qtd) * parseBR(r.valorUnit);
+  const custoProjeto = custoRows.filter((r) => r.etapa === "projeto").reduce((s, r) => s + rowTotal(r), 0);
+  const custoExecucao = custoRows.filter((r) => r.etapa === "execucao").reduce((s, r) => s + rowTotal(r), 0);
 
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) { const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag }; setForm({ ...FORM_INICIAL, ...dados }); precoTocado.current = true; if (dados.cond) setCond(dados.cond as CondPag); }
+        if (d.proposta?.dados) { const dados = d.proposta.dados as Partial<Form> & { cond?: CondPag; custoRows?: CustoRow[] }; setForm({ ...FORM_INICIAL, ...dados }); precoTocado.current = true; if (dados.cond) setCond(dados.cond as CondPag); if (Array.isArray(dados.custoRows) && dados.custoRows.length) setCustoRows(dados.custoRows); }
       }).catch(() => {});
     } else {
       fetch("/api/propostas/proximo?serviceKey=rede-mt").then((r) => r.json()).then((d) => {
@@ -85,7 +102,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
     }
   }, [propostaId]);
 
-  const calcKey = JSON.stringify([form.custoProjeto, form.custoExecucao, recalcNonce]);
+  const calcKey = JSON.stringify([custoProjeto, custoExecucao, recalcNonce]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
@@ -93,7 +110,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
       try {
         const res = await fetch("/api/rede-mt/calcular", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ custoProjeto: parseBR(form.custoProjeto), custoExecucao: parseBR(form.custoExecucao) }),
+          body: JSON.stringify({ custoProjeto, custoExecucao }),
         });
         if (res.ok) {
           const d = await res.json();
@@ -138,7 +155,7 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
     if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
     setSalvando(true); setErro(null);
     try {
-      const payload = { serviceKey: "rede-mt", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: { ...form, cond } };
+      const payload = { serviceKey: "rede-mt", cliente: form.clienteNome, status: totalCliente > 0 ? "precificada" : "rascunho", dados: { ...form, cond, custoRows } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -206,12 +223,34 @@ export function RedeMtConfigurator({ propostaId }: { propostaId?: string }) {
       {/* Escopo e custo */}
       <section className={sec}>
         <h2 className={h2}>Escopo e custo</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Informe o custo do levantamento de cada parte. Deixe 0 no que não fizer parte. Preço = <strong>custo × Fator K</strong>.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Monte a composição do custo por linha (etapa projeto ou execução). O app soma cada etapa e aplica o <strong>Fator K</strong> para sugerir o preço.</p>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-3"><label className="field-label">Extensão / porte</label><input className={inputCls} value={form.extensao} onChange={(e) => set("extensao", e.target.value)} placeholder="Ex.: 1 km / loteamento 80 lotes" /></div>
           <div className="sm:col-span-3"><label className="field-label">Tensão</label><input className={inputCls} value={form.tensao} onChange={(e) => set("tensao", e.target.value)} placeholder="Ex.: 13,8 kV" /></div>
-          <div className="sm:col-span-3"><label className="field-label">Custo do projeto (R$)</label><input className={inputCls} inputMode="decimal" value={form.custoProjeto} onChange={(e) => set("custoProjeto", e.target.value)} placeholder="0 = não incluir" /></div>
-          <div className="sm:col-span-3"><label className="field-label">Custo da execução (R$)</label><input className={inputCls} inputMode="decimal" value={form.custoExecucao} onChange={(e) => set("custoExecucao", e.target.value)} placeholder="0 = não incluir" /></div>
+        </div>
+
+        {/* Composição de custo editável */}
+        <div className="mt-4 space-y-2">
+          <div className="hidden gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:flex dark:text-slate-500">
+            <span className="w-28">Etapa</span><span className="flex-1">Descrição do custo</span><span className="w-14 text-right">Qtd</span><span className="w-28 text-right">Valor un.</span><span className="w-28 text-right">Total</span><span className="w-6" />
+          </div>
+          {custoRows.map((r, i) => (
+            <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <select className={`${inputCls} sm:w-28`} value={r.etapa} onChange={(e) => setRow(i, { etapa: e.target.value as CustoRow["etapa"] })}>
+                <option value="projeto">Projeto</option>
+                <option value="execucao">Execução</option>
+              </select>
+              <input className={`${inputCls} flex-1`} value={r.descricao} onChange={(e) => setRow(i, { descricao: e.target.value })} placeholder="Descrição do item de custo" />
+              <input className={`${inputCls} text-right sm:w-14`} inputMode="decimal" value={r.qtd} onChange={(e) => setRow(i, { qtd: e.target.value })} placeholder="1" />
+              <input className={`${inputCls} text-right sm:w-28`} inputMode="decimal" value={r.valorUnit} onChange={(e) => setRow(i, { valorUnit: e.target.value })} placeholder="0,00" />
+              <div className="text-right text-sm font-medium text-slate-600 sm:w-28 dark:text-slate-300">{brl(rowTotal(r))}</div>
+              <button type="button" className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20" onClick={() => removeRow(i)} aria-label="Remover"><X className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <button type="button" className="text-sm font-medium text-gta-indigo hover:underline" onClick={addRow}>+ Adicionar item de custo</button>
+          <div className="text-xs text-slate-500 dark:text-slate-400">Custo projeto: <strong className="text-slate-700 dark:text-slate-200">{brl(custoProjeto)}</strong> · Custo execução: <strong className="text-slate-700 dark:text-slate-200">{brl(custoExecucao)}</strong></div>
         </div>
 
         {preco && (preco.faturamentoProjeto > 0 || preco.faturamentoExecucao > 0) && (
