@@ -134,5 +134,16 @@ export async function POST(req: Request) {
     bom,
     pricing,
     economia,
+    // parâmetros de custo vigentes — a planilha .xlsx usa para montar as
+    // fórmulas de custo/margem (instalação, material CA, deslocamento, imposto…)
+    params: {
+      instalacaoPorPainel: params.instalacaoPorPainel,
+      materialCaPorWp: params.materialCaPorWp,
+      deslocamentoUnit: params.deslocamentoUnit,
+      art: params.art,
+      cartorio: params.cartorio,
+      impostoPct: params.impostoPct,
+      comissaoPct: params.comissaoPct,
+    },
   });
 }

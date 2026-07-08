@@ -110,7 +110,7 @@ const FORM_INICIAL: Form = {
 };
 
 interface Calc {
-  sizing: { consumoMedio: number; hspMedia: number; kwpNecessaria: number; nPlacasSugerido: number; inversorSugerido: number };
+  sizing: { consumoMedio: number; hspMedia: number; disponibilidade: number; kwpNecessaria: number; nPlacasSugerido: number; inversorSugerido: number };
   aplicado: { nPaineis: number; potenciaInversor: number; eficiencia: number; overloadDesejado: number };
   inversorSugerido: number;
   kwpTotal: number;
@@ -124,6 +124,10 @@ interface Calc {
   economia: null | {
     economiaAno1: number; economiaMensalMedia: number; gastoSemSolarAno1: number; gastoComSolarAno1: number;
     paybackAnos: number; paybackMeses: number; economiaPorAno: number[]; saldo: number[]; economiaHorizonte: number;
+  };
+  params?: {
+    instalacaoPorPainel: number; materialCaPorWp: number; deslocamentoUnit: number;
+    art: number; cartorio: number; impostoPct: number; comissaoPct: number;
   };
 }
 
@@ -889,12 +893,38 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           dados={() => ({
             cliente: form.clienteNome,
             referencia: String(form.referenciaSeq),
+            // dimensionamento (aba Dimensionamento)
+            sizing: calc
+              ? {
+                  consumoMedio: calc.sizing.consumoMedio,
+                  hspMedia: calc.sizing.hspMedia,
+                  disponibilidade: calc.sizing.disponibilidade,
+                  kwpNecessaria: calc.sizing.kwpNecessaria,
+                  nPaineis: calc.aplicado.nPaineis,
+                  potenciaPainel: form.potenciaPainel,
+                  potenciaInversor: calc.aplicado.potenciaInversor,
+                  qtdInversores: form.qtdInversores,
+                }
+              : undefined,
+            kwp: calc?.kwpTotal ?? 0,
+            // preço (aba Preço)
             kit: parseBR(form.kit),
             fator: form.fator,
+            execucaoCivil: parseBR(form.execucaoCivil),
             valorTotal: calc?.pricing?.valorTotal ?? 0,
             servicos: calc?.pricing?.servicos ?? 0,
-            kwp: calc?.kwpTotal ?? 0,
             eficiencia: form.eficiencia,
+            precoParams: calc?.params
+              ? {
+                  instalacaoPorPainel: calc.params.instalacaoPorPainel,
+                  materialCaPorWp: calc.params.materialCaPorWp,
+                  deslocamentoUnit: calc.params.deslocamentoUnit,
+                  viagens: form.viagens,
+                  art: calc.params.art,
+                  impostoPct: calc.params.impostoPct,
+                  comissaoPct: calc.params.comissaoPct,
+                }
+              : undefined,
             custos: calc?.pricing
               ? {
                   instalacao: calc.pricing.custos.instalacao,
@@ -905,7 +935,20 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
                   comissao: calc.pricing.custos.comissao,
                 }
               : undefined,
+            // materiais editáveis (aba Materiais)
+            materiais: materiais.filter((m) => m.descricao.trim()).map((m) => ({ qtde: m.qtde, descricao: m.descricao })),
+            // geração (aba Geração)
             geracao: calc?.geracao?.linhas.map((l) => ({ mes: l.mes, hsp: l.insolacao })) ?? [],
+            // economia/payback (aba Payback)
+            economia: calc?.economia
+              ? {
+                  economiaPorAno: calc.economia.economiaPorAno,
+                  investimento: calc.pricing?.valorTotal ?? 0,
+                  paybackAnos: calc.economia.paybackAnos,
+                  economiaAno1: calc.economia.economiaAno1,
+                  economiaHorizonte: calc.economia.economiaHorizonte,
+                }
+              : undefined,
           })}
         />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>
