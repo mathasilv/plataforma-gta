@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { createPool, type VercelPool } from "@vercel/postgres";
-import type { ComentarioOrcamento, FichaExterna, Orcamento, RegistroValidacao } from "./types";
+import type { AnexoRef, ComentarioOrcamento, FichaExterna, Orcamento, RegistroValidacao } from "./types";
 import { getDbUrl } from "../tasks/postgres-store";
 import { buildReference } from "../format";
 
@@ -24,8 +24,8 @@ function maiorSeq(items: Orcamento[], year: number): number {
   return max;
 }
 
-type CreateInput = Omit<Orcamento, "id" | "referencia" | "comentarios" | "historico" | "criadoEm" | "atualizadoEm">;
-type UpdatePatch = Partial<Omit<Orcamento, "id" | "comentarios" | "historico" | "criadoEm" | "criadoPor">>;
+type CreateInput = Omit<Orcamento, "id" | "referencia" | "comentarios" | "historico" | "anexos" | "criadoEm" | "atualizadoEm">;
+type UpdatePatch = Partial<Omit<Orcamento, "id" | "comentarios" | "historico" | "anexos" | "criadoEm" | "criadoPor">>;
 
 export interface OrcamentoStore {
   list(): Promise<Orcamento[]>;
@@ -34,6 +34,11 @@ export interface OrcamentoStore {
   update(id: string, patch: UpdatePatch): Promise<Orcamento | null>;
   addComentario(id: string, c: Omit<ComentarioOrcamento, "id" | "em">): Promise<Orcamento | null>;
   appendHistorico(id: string, r: Omit<RegistroValidacao, "id" | "em">): Promise<Orcamento | null>;
+  addAnexo(id: string, anexo: AnexoRef): Promise<Orcamento | null>;
+  /** Substitui a lista de anexos (usado ao remover um anexo ou limpar na retenção). */
+  setAnexos(id: string, anexos: AnexoRef[]): Promise<Orcamento | null>;
+  /** Orçamentos cuja retenção venceu e que ainda têm anexos (para o cron limpar). */
+  listExpirados(nowISO: string): Promise<Orcamento[]>;
   nextSeq(): Promise<number>;
   remove(id: string): Promise<boolean>;
 }
@@ -47,7 +52,14 @@ class JsonOrcamentoStore implements OrcamentoStore {
   private readAll(): Orcamento[] {
     try {
       const parsed = JSON.parse(fs.readFileSync(this.file, "utf8"));
-      return Array.isArray(parsed) ? (parsed as Orcamento[]) : [];
+      if (!Array.isArray(parsed)) return [];
+      // Normaliza registros anteriores à Fase 2 (sem `anexos`) e arrays ausentes.
+      return (parsed as Orcamento[]).map((o) => ({
+        ...o,
+        comentarios: Array.isArray(o.comentarios) ? o.comentarios : [],
+        historico: Array.isArray(o.historico) ? o.historico : [],
+        anexos: Array.isArray(o.anexos) ? o.anexos : [],
+      }));
     } catch {
       return [];
     }
@@ -88,6 +100,7 @@ class JsonOrcamentoStore implements OrcamentoStore {
         referencia,
         comentarios: [],
         historico: [],
+        anexos: [],
         criadoEm: now,
         atualizadoEm: now,
       };
@@ -126,6 +139,31 @@ class JsonOrcamentoStore implements OrcamentoStore {
       return { items: next, result: updated };
     });
   }
+  async addAnexo(id: string, anexo: AnexoRef) {
+    return this.mutate((items) => {
+      const i = items.findIndex((o) => o.id === id);
+      if (i < 0) return { items, result: null };
+      const updated = { ...items[i], anexos: [...items[i].anexos, anexo], atualizadoEm: new Date().toISOString() };
+      const next = [...items];
+      next[i] = updated;
+      return { items: next, result: updated };
+    });
+  }
+  async setAnexos(id: string, anexos: AnexoRef[]) {
+    return this.mutate((items) => {
+      const i = items.findIndex((o) => o.id === id);
+      if (i < 0) return { items, result: null };
+      const updated = { ...items[i], anexos, atualizadoEm: new Date().toISOString() };
+      const next = [...items];
+      next[i] = updated;
+      return { items: next, result: updated };
+    });
+  }
+  async listExpirados(nowISO: string) {
+    return this.readAll().filter(
+      (o) => o.expiraEm != null && o.expiraEm < nowISO && (o.anexos?.length ?? 0) > 0,
+    );
+  }
   async remove(id: string) {
     return this.mutate((items) => {
       const next = items.filter((o) => o.id !== id);
@@ -149,6 +187,7 @@ interface Row {
   ficha: FichaExterna | null;
   comentarios: ComentarioOrcamento[];
   historico: RegistroValidacao[];
+  anexos: AnexoRef[];
   parecer: string | null;
   decidido_por: string | null;
   decidido_em: string | null;
@@ -171,6 +210,7 @@ const rowTo = (r: Row): Orcamento => ({
   ficha: r.ficha ?? undefined,
   comentarios: r.comentarios ?? [],
   historico: r.historico ?? [],
+  anexos: r.anexos ?? [],
   parecer: r.parecer ?? undefined,
   decididoPor: r.decidido_por ?? undefined,
   decididoEm: r.decidido_em ? new Date(r.decidido_em).toISOString() : undefined,
@@ -203,6 +243,7 @@ class PostgresOrcamentoStore implements OrcamentoStore {
           ficha jsonb,
           comentarios jsonb NOT NULL DEFAULT '[]',
           historico jsonb NOT NULL DEFAULT '[]',
+          anexos jsonb NOT NULL DEFAULT '[]',
           parecer text,
           decidido_por text,
           decidido_em timestamptz,
@@ -212,7 +253,10 @@ class PostgresOrcamentoStore implements OrcamentoStore {
           criado_em timestamptz NOT NULL,
           atualizado_em timestamptz NOT NULL
         )
-      `.then(() => undefined);
+      `
+        // Garante a coluna anexos em tabelas criadas antes da Fase 2
+        .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS anexos jsonb NOT NULL DEFAULT '[]'`)
+        .then(() => undefined);
     }
     return this.ready;
   }
@@ -249,15 +293,15 @@ class PostgresOrcamentoStore implements OrcamentoStore {
     await this.pool.sql`
       INSERT INTO orcamentos
         (id, referencia, cliente, fonte, estacao, service_key, proposta_id, descricao, valor, ficha,
-         comentarios, historico, parecer, decidido_por, decidido_em, expira_em, criado_por, criado_por_nome, criado_em, atualizado_em)
+         comentarios, historico, anexos, parecer, decidido_por, decidido_em, expira_em, criado_por, criado_por_nome, criado_em, atualizado_em)
       VALUES
         (${id}, ${referencia}, ${data.cliente}, ${data.fonte}, ${data.estacao}, ${data.serviceKey},
          ${data.propostaId ?? null}, ${data.descricao}, ${data.valor ?? null},
          ${data.ficha ? JSON.stringify(data.ficha) : null}::jsonb,
-         '[]'::jsonb, '[]'::jsonb, ${data.parecer ?? null}, ${data.decididoPor ?? null}, ${data.decididoEm ?? null},
+         '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, ${data.parecer ?? null}, ${data.decididoPor ?? null}, ${data.decididoEm ?? null},
          ${data.expiraEm ?? null}, ${data.criadoPor}, ${data.criadoPorNome ?? null}, ${now}, ${now})
     `;
-    return { ...data, id, referencia, comentarios: [], historico: [], criadoEm: now, atualizadoEm: now };
+    return { ...data, id, referencia, comentarios: [], historico: [], anexos: [], criadoEm: now, atualizadoEm: now };
   }
   async update(id: string, patch: UpdatePatch) {
     await this.ensureSchema();
@@ -303,6 +347,34 @@ class PostgresOrcamentoStore implements OrcamentoStore {
       RETURNING *
     `;
     return rows[0] ? rowTo(rows[0]) : null;
+  }
+  async addAnexo(id: string, anexo: AnexoRef) {
+    await this.ensureSchema();
+    const now = new Date().toISOString();
+    const { rows } = await this.pool.sql<Row>`
+      UPDATE orcamentos SET anexos = anexos || ${JSON.stringify([anexo])}::jsonb, atualizado_em = ${now}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return rows[0] ? rowTo(rows[0]) : null;
+  }
+  async setAnexos(id: string, anexos: AnexoRef[]) {
+    await this.ensureSchema();
+    const now = new Date().toISOString();
+    const { rows } = await this.pool.sql<Row>`
+      UPDATE orcamentos SET anexos = ${JSON.stringify(anexos)}::jsonb, atualizado_em = ${now}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return rows[0] ? rowTo(rows[0]) : null;
+  }
+  async listExpirados(nowISO: string) {
+    await this.ensureSchema();
+    const { rows } = await this.pool.sql<Row>`
+      SELECT * FROM orcamentos
+      WHERE expira_em IS NOT NULL AND expira_em < ${nowISO} AND jsonb_array_length(anexos) > 0
+    `;
+    return rows.map(rowTo);
   }
   async remove(id: string) {
     await this.ensureSchema();

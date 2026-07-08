@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   estacaoLabel,
@@ -35,6 +35,12 @@ function fmt(iso: string) {
   }
 }
 
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /** Ações que abrem o campo de parecer (obrigatório em aprovar/rejeitar). */
 const PRECISA_PARECER: AcaoTransicao[] = ["aprovar", "rejeitar", "cancelar"];
 
@@ -50,6 +56,10 @@ export function OrcamentoDetalhe({
   const [erro, setErro] = useState<string | null>(null);
   const [comentario, setComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
+
+  // anexos
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [anexando, setAnexando] = useState(false);
 
   // painel de parecer
   const [acaoAberta, setAcaoAberta] = useState<AcaoTransicao | null>(null);
@@ -109,10 +119,47 @@ export function OrcamentoDetalhe({
     }
   }
 
+  async function enviarAnexo(e: React.FormEvent) {
+    e.preventDefault();
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+    setAnexando(true);
+    setErro(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/orcamentos/${orc.id}/anexos`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao anexar.");
+      setOrc(data.orcamento);
+      if (fileRef.current) fileRef.current.value = "";
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro.");
+    } finally {
+      setAnexando(false);
+    }
+  }
+
+  async function removerAnexo(anexoId: string) {
+    if (!window.confirm("Remover este anexo?")) return;
+    setErro(null);
+    const res = await fetch(`/api/orcamentos/${orc.id}/anexos/${anexoId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      setErro(data.error ?? "Falha ao remover.");
+      return;
+    }
+    setOrc(data.orcamento);
+  }
+
   const podeEnviar = orc.estacao === "rascunho" && pode("orcamentos.criar");
   const podeDecidir = orc.estacao === "em_revisao" && pode("orcamentos.aprovar");
   const podeCancelar = (orc.estacao === "rascunho" || orc.estacao === "em_revisao") && pode("orcamentos.cancelar");
   const semAcoes = !podeEnviar && !podeDecidir && !podeCancelar;
+  const podeAnexar =
+    (pode("orcamentos.criar") || pode("orcamentos.revisar")) &&
+    orc.estacao !== "aprovado" &&
+    orc.estacao !== "cancelado";
 
   return (
     <div className="space-y-5">
@@ -167,6 +214,59 @@ export function OrcamentoDetalhe({
       )}
 
       {erro && <p className="field-error">{erro}</p>}
+
+      {/* Anexos */}
+      <div className="card p-4">
+        <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Anexos (PDF e planilha)</h2>
+        {orc.anexos.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-slate-500">Nenhum anexo.</p>
+        ) : (
+          <ul className="space-y-2">
+            {orc.anexos.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/50"
+              >
+                <div className="min-w-0">
+                  <a
+                    href={`/api/orcamentos/${orc.id}/anexos/${a.id}/download`}
+                    className="block truncate font-medium text-gta-indigo hover:underline"
+                  >
+                    {a.nome}
+                  </a>
+                  <div className="text-xs text-slate-400 dark:text-slate-500">
+                    {a.tipo === "pdf" ? "PDF" : "Planilha"} · {formatBytes(a.tamanho)} · {a.enviadoPor}
+                  </div>
+                </div>
+                {podeAnexar && (
+                  <button
+                    onClick={() => removerAnexo(a.id)}
+                    className="shrink-0 text-xs text-red-500 hover:underline dark:text-red-400"
+                  >
+                    Remover
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {podeAnexar && (
+          <form onSubmit={enviarAnexo} className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv"
+              className="text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-gta-indigo/10 file:px-2 file:py-1 file:text-gta-indigo dark:text-slate-300"
+            />
+            <button type="submit" className="btn-secondary" disabled={anexando}>
+              {anexando ? "Enviando..." : "Anexar"}
+            </button>
+          </form>
+        )}
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+          PDF ou planilha, até 4 MB. Após aprovado/cancelado, os arquivos ficam disponíveis por 7/3 dias e então são removidos.
+        </p>
+      </div>
 
       {/* Ações */}
       {!semAcoes && (

@@ -13,6 +13,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/api/login" ||
     pathname === "/api/logout" ||
     pathname === "/icon.png" ||
+    pathname.startsWith("/api/cron/") || // cron da Vercel (protegido por CRON_SECRET na rota)
     pathname.startsWith("/brand/"); // logo e ícone da marca (acessíveis no login)
   if (isPublic) return NextResponse.next();
 

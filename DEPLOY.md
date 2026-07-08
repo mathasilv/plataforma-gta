@@ -101,6 +101,23 @@ git add -A && git commit -m "descrição da mudança" && git push
 
 A Vercel detecta o `push` e republica automaticamente em ~1 minuto.
 
+## Anexos dos orçamentos e limpeza automática (opcional)
+
+Para anexar PDFs/planilhas na **Aprovação de orçamentos** em produção:
+
+1. No projeto: aba **Storage** → **Create Database** → **Blob**. Escolha acesso
+   **Público** e um nome (ex.: `gta-anexos`). Aceite vincular ao projeto. A Vercel
+   injeta a variável `BLOB_READ_WRITE_TOKEN` automaticamente.
+2. Em **Settings → Environment Variables**, adicione **`CRON_SECRET`** com um valor
+   aleatório e forte (ex.: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`).
+   Ele protege a rota de limpeza `/api/cron/limpar-anexos`.
+3. O `vercel.json` já agenda o cron **1×/dia** (limite do plano grátis) para apagar os
+   anexos vencidos: **7 dias** após aprovado, **3 dias** após cancelado (enquanto o
+   orçamento está pendente, nada é apagado). O registro do orçamento permanece.
+
+Sem o Blob store, os anexos não funcionam em produção (o filesystem da Vercel é
+efêmero); em desenvolvimento local, os anexos são gravados em `data/uploads/`.
+
 ## Domínio próprio (opcional)
 
 Em **Settings → Domains** você pode ligar um domínio (ex.: `app.gtaenergia.com`)
