@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Limpeza de placas solares". Explica o passo a
@@ -96,6 +96,8 @@ export function LimpezaAjuda() {
           <li>Precisa mudar um padrão? Ajuste o valor/placa ou o piso no configurador antes de gerar a proposta.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

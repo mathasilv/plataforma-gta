@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Projeto de Subestação". Explica o passo a passo,
@@ -146,6 +146,8 @@ export function SubestacaoAjuda() {
           <li>Precisa mudar um padrão? Abra <strong>“Parâmetros”</strong> no configurador — vale para todas as novas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

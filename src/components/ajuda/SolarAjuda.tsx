@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Energia Solar". Explica o passo a passo, as
@@ -22,6 +22,7 @@ export function SolarAjuda() {
           <li><strong>Tipo de ligação</strong> (mono/bi/tri). Define a energia mínima de disponibilidade que a concessionária sempre cobra.</li>
           <li><strong>Potência do painel.</strong> O app sugere o nº de painéis e o inversor comercial mais próximo — você pode ajustar.</li>
           <li><strong>Valor do kit</strong> (cotação do distribuidor). É a base do preço: o total ao cliente é <Destaque>kit × fator</Destaque>.</li>
+          <li><strong>Lista de materiais editável.</strong> O app monta a relação de equipamentos do sistema (módulos, inversor, estruturas, cabos, proteções) e você pode <strong>editar, adicionar ou remover</strong> itens antes de gerar a proposta — é essa lista que vai descrita no .docx.</li>
           <li><strong>Confira a margem.</strong> O app mostra a margem líquida da GTA — mire <Destaque>≥ 30%</Destaque> (verde). Se ficar amarela/vermelha, suba o valor GTA ou renegocie o kit.</li>
           <li><strong>Tarifa de energia</strong> (opcional). Preenchendo, o app calcula a economia mensal e o payback para a proposta.</li>
           <li><strong>Gere o .docx.</strong> A proposta sai no padrão GTA com dimensionamento, geração, investimento e economia.</li>
@@ -116,6 +117,8 @@ export function SolarAjuda() {
           <li>Precisa mudar algum padrão? Abra <strong>“Parâmetros da plataforma”</strong> no configurador — vale para todas as novas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

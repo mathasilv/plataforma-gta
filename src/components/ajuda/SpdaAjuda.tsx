@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — SPDA e Gerenciamento de Risco". Explica o passo a
@@ -113,6 +113,8 @@ export function SpdaAjuda() {
           <li>Precisa mudar algum padrão? Abra <strong>“Parâmetros”</strong> — vale para todas as novas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

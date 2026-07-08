@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Projeto Elétrico de Baixa Tensão (BT)". Explica o
@@ -129,6 +129,8 @@ export function ProjetoBtAjuda() {
           <li>Precisa mudar algum padrão (taxas, pisos ou o multiplicador industrial)? Abra <strong>&quot;Parâmetros de preço&quot;</strong> no configurador — vale para todas as novas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

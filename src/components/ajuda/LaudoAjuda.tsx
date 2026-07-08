@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Laudo e Inspeção Técnica". Explica o modelo por
@@ -116,6 +116,8 @@ export function LaudoAjuda() {
           <li>Inspeção de subestação <strong>com termografia</strong> é um patamar à parte — pode chegar a <strong>~R$ 15.000</strong> por SE.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

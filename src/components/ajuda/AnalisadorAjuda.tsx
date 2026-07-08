@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Analisador de Energia". Explica o passo a passo,
@@ -102,6 +102,8 @@ export function AnalisadorAjuda() {
           <li>O <strong>“Valor por semana” é editável</strong>: use o piso de R$ 1.500 para diagnósticos e suba conforme o escopo.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

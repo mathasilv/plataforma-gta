@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Execução de Subestação". Explica o passo a passo,
@@ -107,6 +107,8 @@ export function ExecucaoSubestacaoAjuda() {
           <li>A execução (esta página) é o <strong>“como construir”</strong>; o <strong>“Projeto de Subestação”</strong> (o desenho/dimensionamento) é serviço separado, com precificação própria.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

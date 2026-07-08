@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Fornecimento de QGBT". Explica o passo a passo, a
@@ -111,6 +111,8 @@ export function QgbtAjuda() {
           <li>Precisa mudar o Fator K ou o imposto? Abra <strong>“Parâmetros de preço”</strong> no configurador — vale para todas as novas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

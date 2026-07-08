@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Rede de Distribuição MT/BT". Explica o modelo
@@ -22,8 +22,8 @@ export function RedeMtAjuda() {
       <AjudaSecao n={1} titulo="Passo a passo (como montar o orçamento)">
         <ol className="ml-1 list-inside list-decimal space-y-2 marker:font-semibold marker:text-gta-indigo">
           <li><strong>Escolha os componentes.</strong> Marque <Destaque>projeto</Destaque>, <Destaque>execução</Destaque> ou os dois — conforme o que a GTA vai entregar neste contrato.</li>
-          <li><strong>Levante o custo de cada componente.</strong> Some as horas de engenharia (projeto) e a mão de obra + insumos de campo (execução). É esse custo que dirige o preço.</li>
-          <li><strong>Informe o custo</strong> de projeto e/ou de execução nos campos correspondentes.</li>
+          <li><strong>Monte a lista de custos (a automação).</strong> Em vez de digitar um valor fechado, você lança as linhas de custo numa <strong>tabela editável</strong>: cada linha tem <Destaque>etapa</Destaque> (projeto ou execução), descrição, <strong>quantidade</strong> e <strong>valor unitário</strong>. Adicione, edite ou remova linhas à vontade — o total de cada linha (qtd × valor) é calculado ao vivo.</li>
+          <li><strong>O app soma por etapa e alimenta o Fator K.</strong> Ele agrupa as linhas de <Destaque>projeto</Destaque> e as de <Destaque>execução</Destaque>, soma cada grupo e usa essas somas como o <strong>custo</strong> de cada componente — sem você digitar o custo total à mão. Mexeu numa linha, o faturamento e a margem recalculam.</li>
           <li><strong>O app aplica o Fator K</strong> de cada componente, arredonda para R$ 10 e mostra o <strong>faturamento</strong> e a <strong>margem</strong> resultantes.</li>
           <li><strong>Confira a margem.</strong> Projeto mira <Destaque>40%</Destaque> e execução <Destaque>~35%</Destaque>. Se destoar, revise o custo informado ou ajuste o Fator K em Parâmetros.</li>
           <li><strong>Extensão e tensão</strong> (opcionais). Preencha para a descrição da proposta — não mudam o preço (veja a seção 4).</li>
@@ -139,6 +139,8 @@ export function RedeMtAjuda() {
           <li>Precisa mudar algum padrão? Abra <strong>“Parâmetros”</strong> no configurador — vale para todas as novas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

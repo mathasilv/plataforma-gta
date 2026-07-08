@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Carregador Veicular (EV)". Explica o passo a
@@ -165,6 +165,8 @@ export function CarregadorAjuda() {
           <li>Precisa mudar o <strong>Fator K</strong> ou a <strong>mão de obra</strong>? Abra <strong>“Parâmetros de preço”</strong> no configurador — vale para as próximas propostas.</li>
         </ul>
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

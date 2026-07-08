@@ -1,4 +1,4 @@
-import { AjudaSecao, Formula, Destaque, TabelaAjuda } from "./ui";
+import { AjudaSecao, Formula, Destaque, TabelaAjuda, RodapeAjuda } from "./ui";
 
 /**
  * Tutorial "Como precificar — Conexão junto à concessionária". Serviço de
@@ -119,6 +119,8 @@ export function ConexaoAjuda() {
           ]}
         />
       </AjudaSecao>
+
+      <RodapeAjuda />
     </div>
   );
 }

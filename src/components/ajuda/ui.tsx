@@ -35,6 +35,57 @@ export function Destaque({ children }: { children: ReactNode }) {
   return <span className="rounded bg-indigo-50 px-1 font-semibold text-gta-indigo dark:bg-indigo-500/15 dark:text-indigo-300">{children}</span>;
 }
 
+/**
+ * Rodapé compartilhado por TODAS as páginas "Como precificar": os dois recursos
+ * que existem em todos os configuradores — as condições de pagamento e a
+ * exportação da planilha .xlsx com fórmulas vivas. Fica no fim de cada tutorial.
+ */
+export function RodapeAjuda() {
+  return (
+    <>
+      <AjudaSecao titulo="Condições de pagamento">
+        <p>
+          Antes de gerar a proposta, todo serviço tem a seção <strong>Condições de pagamento</strong>, com dois modos:
+        </p>
+        <ul className="ml-1 list-inside list-disc space-y-1.5">
+          <li>
+            <strong>Parcelado (tabela de %).</strong> Você define o <strong>percentual</strong> e o <strong>texto</strong> de
+            cada parcela; o app calcula o <strong>valor em R$</strong> de cada uma a partir do total e monta a frase da
+            proposta — ex.: <em>“20% (R$ 3.000) na assinatura, 50% (R$ 7.500) na entrega e 30% (R$ 4.500) na aprovação”</em>.
+          </li>
+          <li>
+            <strong>A combinar.</strong> Escreve simplesmente <Destaque>A combinar</Destaque> — para quando o pagamento será
+            negociado à parte (comum em obras/execução).
+          </li>
+        </ul>
+        <p>
+          A soma dos percentuais deve fechar <strong>100%</strong> (o app avisa se não fechar). Cada serviço já abre com uma
+          sugestão típica — ajuste as parcelas livremente ou troque para “A combinar”.
+        </p>
+      </AjudaSecao>
+
+      <AjudaSecao titulo="Baixar a planilha (.xlsx)">
+        <p>
+          Ao lado de <strong>Gerar .docx</strong> há o botão <strong>Baixar .xlsx</strong>. Ele exporta{" "}
+          <strong>toda a precificação</strong> deste serviço para uma planilha Excel — e não como números soltos: com{" "}
+          <strong>fórmulas vivas</strong>.
+        </p>
+        <p>
+          Abra no Excel ou Google Sheets, mude uma entrada (custo, Fator K, quantidade, área…) e o{" "}
+          <strong>faturamento e a margem se recalculam sozinhos</strong> — exatamente como no configurador. Serve para{" "}
+          <strong>negociar</strong>, simular cenários ou <strong>arquivar o raciocínio</strong> por trás do preço.
+        </p>
+        <Formula nota="As fórmulas da planilha espelham o motor da plataforma: as células de custo/parâmetro são editáveis e as de resultado são fórmulas de Excel de verdade.">
+          Faturamento = custo × Fator K   (célula editável){"\n"}
+          Impostos    = faturamento × NF{"\n"}
+          Lucro       = faturamento − custo − impostos{"\n"}
+          Margem      = lucro ÷ faturamento
+        </Formula>
+      </AjudaSecao>
+    </>
+  );
+}
+
 /** Tabela simples de duas ou três colunas (ex.: valores padrão). */
 export function TabelaAjuda({ colunas, linhas }: { colunas: string[]; linhas: ReactNode[][] }) {
   return (
