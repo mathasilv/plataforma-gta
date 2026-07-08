@@ -125,14 +125,6 @@ const DISTRIBUIDORES = [
   { value: "outro", label: "Outro distribuidor" },
 ];
 
-const PASSOS = [
-  "Informe o consumo da conta de energia",
-  "Confira o dimensionamento sugerido",
-  "Copie a lista e cote o kit com o distribuidor",
-  "Informe o preço do kit e veja a margem",
-  "Salve e gere o .docx",
-];
-
 export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(FORM_INICIAL);
@@ -434,16 +426,6 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Passo a passo */}
-      <ol className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-gta-navy/5 px-4 py-3 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-        {PASSOS.map((p, i) => (
-          <li key={i} className="flex items-center gap-1.5">
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gta-navy text-[10px] font-bold text-white">{i + 1}</span>
-            {p}
-          </li>
-        ))}
-      </ol>
-
       {erro && <p className="field-error">{erro}</p>}
 
       {/* Identificação */}
@@ -490,7 +472,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
 
       {/* 1 · Consumo */}
       <section className={sec}>
-        <h2 className={h2}><Passo n={1} /> Consumo mensal (kWh)</h2>
+        <h2 className={h2}>Consumo mensal (kWh)</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Copie os 12 meses da conta de energia. É a única entrada necessária — o dimensionamento sai daqui.
         </p>
@@ -530,7 +512,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
 
       {/* 2 · Dimensionamento */}
       <section className={sec}>
-        <h2 className={h2}><Passo n={2} /> Dimensionamento</h2>
+        <h2 className={h2}>Dimensionamento</h2>
 
         {!calc && (
           <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
@@ -708,7 +690,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
       {calc?.bom && (
         <section className={sec}>
           <div className="flex items-center justify-between">
-            <h2 className={h2}><Passo n={3} /> Lista de materiais (para cotar)</h2>
+            <h2 className={h2}>Lista de materiais (para cotar)</h2>
             <CopyButton label="Copiar lista" text={() => calc.bom.map((b) => `${b.qtde}\t${b.descricao}`).join("\n")} />
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Lista genérica (sem marca) para enviar ao distribuidor e obter o preço do kit.</p>
@@ -727,7 +709,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
 
       {/* 4 · Distribuidor e preço */}
       <section className={sec}>
-        <h2 className={h2}><Passo n={4} /> Preço e margem</h2>
+        <h2 className={h2}>Preço e margem</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-2">
             <label className="field-label">Distribuidor</label>
@@ -880,14 +862,6 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
     </div>
-  );
-}
-
-function Passo({ n }: { n: number }) {
-  return (
-    <span className="mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gta-navy align-middle text-xs font-bold text-white">
-      {n}
-    </span>
   );
 }
 
