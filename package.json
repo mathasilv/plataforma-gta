@@ -13,6 +13,7 @@
     "@hookform/resolvers": "^3.9.1",
     "@vercel/postgres": "^0.10.0",
     "docxtemplater": "^3.69.0",
+    "exceljs": "^4.4.0",
     "extenso": "^2.1.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.23.0",

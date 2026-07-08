@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { CarregadorParamsForm } from "./CarregadorParamsForm";
 import { CopyButton } from "@/components/CopyButton";
 import { CondicoesPagamento, montarFormaPagamento, COND_PADRAO, type CondPag } from "@/components/CondicoesPagamento";
+import { BaixarPlanilhaButton } from "@/components/BaixarPlanilhaButton";
 
 const nf = (v: number, d = 2) =>
   (Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -413,6 +414,15 @@ export function CarregadorConfigurator({ propostaId }: { propostaId?: string }) 
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-secondary" onClick={() => salvar(false)} disabled={salvando}>{salvando ? "Salvando..." : savedId ? "Salvar alterações" : "Salvar proposta"}</button>
         <button className="btn-primary" onClick={gerar} disabled={gerando || !sizing || parseBR(form.valorServico) <= 0}>{gerando ? "Gerando..." : "Gerar .docx"}</button>
+        <BaixarPlanilhaButton serviceKey="carregador" disabled={!sizing} nome={`carregador-${form.clienteNome || "proposta"}`} dados={() => ({
+          cliente: form.clienteNome,
+          sizing: sizing ? { potenciaKw: parseBR(form.potenciaKw), corrente: sizing.correnteProjeto, disjuntor: sizing.disjuntorA, secaoCabo: sizing.secaoMm2, dr: `Tipo ${sizing.drTipo}` } : undefined,
+          materiais: materiais.map((m) => ({ descricao: m.descricao, unidade: m.unidade, qtd: parseBR(m.qtd), precoUnit: parseBR(m.precoUnit) })),
+          maoObraPorPonto: params?.maoObraPorPonto ?? 800,
+          qtdPontos: Math.max(1, form.qtdPontos),
+          fatorK: params?.fatorK ?? 1.65,
+          aliqImpostos: params?.aliqImpostos ?? 0.0701,
+        })} />
         <button className="text-sm text-gta-indigo hover:underline" onClick={() => router.push("/propostas")}>Ver propostas</button>
         {status && <span className="text-sm text-green-600 dark:text-green-400">{status}</span>}
       </div>
