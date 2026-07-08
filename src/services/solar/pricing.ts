@@ -7,7 +7,7 @@
  */
 
 export interface PricingParams {
-  fator: number; // ex.: 1.5
+  fator: number; // ex.: 1.575
   execucaoCivil: number; // ex.: 0
   instalacaoPorPainel: number; // 120
   materialCaPorWp: number; // 0.20
@@ -19,9 +19,10 @@ export interface PricingParams {
   comissaoPct: number; // 0.05
 }
 
-/** Defaults extraídos da planilha da GTA. */
+/** Defaults extraídos da planilha da GTA. Fator 1,575 = mediana dos deals reais
+ * (Pedro Igor 1,5 · Darciley/Ivan 1,575 · Guilherme/Pedro Henrique 1,8); revisão 07/2026. */
 export const PRICING_DEFAULTS: PricingParams = {
-  fator: 1.5,
+  fator: 1.575,
   execucaoCivil: 0,
   instalacaoPorPainel: 120,
   materialCaPorWp: 0.2,

@@ -87,7 +87,7 @@ const FORM_INICIAL: Form = {
   distribuidorCnpj: "",
   kitItens: "módulos, inversor, estrutura e cabos",
   kit: "",
-  fator: 1.5,
+  fator: 1.575,
   viagens: 2,
   execucaoCivil: "0",
   distribuidora: "",
