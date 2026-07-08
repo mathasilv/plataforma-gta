@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { ProjetoBtParamsForm } from "./ProjetoBtParamsForm";
 
 const nf = (v: number, d = 2) =>
@@ -93,6 +94,14 @@ const OBS_PADRAO = [
   "Não inclui execução física, fornecimento de materiais nem projeto de SPDA/subestação (orçados à parte).",
 ];
 
+/** Parcela da condição de pagamento: % do total + texto do evento. */
+type Parcela = { pct: string; texto: string };
+const PARCELAS_PADRAO: Parcela[] = [
+  { pct: "20", texto: "na assinatura do contrato" },
+  { pct: "50", texto: "na entrega do projeto executivo" },
+  { pct: "30", texto: "após a aprovação do projeto" },
+];
+
 export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   const router = useRouter();
 
@@ -121,14 +130,25 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   const valoresTocados = useRef<Set<string>>(new Set());
   // Taxas R$/m² por disciplina — carregadas dos parâmetros salvos (admin).
   const [params, setParams] = useState<PrecoParams>(PARAMS_DEFAULT);
+  // Condições de pagamento — parcelas em % do total, com texto por evento.
+  const [parcelas, setParcelas] = useState<Parcela[]>(PARCELAS_PADRAO);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const toggle = (id: string) => setForm((f) => ({ ...f, [`on_${id}`]: f[`on_${id}`] ? "" : "1" }));
+  const setParcela = (i: number, campo: keyof Parcela, v: string) => setParcelas((ps) => ps.map((p, idx) => (idx === i ? { ...p, [campo]: v } : p)));
+  const addParcela = () => setParcelas((ps) => [...ps, { pct: "", texto: "" }]);
+  const removeParcela = (i: number) => setParcelas((ps) => ps.filter((_, idx) => idx !== i));
 
   useEffect(() => {
     if (propostaId) {
       fetch(`/api/propostas/${propostaId}`).then((r) => r.json()).then((d) => {
-        if (d.proposta?.dados) { setForm((f) => ({ ...f, ...(d.proposta.dados as Vals) })); objetoTocado.current = true; DISCIPLINAS.forEach((di) => valoresTocados.current.add(di.id)); }
+        if (d.proposta?.dados) {
+          const dados = d.proposta.dados as Record<string, unknown>;
+          setForm((f) => ({ ...f, ...(dados as Vals) }));
+          if (Array.isArray(dados.parcelas) && dados.parcelas.length) setParcelas(dados.parcelas as Parcela[]);
+          objetoTocado.current = true;
+          DISCIPLINAS.forEach((di) => valoresTocados.current.add(di.id));
+        }
       }).catch(() => {});
     } else {
       fetch(`/api/propostas/proximo?serviceKey=projeto-bt`).then((r) => r.json()).then((d) => {
@@ -173,6 +193,16 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
   const total = selecionadas.reduce((s, d) => s + parseBR(form[`v_${d.id}`]), 0);
   const custoExec = parseBR(form.custoExecucao);
   const pctExec = custoExec > 0 ? (total / custoExec) * 100 : null;
+  // Condições de pagamento
+  const somaPct = parcelas.reduce((s, p) => s + parseBR(p.pct), 0);
+  const valorParcela = (p: Parcela) => (parseBR(p.pct) / 100) * total;
+  /** Texto da forma de pagamento a partir das parcelas (com o R$ de cada uma). */
+  function montarFormaPagamento(): string {
+    const linhas = parcelas
+      .filter((p) => parseBR(p.pct) > 0 || p.texto.trim())
+      .map((p) => `${p.pct.trim()}% (${brl(valorParcela(p))}) ${p.texto.trim()}`.replace(/\s+/g, " ").trim());
+    return linhas.length ? juntarPt(linhas) + "." : "A combinar";
+  }
 
   function montarItens() {
     return selecionadas.map((d) => ({ descricao: `${d.descricao}${porteSufixo}`, valor: nf(parseBR(form[`v_${d.id}`]), 2), condicao: "" }));
@@ -185,7 +215,7 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
     if (!form.clienteNome) { setErro("Informe o nome do cliente para salvar."); return null; }
     setSalvando(true); setErro(null);
     try {
-      const payload = { serviceKey: "projeto-bt", cliente: form.clienteNome, status: total > 0 ? "precificada" : "rascunho", dados: form };
+      const payload = { serviceKey: "projeto-bt", cliente: form.clienteNome, status: total > 0 ? "precificada" : "rascunho", dados: { ...form, parcelas } };
       const res = savedId
         ? await fetch(`/api/propostas/${savedId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/propostas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -211,7 +241,7 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
       if (!id) { id = (await salvar(true)) ?? undefined; if (!id) return; }
       const formData = {
         clienteNome: form.clienteNome, cidadeUf: form.cidadeUf, localAtividade: form.localAtividade,
-        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: form.formaPagamento,
+        referenciaSeq: form.referenciaSeq, dataEmissao: form.dataEmissao, validadeDias: form.validadeDias, formaPagamento: montarFormaPagamento(),
         titulo: "PROPOSTA TÉCNICA E COMERCIAL — PROJETO ELÉTRICO DE BAIXA TENSÃO",
         objeto: form.objeto, prazoExecucao: form.prazoExecucao, itens: montarItens(), observacoes: montarObservacoes(),
       };
@@ -327,6 +357,34 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
         </p>
       </section>
 
+      {/* Condições de pagamento */}
+      <section className={sec}>
+        <h2 className={h2}>Condições de pagamento</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Cada parcela é uma % do total; o app calcula o valor em reais. As porcentagens devem somar 100%.</p>
+        <div className="mt-4 space-y-2">
+          {parcelas.map((p, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="relative w-20 shrink-0">
+                <input className={`${inputCls} pr-6 text-right`} inputMode="decimal" value={p.pct} onChange={(e) => setParcela(i, "pct", e.target.value)} placeholder="0" />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+              </div>
+              <input className={`${inputCls} flex-1`} value={p.texto} onChange={(e) => setParcela(i, "texto", e.target.value)} placeholder="Ex.: na assinatura do contrato" />
+              <div className="w-28 shrink-0 text-right text-sm font-medium text-slate-600 dark:text-slate-300">{brl(valorParcela(p))}</div>
+              <button type="button" className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20" onClick={() => removeParcela(i)} aria-label="Remover parcela"><X className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <button type="button" className="text-sm font-medium text-gta-indigo hover:underline" onClick={addParcela}>+ Adicionar parcela</button>
+          <div className="text-xs">
+            <span className={Math.abs(somaPct - 100) < 0.01 ? "font-medium text-green-600 dark:text-green-400" : "font-semibold text-amber-600 dark:text-amber-400"}>
+              Soma: {nf(somaPct, Number.isInteger(somaPct) ? 0 : 1)}%{Math.abs(somaPct - 100) < 0.01 ? " ✓" : " — deveria ser 100%"}
+            </span>
+            <span className="ml-3 text-slate-500 dark:text-slate-400">Total: {brl(total)}</span>
+          </div>
+        </div>
+      </section>
+
       {/* Textos */}
       <details className={sec}>
         <summary className="cursor-pointer text-sm font-semibold text-gta-navy dark:text-slate-100">Textos da proposta (opcional)</summary>
@@ -341,10 +399,8 @@ export function ProjetoBtConfigurator({ propostaId }: { propostaId?: string }) {
             <textarea className={`${inputCls} min-h-[70px]`} value={form.objeto} onChange={(e) => { objetoTocado.current = true; set("objeto", e.target.value); }} />
           </div>
           <div><label className="field-label">Condições gerais (uma por linha)</label><textarea className={`${inputCls} min-h-[110px]`} value={form.observacoesExtra} onChange={(e) => set("observacoesExtra", e.target.value)} /></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="field-label">Prazo de entrega</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
-            <div><label className="field-label">Forma de pagamento</label><input className={inputCls} value={form.formaPagamento} onChange={(e) => set("formaPagamento", e.target.value)} /></div>
-          </div>
+          <div><label className="field-label">Prazo de entrega</label><input className={inputCls} value={form.prazoExecucao} onChange={(e) => set("prazoExecucao", e.target.value)} /></div>
+          <p className="text-xs text-slate-400 dark:text-slate-500">A forma de pagamento é montada na seção “Condições de pagamento” acima.</p>
         </div>
       </details>
 
