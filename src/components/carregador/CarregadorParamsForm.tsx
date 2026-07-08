@@ -17,7 +17,8 @@ function parseDec(s: string): number {
   if (!t) return NaN;
   return t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
 }
-const fmt = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+// useGrouping:false: valores ≥ 1000 não podem virar "2.500" e serem relidos como 2,5.
+const fmt = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
 function paraTexto(p: Params): Record<ParamKey, string> {
   const out = {} as Record<ParamKey, string>;
   for (const c of CAMPOS) out[c.key] = fmt(c.kind === "pct" ? p[c.key] * 100 : p[c.key]);

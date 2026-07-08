@@ -24,10 +24,9 @@ const CAMPOS: CampoDef[] = [...GRUPOS.flatMap((g) => g.campos), CAMPO_MULT];
 function parseDec(s: string): number {
   const t = String(s).trim();
   if (!t) return NaN;
-  // pt-BR: "." = separador de milhar, "," = decimal (ex.: "2.500" → 2500; "1,4" → 1.4)
-  return Number(t.replace(/\./g, "").replace(",", "."));
+  return t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
 }
-// Sem agrupamento de milhar, para os pisos (2500) não virarem "2.500" e serem lidos como 2,5.
+// useGrouping:false para os pisos (2500) não virarem "2.500" e serem lidos como 2,5.
 const fmt = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
 function paraTexto(p: Params): Record<ParamKey, string> {
   const out = {} as Record<ParamKey, string>;
