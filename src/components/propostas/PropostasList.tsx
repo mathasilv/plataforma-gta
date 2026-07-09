@@ -256,14 +256,15 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
                   </td>
                   <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{fmtData(p.atualizadoEm)}</td>
                   <td className="px-4 py-2">
-                    <div className="flex justify-end gap-3 text-xs">
+                    <div className="flex items-center justify-end gap-3 whitespace-nowrap text-xs">
                       {podeEnviar && (
                         <button
                           onClick={() => enviarParaAprovacao(p)}
                           disabled={enviandoId === p.id}
+                          title="Enviar para aprovação"
                           className="font-medium text-gta-indigo hover:underline disabled:opacity-50"
                         >
-                          {enviandoId === p.id ? "Enviando..." : "Enviar p/ aprovação"}
+                          {enviandoId === p.id ? "Enviando..." : "Enviar"}
                         </button>
                       )}
                       {podeReabrir && (
