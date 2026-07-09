@@ -34,7 +34,7 @@ export default async function NovaPropostaPage({
   return (
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="app-container py-8">
         <div className="mb-6">
           <div className="flex items-center justify-between gap-2">
             <Link href="/" className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-gta-indigo dark:text-slate-300 dark:hover:bg-slate-800">

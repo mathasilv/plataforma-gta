@@ -10,7 +10,7 @@ export default async function AdminCargosPage() {
   return (
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="app-container py-8">
         <PageHeader
           title="Cargos e permissões"
           subtitle="Crie cargos e defina o que cada um pode fazer na plataforma. Administradores têm todas as permissões."

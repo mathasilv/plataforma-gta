@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin={isAdmin} />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="app-container py-8">
         <PageHeader title="Nova proposta" subtitle="Escolha o serviço para gerar uma proposta comercial." />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

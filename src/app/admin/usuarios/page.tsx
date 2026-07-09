@@ -10,7 +10,7 @@ export default async function AdminUsuariosPage() {
   return (
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="app-container py-8">
         <PageHeader title="Usuários" subtitle="Cadastre e gerencie quem tem acesso à plataforma." />
         <div className="mt-6">
           <UsersAdmin currentUserId={user.id} />

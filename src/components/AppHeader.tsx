@@ -63,7 +63,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
 
   return (
     <header className="bg-gradient-to-r from-gta-navy to-gta-navy2 text-white">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
+      <div className="app-container flex items-center justify-between gap-2 py-3">
         <div className="flex items-center gap-2 md:gap-6">
           {/* Hamburguer — só no mobile */}
           {userName && (
