@@ -274,16 +274,16 @@ export function OrcamentoDetalhe({
 
   return (
     <div className="space-y-5">
-      <Link href="/aprovacoes" className="text-sm text-gta-indigo hover:underline">
+      <Link href="/aprovacoes" className="btn-link">
         ← Voltar para aprovações
       </Link>
 
       {/* Cabeçalho */}
-      <div className="card p-5">
+      <div className="section-card">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-gta-navy dark:text-slate-100">{orc.cliente}</h1>
-            <p className="text-xs text-slate-400 dark:text-slate-500">{orc.referencia}</p>
+            <h1 className="text-xl font-bold text-gta-navy dark:text-slate-100">{orc.cliente}</h1>
+            <p className="hint">{orc.referencia}</p>
           </div>
           <Badge tone={ESTACAO_TONE[orc.estacao] ?? "slate"}>{estacaoLabel(orc.estacao)}</Badge>
         </div>
@@ -309,7 +309,7 @@ export function OrcamentoDetalhe({
           </p>
         )}
         {orc.expiraEm && (orc.estacao === "aprovado" || orc.estacao === "cancelado") && (
-          <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+          <p className="mt-2 hint">
             Arquivos disponíveis para download até {fmt(orc.expiraEm)}.
           </p>
         )}
@@ -319,8 +319,8 @@ export function OrcamentoDetalhe({
 
       {/* Menu de ajustes (rascunho) */}
       {podeEditar && (
-        <form onSubmit={salvarAjustes} className="card p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Ajustes</h2>
+        <form onSubmit={salvarAjustes} className="section-card">
+          <h2 className="section-title mb-4">Ajustes</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div className="sm:col-span-3">
               <label className="field-label">Cliente *</label>
@@ -352,8 +352,8 @@ export function OrcamentoDetalhe({
       )}
 
       {/* Revisões */}
-      <div className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Revisões da proposta</h2>
+      <div className="section-card">
+        <h2 className="section-title mb-4">Revisões da proposta</h2>
 
         {revisoes.length === 0 && !podeAnexar && (
           <p className="text-sm text-slate-400 dark:text-slate-500">Nenhuma revisão.</p>
@@ -372,7 +372,7 @@ export function OrcamentoDetalhe({
                       {a.nome}
                     </a>
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                  <div className="mt-0.5 hint">
                     {a.tipo === "docx" ? "Documento da plataforma (.docx)" : a.tipo === "pdf" ? "PDF" : "Planilha"} · {formatBytes(a.tamanho)} · {a.enviadoPor}
                   </div>
                 </div>
@@ -415,8 +415,8 @@ export function OrcamentoDetalhe({
 
       {/* Ações */}
       {!semAcoes && (
-        <div className="card p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Ações</h2>
+        <div className="section-card">
+          <h2 className="section-title mb-4">Ações</h2>
           {acaoAberta ? (
             <div className="space-y-2">
               <label className="field-label">Parecer {acaoAberta === "cancelar" ? "(opcional)" : "*"}</label>
@@ -451,11 +451,7 @@ export function OrcamentoDetalhe({
                   <button className="btn-primary" onClick={() => acionar("aprovar")} disabled={processando}>
                     Aprovar
                   </button>
-                  <button
-                    className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
-                    onClick={() => acionar("rejeitar")}
-                    disabled={processando}
-                  >
+                  <button className="btn-danger" onClick={() => acionar("rejeitar")} disabled={processando}>
                     Rejeitar
                   </button>
                 </>
@@ -471,8 +467,8 @@ export function OrcamentoDetalhe({
       )}
 
       {/* Revisão / comentários */}
-      <div className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Revisão</h2>
+      <div className="section-card">
+        <h2 className="section-title mb-4">Revisão</h2>
         {orc.comentarios.length === 0 ? (
           <p className="text-sm text-slate-400 dark:text-slate-500">Nenhum comentário ainda.</p>
         ) : (
@@ -481,7 +477,7 @@ export function OrcamentoDetalhe({
               <li key={c.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/50">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-slate-700 dark:text-slate-200">{c.autor}</span>
-                  <span className="text-xs text-slate-400 dark:text-slate-500">{fmt(c.em)}</span>
+                  <span className="hint">{fmt(c.em)}</span>
                 </div>
                 <p className="mt-0.5 text-slate-600 dark:text-slate-300">{c.texto}</p>
               </li>
@@ -504,8 +500,8 @@ export function OrcamentoDetalhe({
       </div>
 
       {/* Histórico */}
-      <div className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Histórico</h2>
+      <div className="section-card">
+        <h2 className="section-title mb-4">Histórico</h2>
         {orc.historico.length === 0 ? (
           <p className="text-sm text-slate-400 dark:text-slate-500">Sem movimentações.</p>
         ) : (
@@ -517,7 +513,7 @@ export function OrcamentoDetalhe({
                 </Badge>
                 <div className="min-w-0">
                   <p className="text-slate-600 dark:text-slate-300">{h.mensagem}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">{h.autor} · {fmt(h.em)}</p>
+                  <p className="hint">{h.autor} · {fmt(h.em)}</p>
                 </div>
               </li>
             ))}

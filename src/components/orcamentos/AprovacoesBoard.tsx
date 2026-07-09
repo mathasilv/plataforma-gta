@@ -42,7 +42,7 @@ export function AprovacoesBoard() {
     return m;
   }, [lista]);
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando orçamentos...</p>;
+  if (loading) return <p className="subtitle">Carregando orçamentos...</p>;
 
   return (
     <div className="space-y-4">
@@ -63,7 +63,7 @@ export function AprovacoesBoard() {
             </button>
           ))}
         </div>
-        <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{lista.length} orçamento(s)</span>
+        <span className="ml-auto hint">{lista.length} orçamento(s)</span>
       </div>
 
       {erro && <p className="field-error">{erro}</p>}
@@ -81,7 +81,7 @@ export function AprovacoesBoard() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate font-medium text-gta-navy dark:text-slate-100">{o.cliente}</div>
-                  <div className="truncate text-xs text-slate-400 dark:text-slate-500">{o.referencia}</div>
+                  <div className="truncate hint">{o.referencia}</div>
                 </div>
                 <Badge tone={ESTACAO_TONE[o.estacao]} className="shrink-0">{estacaoLabel(o.estacao)}</Badge>
               </div>

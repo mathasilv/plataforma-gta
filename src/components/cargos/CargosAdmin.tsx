@@ -91,15 +91,12 @@ function CargoCard({
           onChange={(e) => setNome(e.target.value)}
           aria-label="Nome do cargo"
         />
-        <span className="text-xs text-slate-400 dark:text-slate-500">{sel.size} permissão(ões)</span>
+        <span className="hint">{sel.size} permissão(ões)</span>
         <div className="ml-auto flex gap-2">
           <button className="btn-primary !py-1.5 text-xs" disabled={!alterado || !nome.trim() || salvando} onClick={salvar}>
             {salvando ? "Salvando..." : "Salvar"}
           </button>
-          <button
-            className="rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-900/20"
-            onClick={() => onExcluir(cargo)}
-          >
+          <button className="btn-danger !py-1.5 text-xs" onClick={() => onExcluir(cargo)}>
             Excluir
           </button>
         </div>
@@ -196,7 +193,7 @@ export function CargosAdmin() {
     });
   }
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando cargos...</p>;
+  if (loading) return <p className="subtitle">Carregando cargos...</p>;
 
   return (
     <div className="space-y-4">
@@ -204,14 +201,14 @@ export function CargosAdmin() {
         <button className="btn-primary" onClick={() => setNovoAberto((v) => !v)}>
           {novoAberto ? "Fechar" : "+ Novo cargo"}
         </button>
-        <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{lista.length} cargo(s)</span>
+        <span className="ml-auto hint">{lista.length} cargo(s)</span>
       </div>
 
       {erro && <p className="field-error">{erro}</p>}
 
       {novoAberto && (
-        <form onSubmit={criar} className="rounded-xl border border-gta-indigo/30 bg-white p-4 shadow-sm dark:bg-slate-800">
-          <h2 className="mb-3 text-sm font-semibold text-gta-navy dark:text-slate-100">Novo cargo</h2>
+        <form onSubmit={criar} className="section-card !border-gta-indigo/30">
+          <h2 className="section-title mb-4">Novo cargo</h2>
           <div className="mb-4">
             <label className="field-label">Nome do cargo *</label>
             <input
