@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 /**
  * Primitivos de UI compartilhados da Plataforma GTA. Encapsulam o "acabamento"
@@ -87,5 +89,18 @@ export function EmptyState({ children, className = "" }: { children: ReactNode; 
     <div className={`rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500 ${className}`}>
       {children}
     </div>
+  );
+}
+
+/** Link "voltar" padrão: botão fantasma com seta (usado no topo de páginas de detalhe). */
+export function BackLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-gta-indigo dark:text-slate-300 dark:hover:bg-slate-800"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      {children}
+    </Link>
   );
 }

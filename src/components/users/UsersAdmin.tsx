@@ -91,7 +91,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId: string }) {
     setUsuarios((prev) => prev.filter((x) => x.id !== u.id));
   }
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando usuários...</p>;
+  if (loading) return <p className="subtitle">Carregando usuários...</p>;
 
   return (
     <div className="space-y-4">

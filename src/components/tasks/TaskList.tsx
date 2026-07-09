@@ -272,7 +272,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     }
   }
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando tarefas...</p>;
+  if (loading) return <p className="subtitle">Carregando tarefas...</p>;
 
   return (
     <div className="space-y-4">

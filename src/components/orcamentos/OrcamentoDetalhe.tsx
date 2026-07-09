@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   estacaoLabel,
@@ -11,7 +10,7 @@ import {
   type RegistroValidacao,
 } from "@/lib/orcamentos/types";
 import type { PermissaoKey } from "@/lib/rbac/permissoes";
-import { Badge, type Tone } from "@/components/ui";
+import { Badge, BackLink, type Tone } from "@/components/ui";
 
 const ESTACAO_TONE: Record<string, Tone> = {
   rascunho: "slate",
@@ -274,9 +273,7 @@ export function OrcamentoDetalhe({
 
   return (
     <div className="space-y-5">
-      <Link href="/aprovacoes" className="btn-link">
-        ← Voltar para aprovações
-      </Link>
+      <BackLink href="/aprovacoes">Voltar para aprovações</BackLink>
 
       {/* Cabeçalho */}
       <div className="section-card">

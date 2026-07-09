@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Construction, HelpCircle } from "lucide-react";
+import { Construction, HelpCircle } from "lucide-react";
 import { getService } from "@/services/registry";
 import { SERVICOS_COM_AJUDA } from "@/components/ajuda/disponivel";
 import { AppHeader } from "@/components/AppHeader";
+import { BackLink } from "@/components/ui";
 import { DynamicForm } from "@/components/DynamicForm";
 import { SolarConfigurator } from "@/components/solar/SolarConfigurator";
 import { SubestacaoConfigurator } from "@/components/subestacao/SubestacaoConfigurator";
@@ -37,10 +38,7 @@ export default async function NovaPropostaPage({
       <main className="app-container py-8">
         <div className="mb-6">
           <div className="flex items-center justify-between gap-2">
-            <Link href="/" className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-gta-indigo dark:text-slate-300 dark:hover:bg-slate-800">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar
-            </Link>
+            <BackLink href="/">Voltar</BackLink>
             {SERVICOS_COM_AJUDA.has(service.key) && (
               <Link href={`/ajuda/${service.key}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-gta-indigo transition hover:bg-indigo-50 dark:border-slate-700 dark:text-indigo-300 dark:hover:bg-slate-800">
                 <HelpCircle className="h-4 w-4" />

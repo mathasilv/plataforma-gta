@@ -116,7 +116,7 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
   const limparFiltros = () => { setBusca(""); setFServico(""); setFStatus(""); setFCriador(""); };
   const temFiltro = busca || fServico || fStatus || fCriador;
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Carregando propostas...</p>;
+  if (loading) return <p className="subtitle">Carregando propostas...</p>;
 
   const cardCls = "card";
 
