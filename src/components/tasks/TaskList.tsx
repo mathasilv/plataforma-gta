@@ -51,12 +51,13 @@ interface FormState {
   titulo: string;
   descricao: string;
   cliente: string;
+  demandante: string;
   responsavel: string;
   prioridade: Prioridade;
   prazo: string;
 }
 
-const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", responsavel: "", prioridade: "media", prazo: "" };
+const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", demandante: "", responsavel: "", prioridade: "media", prazo: "" };
 
 export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -68,6 +69,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [fStatus, setFStatus] = useState<string>("ativas");
   const [fResp, setFResp] = useState<string>("todos");
   const [fCliente, setFCliente] = useState<string>("todos");
+  const [fDemandante, setFDemandante] = useState<string>("todos");
   const [busca, setBusca] = useState("");
 
   // paginação
@@ -103,10 +105,17 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     return (email: string) => map.get(email) ?? email;
   }, [usuarios]);
 
-  // clientes distintos presentes nas tarefas (para o filtro)
+  // clientes distintos presentes nas tarefas (para o filtro e o autocomplete)
   const clientes = useMemo(() => {
     const set = new Set<string>();
     tasks.forEach((t) => t.cliente && set.add(t.cliente));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [tasks]);
+
+  // demandantes distintos presentes nas tarefas (para o filtro e o autocomplete)
+  const demandantes = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach((t) => t.demandante && set.add(t.demandante));
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [tasks]);
 
@@ -123,13 +132,15 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     else if (fStatus !== "todas") list = list.filter((t) => t.status === fStatus);
     if (fResp !== "todos") list = list.filter((t) => t.responsavel === fResp);
     if (fCliente !== "todos") list = list.filter((t) => t.cliente === fCliente);
+    if (fDemandante !== "todos") list = list.filter((t) => t.demandante === fDemandante);
     const q = busca.trim().toLowerCase();
     if (q) {
       list = list.filter(
         (t) =>
           t.titulo.toLowerCase().includes(q) ||
           t.descricao.toLowerCase().includes(q) ||
-          (t.cliente ?? "").toLowerCase().includes(q),
+          (t.cliente ?? "").toLowerCase().includes(q) ||
+          (t.demandante ?? "").toLowerCase().includes(q),
       );
     }
     // ordenação: concluídas por último; depois atrasadas primeiro; prazo mais próximo; prioridade
@@ -146,12 +157,12 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
       return PRIORIDADE_PESO[a.prioridade] - PRIORIDADE_PESO[b.prioridade];
     });
     return list;
-  }, [tasks, fStatus, fResp, fCliente, busca]);
+  }, [tasks, fStatus, fResp, fCliente, fDemandante, busca]);
 
   // volta para a 1ª página quando os filtros/busca mudam
   useEffect(() => {
     setPagina(1);
-  }, [fStatus, fResp, fCliente, busca, porPagina]);
+  }, [fStatus, fResp, fCliente, fDemandante, busca, porPagina]);
 
   // fatia a página atual (paginação no cliente sobre a lista já filtrada)
   const totalPaginas = Math.max(1, Math.ceil(visiveis.length / porPagina));
@@ -241,6 +252,14 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Autocomplete: sugestões a partir de clientes/demandantes já cadastrados */}
+      <datalist id="tarefa-clientes">
+        {clientes.map((c) => <option key={c} value={c} />)}
+      </datalist>
+      <datalist id="tarefa-demandantes">
+        {demandantes.map((d) => <option key={d} value={d} />)}
+      </datalist>
+
       {/* toolbar */}
       <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 dark:border-slate-700 dark:bg-slate-800">
         <button
@@ -279,6 +298,16 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             ))}
           </select>
         )}
+        {demandantes.length > 0 && (
+          <select className="field-input w-full sm:!w-auto" value={fDemandante} onChange={(e) => setFDemandante(e.target.value)}>
+            <option value="todos">Todos os demandantes</option>
+            {demandantes.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           className="field-input w-full sm:!w-56"
           placeholder="Buscar..."
@@ -305,11 +334,15 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
               <label className="field-label">Descrição</label>
               <textarea className="field-input min-h-[70px]" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
             </div>
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-2">
               <label className="field-label">Cliente</label>
-              <input className="field-input" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} placeholder="Ex.: CPDF, Fazenda Rio Doce..." />
+              <input className="field-input" list="tarefa-clientes" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} placeholder="Ex.: CPDF, Fazenda Rio Doce..." />
             </div>
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-2">
+              <label className="field-label">Demandante</label>
+              <input className="field-input" list="tarefa-demandantes" value={form.demandante} onChange={(e) => setForm({ ...form, demandante: e.target.value })} placeholder="De onde veio a demanda" />
+            </div>
+            <div className="sm:col-span-2">
               <label className="field-label">Responsável *</label>
               <select className="field-input" value={form.responsavel} onChange={(e) => setForm({ ...form, responsavel: e.target.value })} required>
                 <option value="">Selecione...</option>
@@ -351,6 +384,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
               <th>Status</th>
               <th>Tarefa</th>
               <th className="hidden md:table-cell">Cliente</th>
+              <th className="hidden md:table-cell">Demandante</th>
               <th className="hidden md:table-cell">Responsável</th>
               <th className="hidden md:table-cell">Prioridade</th>
               <th className="hidden md:table-cell">Prazo</th>
@@ -360,7 +394,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           <tbody>
             {visiveis.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                   Nenhuma tarefa encontrada. Crie a primeira com “+ Nova tarefa”.
                 </td>
               </tr>
@@ -458,6 +492,7 @@ function TaskRow({
     titulo: t.titulo,
     descricao: t.descricao,
     cliente: t.cliente ?? "",
+    demandante: t.demandante ?? "",
     responsavel: t.responsavel,
     prioridade: t.prioridade,
     prazo: t.prazo,
@@ -497,9 +532,11 @@ function TaskRow({
               </span>
             )}
             {t.cliente && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {t.cliente}</span>}
+            {t.demandante && <span className="text-[11px] text-slate-400 dark:text-slate-500">· de {t.demandante}</span>}
           </div>
         </td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.cliente || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
+        <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.demandante || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{nomeDe(t.responsavel)}</td>
         <td className="hidden px-4 py-2 md:table-cell">
           <Badge tone={PRIORIDADE_TONE[t.prioridade]}>
@@ -518,7 +555,7 @@ function TaskRow({
       </tr>
       {aberta && (
         <tr className="bg-slate-50/60 dark:bg-slate-900/40">
-          <td colSpan={7} className="px-3 py-3 md:px-6 md:py-4">
+          <td colSpan={8} className="px-3 py-3 md:px-6 md:py-4">
             {!editando ? (
               <div className="space-y-3">
                 <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
@@ -548,11 +585,15 @@ function TaskRow({
                   <label className="field-label">Descrição</label>
                   <textarea className="field-input min-h-[70px]" value={edit.descricao} onChange={(e) => setEdit({ ...edit, descricao: e.target.value })} />
                 </div>
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2">
                   <label className="field-label">Cliente</label>
-                  <input className="field-input" value={edit.cliente} onChange={(e) => setEdit({ ...edit, cliente: e.target.value })} />
+                  <input className="field-input" list="tarefa-clientes" value={edit.cliente} onChange={(e) => setEdit({ ...edit, cliente: e.target.value })} />
                 </div>
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2">
+                  <label className="field-label">Demandante</label>
+                  <input className="field-input" list="tarefa-demandantes" value={edit.demandante} onChange={(e) => setEdit({ ...edit, demandante: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
                   <label className="field-label">Responsável</label>
                   <select className="field-input" value={edit.responsavel} onChange={(e) => setEdit({ ...edit, responsavel: e.target.value })}>
                     {!usuarios.some((u) => u.email === edit.responsavel) && edit.responsavel && (
