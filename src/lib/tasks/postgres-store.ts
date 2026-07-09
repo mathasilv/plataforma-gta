@@ -49,6 +49,8 @@ interface Row {
   prazo: string;
   prazo_comercial: string;
   prazo_operacional: string;
+  hora_comercial: string;
+  hora_operacional: string;
   comentarios: Comentario[];
   criado_por: string;
   criado_em: string;
@@ -68,6 +70,8 @@ function rowToTask(r: Row): Task {
     prazo: r.prazo,
     prazoComercial: r.prazo_comercial ?? "",
     prazoOperacional: r.prazo_operacional ?? "",
+    horaComercial: r.hora_comercial ?? "",
+    horaOperacional: r.hora_operacional ?? "",
     comentarios: r.comentarios ?? [],
     criadoPor: r.criado_por,
     criadoEm: new Date(r.criado_em).toISOString(),
@@ -100,6 +104,8 @@ export class PostgresTaskStore implements TaskStore {
           prazo text NOT NULL DEFAULT '',
           prazo_comercial text NOT NULL DEFAULT '',
           prazo_operacional text NOT NULL DEFAULT '',
+          hora_comercial text NOT NULL DEFAULT '',
+          hora_operacional text NOT NULL DEFAULT '',
           comentarios jsonb NOT NULL DEFAULT '[]',
           criado_por text NOT NULL,
           criado_em timestamptz NOT NULL,
@@ -111,6 +117,8 @@ export class PostgresTaskStore implements TaskStore {
         .then(() => this.pool.sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS demandante text NOT NULL DEFAULT ''`)
         .then(() => this.pool.sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS prazo_comercial text NOT NULL DEFAULT ''`)
         .then(() => this.pool.sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS prazo_operacional text NOT NULL DEFAULT ''`)
+        .then(() => this.pool.sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS hora_comercial text NOT NULL DEFAULT ''`)
+        .then(() => this.pool.sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS hora_operacional text NOT NULL DEFAULT ''`)
         .then(() => undefined);
     }
     return this.ready;
@@ -136,10 +144,10 @@ export class PostgresTaskStore implements TaskStore {
     const now = new Date().toISOString();
     await this.pool.sql`
       INSERT INTO tasks
-        (id, titulo, descricao, cliente, demandante, responsavel, status, prioridade, prazo, prazo_comercial, prazo_operacional, comentarios, criado_por, criado_em, atualizado_em)
+        (id, titulo, descricao, cliente, demandante, responsavel, status, prioridade, prazo, prazo_comercial, prazo_operacional, hora_comercial, hora_operacional, comentarios, criado_por, criado_em, atualizado_em)
       VALUES
         (${id}, ${data.titulo}, ${data.descricao}, ${data.cliente}, ${data.demandante}, ${data.responsavel}, ${data.status},
-         ${data.prioridade}, ${data.prazo}, ${data.prazoComercial}, ${data.prazoOperacional}, '[]'::jsonb, ${data.criadoPor}, ${now}, ${now})
+         ${data.prioridade}, ${data.prazo}, ${data.prazoComercial}, ${data.prazoOperacional}, ${data.horaComercial}, ${data.horaOperacional}, '[]'::jsonb, ${data.criadoPor}, ${now}, ${now})
     `;
     return { ...data, id, comentarios: [], criadoEm: now, atualizadoEm: now };
   }
@@ -165,6 +173,8 @@ export class PostgresTaskStore implements TaskStore {
         prazo = COALESCE(${patch.prazo ?? null}::text, prazo),
         prazo_comercial = COALESCE(${patch.prazoComercial ?? null}::text, prazo_comercial),
         prazo_operacional = COALESCE(${patch.prazoOperacional ?? null}::text, prazo_operacional),
+        hora_comercial = COALESCE(${patch.horaComercial ?? null}::text, hora_comercial),
+        hora_operacional = COALESCE(${patch.horaOperacional ?? null}::text, hora_operacional),
         atualizado_em = ${atualizadoEm}
       WHERE id = ${id}
       RETURNING *

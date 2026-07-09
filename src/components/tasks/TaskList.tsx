@@ -35,9 +35,11 @@ function hoje(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Uma data (yyyy-mm-dd) está vencida se é passada e a tarefa não foi concluída. */
-function dataAtrasada(prazo: string, status: StatusTarefa): boolean {
-  return Boolean(prazo) && prazo < hoje() && status !== "concluida";
+/** Um prazo está vencido se a data — ou data+hora, quando há hora — já passou e a tarefa não foi concluída. */
+function prazoAtrasado(data: string, hora: string, status: StatusTarefa): boolean {
+  if (status === "concluida" || !data) return false;
+  if (hora) return new Date(`${data}T${hora}`).getTime() < Date.now();
+  return data < hoje();
 }
 /** Prazo operacional efetivo: o campo novo, com fallback ao prazo legado. */
 function prazoOp(t: Task): string {
@@ -49,7 +51,7 @@ function prazosDe(t: Task): string[] {
 }
 /** Algum dos prazos está vencido (para ordenar as vencidas primeiro). */
 function algumAtrasado(t: Task): boolean {
-  return t.status !== "concluida" && prazosDe(t).some((p) => p < hoje());
+  return prazoAtrasado(t.prazoComercial, t.horaComercial, t.status) || prazoAtrasado(prazoOp(t), t.horaOperacional, t.status);
 }
 /** Prazo mais próximo entre os dois (para ordenação). */
 function prazoMin(t: Task): string {
@@ -61,6 +63,12 @@ function formatPrazo(prazo: string): string {
   if (!prazo) return "—";
   const [y, m, d] = prazo.split("-");
   return `${d}/${m}/${y}`;
+}
+
+/** "dd/mm/yyyy" + " HH:mm" quando há hora. */
+function formatPrazoHora(data: string, hora: string): string {
+  if (!data) return "—";
+  return formatPrazo(data) + (hora ? ` ${hora}` : "");
 }
 
 function formatDataHora(iso: string): string {
@@ -77,9 +85,11 @@ interface FormState {
   prioridade: Prioridade;
   prazoComercial: string;
   prazoOperacional: string;
+  horaComercial: string;
+  horaOperacional: string;
 }
 
-const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", demandante: "operacional", responsavel: "", prioridade: "media", prazoComercial: "", prazoOperacional: "" };
+const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", demandante: "operacional", responsavel: "", prioridade: "media", prazoComercial: "", prazoOperacional: "", horaComercial: "", horaOperacional: "" };
 
 export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -380,11 +390,17 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             </div>
             <div className="sm:col-span-2">
               <label className="field-label">Prazo comercial</label>
-              <input type="date" className="field-input" value={form.prazoComercial} onChange={(e) => setForm({ ...form, prazoComercial: e.target.value })} />
+              <div className="flex gap-2">
+                <input type="date" className="field-input min-w-0 flex-1" value={form.prazoComercial} onChange={(e) => setForm({ ...form, prazoComercial: e.target.value })} />
+                <input type="time" aria-label="Hora do prazo comercial" className="field-input min-w-0 flex-1" value={form.horaComercial} onChange={(e) => setForm({ ...form, horaComercial: e.target.value })} />
+              </div>
             </div>
             <div className="sm:col-span-2">
               <label className="field-label">Prazo operacional</label>
-              <input type="date" className="field-input" value={form.prazoOperacional} onChange={(e) => setForm({ ...form, prazoOperacional: e.target.value })} />
+              <div className="flex gap-2">
+                <input type="date" className="field-input min-w-0 flex-1" value={form.prazoOperacional} onChange={(e) => setForm({ ...form, prazoOperacional: e.target.value })} />
+                <input type="time" aria-label="Hora do prazo operacional" className="field-input min-w-0 flex-1" value={form.horaOperacional} onChange={(e) => setForm({ ...form, horaOperacional: e.target.value })} />
+              </div>
             </div>
           </div>
           <div className="mt-3">
@@ -505,8 +521,8 @@ function TaskRow({
   onComentar: (texto: string) => void;
 }) {
   const concluida = t.status === "concluida";
-  const lateCom = dataAtrasada(t.prazoComercial, t.status);
-  const lateOp = dataAtrasada(prazoOp(t), t.status);
+  const lateCom = prazoAtrasado(t.prazoComercial, t.horaComercial, t.status);
+  const lateOp = prazoAtrasado(prazoOp(t), t.horaOperacional, t.status);
   const [comentario, setComentario] = useState("");
   const [editando, setEditando] = useState(false);
   const [edit, setEdit] = useState<FormState>({
@@ -518,6 +534,8 @@ function TaskRow({
     prioridade: t.prioridade,
     prazoComercial: t.prazoComercial ?? "",
     prazoOperacional: prazoOp(t),
+    horaComercial: t.horaComercial ?? "",
+    horaOperacional: t.horaOperacional ?? "",
   });
 
   return (
@@ -550,12 +568,12 @@ function TaskRow({
             </Badge>
             {t.prazoComercial && (
               <span className={`text-[11px] ${lateCom ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
-                Com: {formatPrazo(t.prazoComercial)}
+                Com: {formatPrazoHora(t.prazoComercial, t.horaComercial)}
               </span>
             )}
             {prazoOp(t) && (
               <span className={`text-[11px] ${lateOp ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
-                Op: {formatPrazo(prazoOp(t))}
+                Op: {formatPrazoHora(prazoOp(t), t.horaOperacional)}
               </span>
             )}
             {t.cliente && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {t.cliente}</span>}
@@ -570,11 +588,11 @@ function TaskRow({
             {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
           </Badge>
         </td>
-        <td className={`hidden px-4 py-2 md:table-cell ${lateCom ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
-          {formatPrazo(t.prazoComercial)}
+        <td className={`hidden whitespace-nowrap px-4 py-2 md:table-cell ${lateCom ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
+          {formatPrazoHora(t.prazoComercial, t.horaComercial)}
         </td>
-        <td className={`hidden px-4 py-2 md:table-cell ${lateOp ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
-          {formatPrazo(prazoOp(t))}
+        <td className={`hidden whitespace-nowrap px-4 py-2 md:table-cell ${lateOp ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
+          {formatPrazoHora(prazoOp(t), t.horaOperacional)}
         </td>
         <td className="px-1 py-2 text-center align-top md:px-2 md:align-middle">
           <button onClick={onExcluir} className="inline-flex h-9 w-9 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-600 dark:text-slate-600 dark:hover:bg-red-900/20 dark:hover:text-red-400" title="Excluir" aria-label="Excluir">
@@ -653,11 +671,17 @@ function TaskRow({
                 </div>
                 <div className="sm:col-span-2">
                   <label className="field-label">Prazo comercial</label>
-                  <input type="date" className="field-input" value={edit.prazoComercial} onChange={(e) => setEdit({ ...edit, prazoComercial: e.target.value })} />
+                  <div className="flex gap-2">
+                    <input type="date" className="field-input min-w-0 flex-1" value={edit.prazoComercial} onChange={(e) => setEdit({ ...edit, prazoComercial: e.target.value })} />
+                    <input type="time" aria-label="Hora do prazo comercial" className="field-input min-w-0 flex-1" value={edit.horaComercial} onChange={(e) => setEdit({ ...edit, horaComercial: e.target.value })} />
+                  </div>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="field-label">Prazo operacional</label>
-                  <input type="date" className="field-input" value={edit.prazoOperacional} onChange={(e) => setEdit({ ...edit, prazoOperacional: e.target.value })} />
+                  <div className="flex gap-2">
+                    <input type="date" className="field-input min-w-0 flex-1" value={edit.prazoOperacional} onChange={(e) => setEdit({ ...edit, prazoOperacional: e.target.value })} />
+                    <input type="time" aria-label="Hora do prazo operacional" className="field-input min-w-0 flex-1" value={edit.horaOperacional} onChange={(e) => setEdit({ ...edit, horaOperacional: e.target.value })} />
+                  </div>
                 </div>
                 <div className="flex gap-2 sm:col-span-6">
                   <button type="submit" className="btn-primary !py-1 text-xs">

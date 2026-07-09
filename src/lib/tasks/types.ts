@@ -52,6 +52,10 @@ export interface Task {
   prazoComercial: string;
   /** Prazo operacional — yyyy-mm-dd (opcional). Tratado de forma isolada. */
   prazoOperacional: string;
+  /** Hora do prazo comercial — HH:mm (opcional). */
+  horaComercial: string;
+  /** Hora do prazo operacional — HH:mm (opcional). */
+  horaOperacional: string;
   comentarios: Comentario[];
   criadoPor: string;
   criadoEm: string;
@@ -76,6 +80,13 @@ const prazoSchema = z
   .or(z.literal(""))
   .default("");
 
+/** Hora: HH:mm (24h) válida, ou vazio. */
+const horaSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida")
+  .or(z.literal(""))
+  .default("");
+
 /** Payload de criação de tarefa. */
 export const createTaskSchema = z.object({
   titulo: z.string().trim().min(1, "Informe o título").max(300),
@@ -88,6 +99,8 @@ export const createTaskSchema = z.object({
   prazo: prazoSchema,
   prazoComercial: prazoSchema,
   prazoOperacional: prazoSchema,
+  horaComercial: horaSchema,
+  horaOperacional: horaSchema,
 });
 
 /** Payload de atualização parcial. */
