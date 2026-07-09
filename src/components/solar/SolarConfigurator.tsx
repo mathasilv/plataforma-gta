@@ -349,7 +349,9 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
         energia: nf(l.energia, 2),
         consumo: nf(l.consumo, 2),
       })),
-      textoObservacao: form.textoObservacao,
+      textoObservacao: (form.margemSeguranca > 0
+        ? `O dimensionamento inclui uma margem de segurança de ${form.margemSeguranca}%, considerando um consumo médio de ${nf(calc.sizing.consumoMedio, 0)} kWh/mês. `
+        : "") + form.textoObservacao,
       materiais: materiais.filter((m) => m.descricao.trim()).map((m) => ({ qtde: m.qtde, descricao: m.descricao })),
       distribuidor: form.distribuidor,
       distribuidorNome: form.distribuidorNome,
