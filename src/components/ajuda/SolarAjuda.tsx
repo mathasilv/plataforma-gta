@@ -19,6 +19,7 @@ export function SolarAjuda() {
       <AjudaSecao n={1} titulo="Passo a passo (como montar o orçamento)">
         <ol className="ml-1 list-inside list-decimal space-y-2 marker:font-semibold marker:text-gta-indigo">
           <li><strong>Cidade + consumo dos 12 meses.</strong> A cidade define a irradiação solar (HSP) da base oficial; o consumo médio dimensiona o sistema.</li>
+          <li><strong>Margem de segurança</strong> (opcional). Uma folga em % sobre o consumo para <strong>superdimensionar</strong> o sistema — ex.: <Destaque>10%</Destaque> dimensiona para 110% do consumo médio. Útil quando o cliente vai aumentar o consumo (ar-condicionado, carro elétrico, expansão). 0 = sem folga.</li>
           <li><strong>Tipo de ligação</strong> (mono/bi/tri). Define a energia mínima de disponibilidade que a concessionária sempre cobra.</li>
           <li><strong>Potência do painel.</strong> O app sugere o nº de painéis e o inversor comercial mais próximo — você pode ajustar.</li>
           <li><strong>Valor do kit</strong> (cotação do distribuidor). É a base do preço: o total ao cliente é <Destaque>kit × fator</Destaque>.</li>
@@ -68,6 +69,11 @@ export function SolarAjuda() {
           Inversor ≈ kWp ÷ (1 + overload)
         </Formula>
         <p>O <strong>overload</strong> (sobrecarga do inversor) padrão é 15% — é normal o kWp dos painéis ser maior que o inversor.</p>
+        <p>
+          Se você definir uma <strong>margem de segurança</strong>, o consumo de cada mês entra <strong>multiplicado</strong> por ela
+          (ex.: +10% → consumo × 1,10). Esse consumo com folga alimenta <strong>todos os cálculos</strong> — dimensionamento, geração e
+          economia —, resultando num sistema proporcionalmente maior.
+        </p>
       </AjudaSecao>
 
       {/* Geração e economia */}

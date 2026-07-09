@@ -18,6 +18,8 @@ export const runtime = "nodejs";
 const schema = z.object({
   municipio: z.string(),
   consumo: z.array(z.coerce.number()).length(12),
+  /** Margem de segurança (%): superdimensiona aumentando o consumo mensal. */
+  margemSeguranca: z.coerce.number().min(0).max(200).default(0),
   tipoConexao: z.enum(["mono", "bi", "tri"]).default("tri"),
   potenciaPainel: z.coerce.number().positive().default(700),
   // 0 = "não definido": o servidor usa o padrão/sugestão
@@ -58,13 +60,17 @@ export async function POST(req: Request) {
   const mun = getMunicipio(i.municipio);
   if (!mun) return NextResponse.json({ error: "Município não encontrado." }, { status: 404 });
 
+  // Margem de segurança: superdimensiona o sistema aumentando o consumo mensal
+  // (ex.: 10% → cada mês vira consumo × 1,10). Alimenta TODOS os cálculos.
+  const consumo = i.margemSeguranca > 0 ? i.consumo.map((c) => c * (1 + i.margemSeguranca / 100)) : i.consumo;
+
   // Parâmetros vigentes (admin pode alterá-los em /admin/parametros)
   const params = await getSolarParams();
   const eficiencia = i.eficiencia > 0 ? i.eficiencia : params.eficiencia;
   const overloadDesejado = i.overloadDesejado ?? params.overloadDesejado;
 
   const sizing = dimensionar({
-    consumo: i.consumo,
+    consumo,
     tipoConexao: i.tipoConexao,
     hsp: mun.hsp,
     potenciaPainel: i.potenciaPainel,
@@ -79,7 +85,7 @@ export async function POST(req: Request) {
   const potenciaInversor = i.potenciaInversor > 0 ? i.potenciaInversor : inversorSugerido;
   const overload = overloadReal(kwp, potenciaInversor);
 
-  const geracao = simularGeracao(mun.hsp, kwp, eficiencia, i.consumo);
+  const geracao = simularGeracao(mun.hsp, kwp, eficiencia, consumo);
   const bom = gerarBom({
     nPaineis,
     potenciaPainel: i.potenciaPainel,
@@ -108,7 +114,7 @@ export async function POST(req: Request) {
   const tarifaEnergia = parseNumber(i.tarifaEnergia ?? 0);
   if (tarifaEnergia > 0 && pricing) {
     economia = simularEconomia({
-      consumo: i.consumo,
+      consumo,
       geracaoMensal: geracao.linhas.map((l) => l.energia),
       disponibilidade: DISPONIBILIDADE[i.tipoConexao],
       tarifaEnergia,

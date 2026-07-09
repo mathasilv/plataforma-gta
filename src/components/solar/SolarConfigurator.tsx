@@ -44,6 +44,7 @@ interface Form {
   validadeDias: number;
   formaPagamento: string;
   consumo: string[]; // 12
+  margemSeguranca: number; // % de folga sobre o consumo (superdimensionamento)
   tipoConexao: "mono" | "bi" | "tri";
   potenciaPainel: number;
   eficiencia: number; // fração (0,75)
@@ -83,6 +84,7 @@ const FORM_INICIAL: Form = {
   validadeDias: 20,
   formaPagamento: "A combinar",
   consumo: Array(12).fill(""),
+  margemSeguranca: 0,
   tipoConexao: "tri",
   potenciaPainel: 700,
   eficiencia: 0.75,
@@ -209,7 +211,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
   // recálculo ao vivo (debounce) — dispara com município + consumo; painéis/inversor são sugeridos
   const temConsumo = form.consumo.some((c) => Number(c) > 0);
   const calcKey = JSON.stringify([
-    form.municipio, form.consumo, form.tipoConexao, form.potenciaPainel, form.eficiencia,
+    form.municipio, form.consumo, form.margemSeguranca, form.tipoConexao, form.potenciaPainel, form.eficiencia,
     form.overloadDesejado, form.nPaineis, form.potenciaInversor, form.qtdInversores,
     form.tipoInversor, form.tipoTelhado, form.kit, form.fator, form.viagens, form.execucaoCivil,
     form.distribuidora, form.subgrupo, form.tarifaEnergia,
@@ -229,6 +231,7 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
           body: JSON.stringify({
             municipio: form.municipio,
             consumo: form.consumo.map((c) => c || 0),
+            margemSeguranca: form.margemSeguranca,
             tipoConexao: form.tipoConexao,
             potenciaPainel: form.potenciaPainel,
             eficiencia: form.eficiencia,
@@ -524,6 +527,20 @@ export function SolarConfigurator({ propostaId }: { propostaId?: string }) {
               <option value="bi">Bifásico</option>
               <option value="tri">Trifásico</option>
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="field-label">Margem de segurança (%)</label>
+            <input
+              type="number"
+              min="0"
+              max="200"
+              step="5"
+              className={inputCls}
+              value={form.margemSeguranca}
+              onChange={(e) => set("margemSeguranca", Number(e.target.value))}
+              placeholder="0"
+            />
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Folga p/ superdimensionar (ex.: +10%). 0 = sem folga.</p>
           </div>
           <div className="flex items-end sm:col-span-2">
             <button
