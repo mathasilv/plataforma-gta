@@ -5,6 +5,9 @@ import { ChevronLeft, ChevronRight, MessageSquare, X } from "lucide-react";
 import {
   PRIORIDADES,
   STATUS_TAREFA,
+  DEMANDANTES,
+  demandanteLabel,
+  type Demandante,
   type Prioridade,
   type StatusTarefa,
   type Task,
@@ -32,8 +35,26 @@ function hoje(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function atrasada(t: Task): boolean {
-  return Boolean(t.prazo) && t.prazo < hoje() && t.status !== "concluida";
+/** Uma data (yyyy-mm-dd) está vencida se é passada e a tarefa não foi concluída. */
+function dataAtrasada(prazo: string, status: StatusTarefa): boolean {
+  return Boolean(prazo) && prazo < hoje() && status !== "concluida";
+}
+/** Prazo operacional efetivo: o campo novo, com fallback ao prazo legado. */
+function prazoOp(t: Task): string {
+  return t.prazoOperacional || t.prazo || "";
+}
+/** Os prazos preenchidos da tarefa (comercial + operacional). */
+function prazosDe(t: Task): string[] {
+  return [t.prazoComercial, prazoOp(t)].filter(Boolean);
+}
+/** Algum dos prazos está vencido (para ordenar as vencidas primeiro). */
+function algumAtrasado(t: Task): boolean {
+  return t.status !== "concluida" && prazosDe(t).some((p) => p < hoje());
+}
+/** Prazo mais próximo entre os dois (para ordenação). */
+function prazoMin(t: Task): string {
+  const ps = prazosDe(t);
+  return ps.length ? ps.reduce((a, b) => (a < b ? a : b)) : "9999-12-31";
 }
 
 function formatPrazo(prazo: string): string {
@@ -51,13 +72,14 @@ interface FormState {
   titulo: string;
   descricao: string;
   cliente: string;
-  demandante: string;
+  demandante: Demandante;
   responsavel: string;
   prioridade: Prioridade;
-  prazo: string;
+  prazoComercial: string;
+  prazoOperacional: string;
 }
 
-const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", demandante: "", responsavel: "", prioridade: "media", prazo: "" };
+const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", demandante: "operacional", responsavel: "", prioridade: "media", prazoComercial: "", prazoOperacional: "" };
 
 export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -112,13 +134,6 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [tasks]);
 
-  // demandantes distintos presentes nas tarefas (para o filtro e o autocomplete)
-  const demandantes = useMemo(() => {
-    const set = new Set<string>();
-    tasks.forEach((t) => t.demandante && set.add(t.demandante));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [tasks]);
-
   // responsáveis distintos presentes nas tarefas (nomes importados ou e-mails de usuários)
   const responsaveis = useMemo(() => {
     const set = new Set<string>();
@@ -139,8 +154,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         (t) =>
           t.titulo.toLowerCase().includes(q) ||
           t.descricao.toLowerCase().includes(q) ||
-          (t.cliente ?? "").toLowerCase().includes(q) ||
-          (t.demandante ?? "").toLowerCase().includes(q),
+          (t.cliente ?? "").toLowerCase().includes(q),
       );
     }
     // ordenação: concluídas por último; depois atrasadas primeiro; prazo mais próximo; prioridade
@@ -148,11 +162,11 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
       const ca = a.status === "concluida" ? 1 : 0;
       const cb = b.status === "concluida" ? 1 : 0;
       if (ca !== cb) return ca - cb;
-      const aa = atrasada(a) ? 0 : 1;
-      const ab = atrasada(b) ? 0 : 1;
+      const aa = algumAtrasado(a) ? 0 : 1;
+      const ab = algumAtrasado(b) ? 0 : 1;
       if (aa !== ab) return aa - ab;
-      const pa = a.prazo || "9999-12-31";
-      const pb = b.prazo || "9999-12-31";
+      const pa = prazoMin(a);
+      const pb = prazoMin(b);
       if (pa !== pb) return pa < pb ? -1 : 1;
       return PRIORIDADE_PESO[a.prioridade] - PRIORIDADE_PESO[b.prioridade];
     });
@@ -252,12 +266,9 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Autocomplete: sugestões a partir de clientes/demandantes já cadastrados */}
+      {/* Autocomplete: sugestões a partir dos clientes já cadastrados */}
       <datalist id="tarefa-clientes">
         {clientes.map((c) => <option key={c} value={c} />)}
-      </datalist>
-      <datalist id="tarefa-demandantes">
-        {demandantes.map((d) => <option key={d} value={d} />)}
       </datalist>
 
       {/* toolbar */}
@@ -298,16 +309,14 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             ))}
           </select>
         )}
-        {demandantes.length > 0 && (
-          <select className="field-input w-full sm:!w-auto" value={fDemandante} onChange={(e) => setFDemandante(e.target.value)}>
-            <option value="todos">Todos os demandantes</option>
-            {demandantes.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        )}
+        <select className="field-input w-full sm:!w-auto" value={fDemandante} onChange={(e) => setFDemandante(e.target.value)}>
+          <option value="todos">Todos os demandantes</option>
+          {DEMANDANTES.map((d) => (
+            <option key={d.value} value={d.value}>
+              {d.label}
+            </option>
+          ))}
+        </select>
         <input
           className="field-input w-full sm:!w-56"
           placeholder="Buscar..."
@@ -340,7 +349,13 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             </div>
             <div className="sm:col-span-2">
               <label className="field-label">Demandante</label>
-              <input className="field-input" list="tarefa-demandantes" value={form.demandante} onChange={(e) => setForm({ ...form, demandante: e.target.value })} placeholder="De onde veio a demanda" />
+              <select className="field-input" value={form.demandante} onChange={(e) => setForm({ ...form, demandante: e.target.value as Demandante })}>
+                {DEMANDANTES.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="sm:col-span-2">
               <label className="field-label">Responsável *</label>
@@ -364,8 +379,12 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="field-label">Prazo</label>
-              <input type="date" className="field-input" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} />
+              <label className="field-label">Prazo comercial</label>
+              <input type="date" className="field-input" value={form.prazoComercial} onChange={(e) => setForm({ ...form, prazoComercial: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label">Prazo operacional</label>
+              <input type="date" className="field-input" value={form.prazoOperacional} onChange={(e) => setForm({ ...form, prazoOperacional: e.target.value })} />
             </div>
           </div>
           <div className="mt-3">
@@ -387,14 +406,15 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
               <th className="hidden md:table-cell">Demandante</th>
               <th className="hidden md:table-cell">Responsável</th>
               <th className="hidden md:table-cell">Prioridade</th>
-              <th className="hidden md:table-cell">Prazo</th>
+              <th className="hidden md:table-cell">Prazo comercial</th>
+              <th className="hidden md:table-cell">Prazo operacional</th>
               <th className="w-10" />
             </tr>
           </thead>
           <tbody>
             {visiveis.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                   Nenhuma tarefa encontrada. Crie a primeira com “+ Nova tarefa”.
                 </td>
               </tr>
@@ -485,22 +505,24 @@ function TaskRow({
   onComentar: (texto: string) => void;
 }) {
   const concluida = t.status === "concluida";
-  const late = atrasada(t);
+  const lateCom = dataAtrasada(t.prazoComercial, t.status);
+  const lateOp = dataAtrasada(prazoOp(t), t.status);
   const [comentario, setComentario] = useState("");
   const [editando, setEditando] = useState(false);
   const [edit, setEdit] = useState<FormState>({
     titulo: t.titulo,
     descricao: t.descricao,
     cliente: t.cliente ?? "",
-    demandante: t.demandante ?? "",
+    demandante: t.demandante || "operacional",
     responsavel: t.responsavel,
     prioridade: t.prioridade,
-    prazo: t.prazo,
+    prazoComercial: t.prazoComercial ?? "",
+    prazoOperacional: prazoOp(t),
   });
 
   return (
     <>
-      <tr className={`${concluida ? "opacity-50" : ""} ${late ? "bg-red-50/40 dark:bg-red-900/20" : ""}`}>
+      <tr className={concluida ? "opacity-50" : ""}>
         <td className="px-3 py-2.5 align-top md:px-4 md:py-2 md:align-middle">
           <select
             value={t.status}
@@ -526,26 +548,33 @@ function TaskRow({
             <Badge tone={PRIORIDADE_TONE[t.prioridade]}>
               {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
             </Badge>
-            {t.prazo && (
-              <span className={`text-[11px] ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
-                {formatPrazo(t.prazo)}{late ? " · atrasada" : ""}
+            {t.prazoComercial && (
+              <span className={`text-[11px] ${lateCom ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
+                Com: {formatPrazo(t.prazoComercial)}
+              </span>
+            )}
+            {prazoOp(t) && (
+              <span className={`text-[11px] ${lateOp ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
+                Op: {formatPrazo(prazoOp(t))}
               </span>
             )}
             {t.cliente && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {t.cliente}</span>}
-            {t.demandante && <span className="text-[11px] text-slate-400 dark:text-slate-500">· de {t.demandante}</span>}
+            {demandanteLabel(t.demandante) && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {demandanteLabel(t.demandante)}</span>}
           </div>
         </td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.cliente || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
-        <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.demandante || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
+        <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{demandanteLabel(t.demandante) || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{nomeDe(t.responsavel)}</td>
         <td className="hidden px-4 py-2 md:table-cell">
           <Badge tone={PRIORIDADE_TONE[t.prioridade]}>
             {PRIORIDADES.find((p) => p.value === t.prioridade)?.label}
           </Badge>
         </td>
-        <td className={`hidden px-4 py-2 md:table-cell ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
-          {formatPrazo(t.prazo)}
-          {late && <span className="ml-1 text-xs">(atrasada)</span>}
+        <td className={`hidden px-4 py-2 md:table-cell ${lateCom ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
+          {formatPrazo(t.prazoComercial)}
+        </td>
+        <td className={`hidden px-4 py-2 md:table-cell ${lateOp ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-300"}`}>
+          {formatPrazo(prazoOp(t))}
         </td>
         <td className="px-1 py-2 text-center align-top md:px-2 md:align-middle">
           <button onClick={onExcluir} className="inline-flex h-9 w-9 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-600 dark:text-slate-600 dark:hover:bg-red-900/20 dark:hover:text-red-400" title="Excluir" aria-label="Excluir">
@@ -555,7 +584,7 @@ function TaskRow({
       </tr>
       {aberta && (
         <tr className="bg-slate-50/60 dark:bg-slate-900/40">
-          <td colSpan={8} className="px-3 py-3 md:px-6 md:py-4">
+          <td colSpan={9} className="px-3 py-3 md:px-6 md:py-4">
             {!editando ? (
               <div className="space-y-3">
                 <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
@@ -591,7 +620,13 @@ function TaskRow({
                 </div>
                 <div className="sm:col-span-2">
                   <label className="field-label">Demandante</label>
-                  <input className="field-input" list="tarefa-demandantes" value={edit.demandante} onChange={(e) => setEdit({ ...edit, demandante: e.target.value })} />
+                  <select className="field-input" value={edit.demandante} onChange={(e) => setEdit({ ...edit, demandante: e.target.value as Demandante })}>
+                    {DEMANDANTES.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="field-label">Responsável</label>
@@ -617,8 +652,12 @@ function TaskRow({
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="field-label">Prazo</label>
-                  <input type="date" className="field-input" value={edit.prazo} onChange={(e) => setEdit({ ...edit, prazo: e.target.value })} />
+                  <label className="field-label">Prazo comercial</label>
+                  <input type="date" className="field-input" value={edit.prazoComercial} onChange={(e) => setEdit({ ...edit, prazoComercial: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="field-label">Prazo operacional</label>
+                  <input type="date" className="field-input" value={edit.prazoOperacional} onChange={(e) => setEdit({ ...edit, prazoOperacional: e.target.value })} />
                 </div>
                 <div className="flex gap-2 sm:col-span-6">
                   <button type="submit" className="btn-primary !py-1 text-xs">

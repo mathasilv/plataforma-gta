@@ -14,8 +14,16 @@ export const PRIORIDADES = [
   { value: "alta", label: "Alta" },
 ] as const;
 
+/** Origem da demanda: dois casos fixos. */
+export const DEMANDANTES = [
+  { value: "operacional", label: "Operacional" },
+  { value: "comercial", label: "Comercial" },
+] as const;
+
 export type StatusTarefa = (typeof STATUS_TAREFA)[number]["value"];
 export type Prioridade = (typeof PRIORIDADES)[number]["value"];
+/** "" = ainda não classificado (tarefas antigas). */
+export type Demandante = (typeof DEMANDANTES)[number]["value"] | "";
 
 export interface Comentario {
   id: string;
@@ -32,14 +40,18 @@ export interface Task {
   descricao: string;
   /** Cliente/obra relacionada à tarefa (texto livre). */
   cliente: string;
-  /** De onde veio a demanda (quem solicitou) — texto livre. */
-  demandante: string;
+  /** De onde veio a demanda: operacional ou comercial. */
+  demandante: Demandante;
   /** E-mail do responsável (usuário cadastrado na plataforma). */
   responsavel: string;
   status: StatusTarefa;
   prioridade: Prioridade;
-  /** yyyy-mm-dd (opcional) */
+  /** yyyy-mm-dd (opcional) — LEGADO: exibido como Prazo operacional (fallback). */
   prazo: string;
+  /** Prazo comercial — yyyy-mm-dd (opcional). Tratado de forma isolada. */
+  prazoComercial: string;
+  /** Prazo operacional — yyyy-mm-dd (opcional). Tratado de forma isolada. */
+  prazoOperacional: string;
   comentarios: Comentario[];
   criadoPor: string;
   criadoEm: string;
@@ -69,11 +81,13 @@ export const createTaskSchema = z.object({
   titulo: z.string().trim().min(1, "Informe o título").max(300),
   descricao: z.string().trim().max(4000).default(""),
   cliente: z.string().trim().max(200).default(""),
-  demandante: z.string().trim().max(200).default(""),
+  demandante: z.enum(["operacional", "comercial"]).or(z.literal("")).default(""),
   responsavel: z.string().trim().min(1, "Informe o responsável"),
   status: statusEnum.default("afazer"),
   prioridade: prioridadeEnum.default("media"),
   prazo: prazoSchema,
+  prazoComercial: prazoSchema,
+  prazoOperacional: prazoSchema,
 });
 
 /** Payload de atualização parcial. */
@@ -90,4 +104,8 @@ export function statusLabel(s: StatusTarefa): string {
 
 export function prioridadeLabel(p: Prioridade): string {
   return PRIORIDADES.find((x) => x.value === p)?.label ?? p;
+}
+
+export function demandanteLabel(d: Demandante): string {
+  return DEMANDANTES.find((x) => x.value === d)?.label ?? "";
 }
