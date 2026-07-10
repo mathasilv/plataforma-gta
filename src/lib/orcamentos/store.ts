@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { createPool, type VercelPool } from "@vercel/postgres";
-import type { AnexoRef, ComentarioOrcamento, FichaExterna, Orcamento, OrcamentoMeta, RegistroValidacao } from "./types";
+import type { AnexoRef, ComentarioOrcamento, FichaExterna, Orcamento, OrcamentoMeta, OrcamentoOneDrive, RegistroValidacao } from "./types";
 import { getDbUrl } from "../tasks/postgres-store";
 import { buildReference } from "../format";
 
@@ -195,6 +195,7 @@ interface Row {
   decidido_por: string | null;
   decidido_em: string | null;
   expira_em: string | null;
+  one_drive: OrcamentoOneDrive | null;
   criado_por: string;
   criado_por_nome: string | null;
   criado_em: string;
@@ -219,6 +220,7 @@ const rowTo = (r: Row): Orcamento => ({
   decididoPor: r.decidido_por ?? undefined,
   decididoEm: r.decidido_em ? new Date(r.decidido_em).toISOString() : undefined,
   expiraEm: r.expira_em ? new Date(r.expira_em).toISOString() : null,
+  oneDrive: r.one_drive ?? undefined,
   criadoPor: r.criado_por,
   criadoPorNome: r.criado_por_nome ?? undefined,
   criadoEm: new Date(r.criado_em).toISOString(),
@@ -253,6 +255,7 @@ class PostgresOrcamentoStore implements OrcamentoStore {
           decidido_por text,
           decidido_em timestamptz,
           expira_em timestamptz,
+          one_drive jsonb,
           criado_por text NOT NULL,
           criado_por_nome text,
           criado_em timestamptz NOT NULL,
@@ -262,6 +265,7 @@ class PostgresOrcamentoStore implements OrcamentoStore {
         // Garante colunas adicionadas depois da criação inicial da tabela
         .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS anexos jsonb NOT NULL DEFAULT '[]'`)
         .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS meta jsonb`)
+        .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS one_drive jsonb`)
         .then(() => undefined);
     }
     return this.ready;
@@ -314,6 +318,7 @@ class PostgresOrcamentoStore implements OrcamentoStore {
     const atualizadoEm = new Date().toISOString();
     const fichaJson = patch.ficha === undefined ? null : JSON.stringify(patch.ficha);
     const metaJson = patch.meta === undefined ? null : JSON.stringify(patch.meta);
+    const oneDriveJson = patch.oneDrive === undefined ? null : JSON.stringify(patch.oneDrive);
     const { rows } = await this.pool.sql<Row>`
       UPDATE orcamentos SET
         cliente = COALESCE(${patch.cliente ?? null}::text, cliente),
@@ -326,6 +331,7 @@ class PostgresOrcamentoStore implements OrcamentoStore {
         decidido_por = COALESCE(${patch.decididoPor ?? null}::text, decidido_por),
         decidido_em = COALESCE(${patch.decididoEm ?? null}::timestamptz, decidido_em),
         expira_em = COALESCE(${patch.expiraEm ?? null}::timestamptz, expira_em),
+        one_drive = COALESCE(${oneDriveJson}::jsonb, one_drive),
         atualizado_em = ${atualizadoEm}
       WHERE id = ${id}
       RETURNING *

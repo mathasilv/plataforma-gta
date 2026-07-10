@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/rbac/guards";
 import { temPermissao } from "@/lib/rbac/resolve";
 import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
-import { transicaoSchema, type AcaoTransicao } from "@/lib/orcamentos/types";
+import { transicaoSchema, type AcaoTransicao, type OrcamentoOneDrive } from "@/lib/orcamentos/types";
 import { permissaoDaAcao, podeTransicionar } from "@/lib/orcamentos/machine";
+import { oneDriveConfigurado, enviarOrcamentoParaOneDrive } from "@/lib/onedrive/orcamento";
 import { addDays } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -73,5 +74,19 @@ export async function PATCH(req: Request, ctx: Ctx) {
     expiraEm,
   });
 
-  return NextResponse.json({ orcamento: redigirOrcamento(atualizado) });
+  // Ao APROVAR, envia os arquivos (revisões + .docx) para o OneDrive. Best-effort:
+  // se o OneDrive não estiver configurado, não faz nada; se falhar, a aprovação
+  // segue válida e o erro fica registrado (o usuário pode reenviar pelo detalhe).
+  let final = atualizado;
+  if (acao === "aprovar" && atualizado && oneDriveConfigurado()) {
+    let resultado: OrcamentoOneDrive;
+    try {
+      resultado = await enviarOrcamentoParaOneDrive(atualizado);
+    } catch (e) {
+      resultado = { pasta: "", url: "", arquivos: 0, enviadoEm: new Date().toISOString(), erro: e instanceof Error ? e.message : "Falha ao enviar ao OneDrive." };
+    }
+    final = (await store.update(id, { oneDrive: resultado })) ?? atualizado;
+  }
+
+  return NextResponse.json({ orcamento: redigirOrcamento(final) });
 }

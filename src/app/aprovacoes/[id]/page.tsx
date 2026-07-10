@@ -4,6 +4,7 @@ import { OrcamentoDetalhe } from "@/components/orcamentos/OrcamentoDetalhe";
 import { requirePageUser } from "@/lib/session";
 import { permissoesDoUsuario } from "@/lib/rbac/resolve";
 import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
+import { oneDriveConfigurado } from "@/lib/onedrive/graph";
 
 export default async function OrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePageUser();
@@ -16,7 +17,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
     <div className="min-h-screen">
       <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <OrcamentoDetalhe inicial={redigirOrcamento(orc)!} perms={perms} currentEmail={user.email} isAdmin={user.role === "admin"} />
+        <OrcamentoDetalhe inicial={redigirOrcamento(orc)!} perms={perms} currentEmail={user.email} isAdmin={user.role === "admin"} oneDriveAtivo={oneDriveConfigurado()} />
       </main>
     </div>
   );

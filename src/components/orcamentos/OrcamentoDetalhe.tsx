@@ -64,11 +64,13 @@ export function OrcamentoDetalhe({
   perms,
   currentEmail,
   isAdmin,
+  oneDriveAtivo,
 }: {
   inicial: Orcamento;
   perms: PermissaoKey[];
   currentEmail: string;
   isAdmin: boolean;
+  oneDriveAtivo: boolean;
 }) {
   const router = useRouter();
   const pode = (k: PermissaoKey) => perms.includes(k);
@@ -79,6 +81,7 @@ export function OrcamentoDetalhe({
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [anexando, setAnexando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [enviandoOneDrive, setEnviandoOneDrive] = useState(false);
 
   // painel de parecer
   const [acaoAberta, setAcaoAberta] = useState<AcaoTransicao | null>(null);
@@ -251,6 +254,21 @@ export function OrcamentoDetalhe({
     setExcluindo(false);
   }
 
+  async function enviarOneDrive() {
+    setErro(null);
+    setEnviandoOneDrive(true);
+    try {
+      const res = await fetch(`/api/orcamentos/${orc.id}/onedrive`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao enviar ao OneDrive.");
+      setOrc(data.orcamento);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro.");
+    } finally {
+      setEnviandoOneDrive(false);
+    }
+  }
+
   // input de arquivo reutilizável
   function FileBtn({ revisao, children }: { revisao: number; children: React.ReactNode }) {
     return (
@@ -313,6 +331,36 @@ export function OrcamentoDetalhe({
       </div>
 
       {erro && <p className="field-error">{erro}</p>}
+
+      {/* OneDrive — aparece quando aprovado e a integração está configurada */}
+      {orc.estacao === "aprovado" && oneDriveAtivo && (
+        <div className="section-card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="section-title">OneDrive</h2>
+              {orc.oneDrive?.url ? (
+                <p className="mt-1 subtitle">
+                  {orc.oneDrive.arquivos} arquivo(s) na pasta <strong>{orc.oneDrive.pasta}</strong>
+                  {orc.oneDrive.enviadoEm ? ` · enviado em ${fmt(orc.oneDrive.enviadoEm)}` : ""}
+                  {orc.oneDrive.erro ? ` · alguns falharam: ${orc.oneDrive.erro}` : ""}
+                </p>
+              ) : orc.oneDrive?.erro ? (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">Falha ao enviar: {orc.oneDrive.erro}</p>
+              ) : (
+                <p className="mt-1 subtitle">Envie as revisões e o .docx para a pasta deste orçamento no OneDrive.</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {orc.oneDrive?.url && (
+                <a href={orc.oneDrive.url} target="_blank" rel="noopener noreferrer" className="btn-secondary">Abrir pasta</a>
+              )}
+              <button className="btn-primary" onClick={enviarOneDrive} disabled={enviandoOneDrive}>
+                {enviandoOneDrive ? "Enviando..." : orc.oneDrive?.url ? "Reenviar" : "Enviar para o OneDrive"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Menu de ajustes (rascunho) */}
       {podeEditar && (

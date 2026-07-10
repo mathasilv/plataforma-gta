@@ -128,6 +128,15 @@ export interface OrcamentoMeta {
   regeneravel?: boolean;
 }
 
+/** Envio dos arquivos do orçamento para o OneDrive (na aprovação). */
+export interface OrcamentoOneDrive {
+  pasta: string; // nome da pasta criada
+  url: string; // link web para a pasta
+  arquivos: number; // quantos arquivos foram enviados
+  enviadoEm: string; // ISO
+  erro?: string; // se algum upload falhou (best-effort)
+}
+
 export interface Orcamento {
   id: string;
   referencia: string; // GTA-ANO-CLIENTE-ORC-00N
@@ -149,6 +158,8 @@ export interface Orcamento {
   decididoEm?: string; // ISO
   /** Retenção do anexo (Fase 2): data em que os arquivos podem ser apagados. */
   expiraEm?: string | null;
+  /** Envio para o OneDrive (preenchido quando o orçamento é aprovado). */
+  oneDrive?: OrcamentoOneDrive;
   criadoPor: string;
   criadoPorNome?: string;
   criadoEm: string;
