@@ -32,6 +32,7 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [duplicandoId, setDuplicandoId] = useState<string | null>(null);
 
   // filtros
   const [busca, setBusca] = useState("");
@@ -106,6 +107,20 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro.");
       setEnviandoId(null);
+    }
+  }
+
+  async function duplicar(p: Proposta) {
+    setErro(null);
+    setDuplicandoId(p.id);
+    try {
+      const res = await fetch(`/api/propostas/${p.id}/duplicar`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao duplicar.");
+      router.push(`/nova/${p.serviceKey}?proposta=${data.proposta.id}`);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro.");
+      setDuplicandoId(null);
     }
   }
 
@@ -208,6 +223,15 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
                     Abrir
                   </Link>
                 )}
+                {podeReabrir && (
+                  <button
+                    onClick={() => duplicar(p)}
+                    disabled={duplicandoId === p.id}
+                    className="btn-secondary flex-1 justify-center !py-2 text-xs"
+                  >
+                    {duplicandoId === p.id ? "Duplicando..." : "Duplicar"}
+                  </button>
+                )}
                 <button onClick={() => excluir(p)} className="btn-danger flex-1 !py-2 text-xs">Excluir</button>
               </div>
             </div>
@@ -271,6 +295,16 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
                         <Link href={`/nova/${p.serviceKey}?proposta=${p.id}`} className="text-gta-indigo hover:underline">
                           Abrir
                         </Link>
+                      )}
+                      {podeReabrir && (
+                        <button
+                          onClick={() => duplicar(p)}
+                          disabled={duplicandoId === p.id}
+                          title="Duplicar em novo rascunho"
+                          className="text-gta-indigo hover:underline disabled:opacity-50"
+                        >
+                          {duplicandoId === p.id ? "Duplicando..." : "Duplicar"}
+                        </button>
                       )}
                       <button onClick={() => excluir(p)} className="text-red-500 hover:underline dark:text-red-400">
                         Excluir
