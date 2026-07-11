@@ -32,6 +32,12 @@ export interface OrcamentoStore {
   get(id: string): Promise<Orcamento | null>;
   create(data: CreateInput): Promise<Orcamento>;
   update(id: string, patch: UpdatePatch): Promise<Orcamento | null>;
+  /**
+   * Aplica uma transição de estado: grava o patch E o registro de histórico numa
+   * única operação atômica — evita histórico dizendo "Aprovado" com a estação
+   * antiga (ou vice-versa) se algo falhar no meio.
+   */
+  transicionar(id: string, patch: UpdatePatch, registro: Omit<RegistroValidacao, "id" | "em">): Promise<Orcamento | null>;
   addComentario(id: string, c: Omit<ComentarioOrcamento, "id" | "em">): Promise<Orcamento | null>;
   appendHistorico(id: string, r: Omit<RegistroValidacao, "id" | "em">): Promise<Orcamento | null>;
   addAnexo(id: string, anexo: AnexoRef): Promise<Orcamento | null>;
@@ -112,6 +118,17 @@ class JsonOrcamentoStore implements OrcamentoStore {
       const i = items.findIndex((o) => o.id === id);
       if (i < 0) return { items, result: null };
       const updated: Orcamento = { ...items[i], ...patch, id, atualizadoEm: new Date().toISOString() };
+      const next = [...items];
+      next[i] = updated;
+      return { items: next, result: updated };
+    });
+  }
+  async transicionar(id: string, patch: UpdatePatch, registro: Omit<RegistroValidacao, "id" | "em">) {
+    const novo: RegistroValidacao = { ...registro, id: crypto.randomUUID(), em: new Date().toISOString() };
+    return this.mutate((items) => {
+      const i = items.findIndex((o) => o.id === id);
+      if (i < 0) return { items, result: null };
+      const updated: Orcamento = { ...items[i], ...patch, id, historico: [...items[i].historico, novo], atualizadoEm: novo.em };
       const next = [...items];
       next[i] = updated;
       return { items: next, result: updated };
@@ -266,7 +283,23 @@ class PostgresOrcamentoStore implements OrcamentoStore {
         .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS anexos jsonb NOT NULL DEFAULT '[]'`)
         .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS meta jsonb`)
         .then(() => this.pool.sql`ALTER TABLE orcamentos ADD COLUMN IF NOT EXISTS one_drive jsonb`)
-        .then(() => undefined);
+        // Unicidade da referência (nº comercial): fecha a corrida nextSeq→INSERT.
+        // Best-effort: se dados antigos já tiverem duplicata, o índice não é criado
+        // e o app segue como antes (o retry do create simplesmente nunca dispara).
+        .then(() =>
+          this.pool
+            .sql`CREATE UNIQUE INDEX IF NOT EXISTS orcamentos_referencia_uidx ON orcamentos (referencia) WHERE referencia <> ''`.then(
+              () => undefined,
+              () => undefined,
+            ),
+        )
+        .then(() => undefined)
+        // Falha transitória (blip de rede no cold start) não pode virar rejeição
+        // cacheada para sempre: limpa para a próxima chamada tentar de novo.
+        .catch((e) => {
+          this.ready = null;
+          throw e;
+        });
     }
     return this.ready;
   }
@@ -298,27 +331,44 @@ class PostgresOrcamentoStore implements OrcamentoStore {
     await this.ensureSchema();
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    const seq = await this.nextSeq();
-    const referencia = buildReference(PREFIXO, data.cliente || "cliente", seq, new Date().getFullYear());
-    await this.pool.sql`
-      INSERT INTO orcamentos
-        (id, referencia, cliente, fonte, estacao, service_key, proposta_id, descricao, meta, valor, ficha,
-         comentarios, historico, anexos, parecer, decidido_por, decidido_em, expira_em, criado_por, criado_por_nome, criado_em, atualizado_em)
-      VALUES
-        (${id}, ${referencia}, ${data.cliente}, ${data.fonte}, ${data.estacao}, ${data.serviceKey},
-         ${data.propostaId ?? null}, ${data.descricao}, ${data.meta ? JSON.stringify(data.meta) : null}::jsonb, ${data.valor ?? null},
-         ${data.ficha ? JSON.stringify(data.ficha) : null}::jsonb,
-         '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, ${data.parecer ?? null}, ${data.decididoPor ?? null}, ${data.decididoEm ?? null},
-         ${data.expiraEm ?? null}, ${data.criadoPor}, ${data.criadoPorNome ?? null}, ${now}, ${now})
-    `;
-    return { ...data, id, referencia, comentarios: [], historico: [], anexos: [], criadoEm: now, atualizadoEm: now };
+    // nextSeq → INSERT não é atômico: dois envios simultâneos podem calcular o
+    // mesmo sequencial. O índice único em referencia acusa (23505); recalculamos
+    // o próximo número e tentamos de novo.
+    for (let tentativa = 0; ; tentativa++) {
+      const seq = await this.nextSeq();
+      const referencia = buildReference(PREFIXO, data.cliente || "cliente", seq, new Date().getFullYear());
+      try {
+        await this.pool.sql`
+          INSERT INTO orcamentos
+            (id, referencia, cliente, fonte, estacao, service_key, proposta_id, descricao, meta, valor, ficha,
+             comentarios, historico, anexos, parecer, decidido_por, decidido_em, expira_em, criado_por, criado_por_nome, criado_em, atualizado_em)
+          VALUES
+            (${id}, ${referencia}, ${data.cliente}, ${data.fonte}, ${data.estacao}, ${data.serviceKey},
+             ${data.propostaId ?? null}, ${data.descricao}, ${data.meta ? JSON.stringify(data.meta) : null}::jsonb, ${data.valor ?? null},
+             ${data.ficha ? JSON.stringify(data.ficha) : null}::jsonb,
+             '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, ${data.parecer ?? null}, ${data.decididoPor ?? null}, ${data.decididoEm ?? null},
+             ${data.expiraEm ?? null}, ${data.criadoPor}, ${data.criadoPorNome ?? null}, ${now}, ${now})
+        `;
+        return { ...data, id, referencia, comentarios: [], historico: [], anexos: [], criadoEm: now, atualizadoEm: now };
+      } catch (e) {
+        const colisao =
+          (e as { code?: string })?.code === "23505" || /duplicate key/i.test(e instanceof Error ? e.message : "");
+        if (!colisao || tentativa >= 3) throw e;
+      }
+    }
   }
-  async update(id: string, patch: UpdatePatch) {
+  /**
+   * UPDATE único com os campos do patch e, opcionalmente, um registro novo de
+   * histórico — `historico || NULL` é NULL, então o COALESCE preserva o array
+   * quando não há registro (mesmo idioma dos demais campos).
+   */
+  private async updateRow(id: string, patch: UpdatePatch, novoHistorico: RegistroValidacao | null) {
     await this.ensureSchema();
-    const atualizadoEm = new Date().toISOString();
+    const atualizadoEm = novoHistorico?.em ?? new Date().toISOString();
     const fichaJson = patch.ficha === undefined ? null : JSON.stringify(patch.ficha);
     const metaJson = patch.meta === undefined ? null : JSON.stringify(patch.meta);
     const oneDriveJson = patch.oneDrive === undefined ? null : JSON.stringify(patch.oneDrive);
+    const historicoJson = novoHistorico ? JSON.stringify([novoHistorico]) : null;
     const { rows } = await this.pool.sql<Row>`
       UPDATE orcamentos SET
         cliente = COALESCE(${patch.cliente ?? null}::text, cliente),
@@ -332,11 +382,19 @@ class PostgresOrcamentoStore implements OrcamentoStore {
         decidido_em = COALESCE(${patch.decididoEm ?? null}::timestamptz, decidido_em),
         expira_em = COALESCE(${patch.expiraEm ?? null}::timestamptz, expira_em),
         one_drive = COALESCE(${oneDriveJson}::jsonb, one_drive),
+        historico = COALESCE(historico || ${historicoJson}::jsonb, historico),
         atualizado_em = ${atualizadoEm}
       WHERE id = ${id}
       RETURNING *
     `;
     return rows[0] ? rowTo(rows[0]) : null;
+  }
+  async update(id: string, patch: UpdatePatch) {
+    return this.updateRow(id, patch, null);
+  }
+  async transicionar(id: string, patch: UpdatePatch, registro: Omit<RegistroValidacao, "id" | "em">) {
+    const novo: RegistroValidacao = { ...registro, id: crypto.randomUUID(), em: new Date().toISOString() };
+    return this.updateRow(id, patch, novo);
   }
   async addComentario(id: string, c: Omit<ComentarioOrcamento, "id" | "em">) {
     await this.ensureSchema();

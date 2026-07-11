@@ -47,7 +47,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json({ error: "Dados inválidos.", issues: parsed.error.flatten() }, { status: 422 });
   }
 
-  const atualizado = await store.update(id, parsed.data);
+  // O meta é substituído por inteiro no store; o schema só valida os campos
+  // editáveis, então o merge preserva os campos calculados no servidor
+  // (ex.: `regeneravel`, que habilita o botão de regerar o .docx).
+  const patch = parsed.data.meta !== undefined ? { ...parsed.data, meta: { ...orc.meta, ...parsed.data.meta } } : parsed.data;
+  const atualizado = await store.update(id, patch);
   return NextResponse.json({ orcamento: redigirOrcamento(atualizado) });
 }
 

@@ -59,20 +59,24 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (acao === "aprovar") expiraEm = addDays(agora, 7).toISOString();
   else if (acao === "cancelar") expiraEm = addDays(agora, 3).toISOString();
 
-  await store.appendHistorico(id, {
-    estacao: orc.estacao,
-    tipo: acao,
-    mensagem: parecer?.trim() || MENSAGEM_PADRAO[acao],
-    autor,
-  });
-
-  const atualizado = await store.update(id, {
-    estacao: t.destino,
-    parecer: parecer?.trim() || undefined,
-    decididoPor: decisaoHumana ? autor : undefined,
-    decididoEm: decisaoHumana ? agora.toISOString() : undefined,
-    expiraEm,
-  });
+  // Patch + registro de histórico numa única operação atômica (um UPDATE no
+  // Postgres): falha no meio não deixa histórico e estação inconsistentes.
+  const atualizado = await store.transicionar(
+    id,
+    {
+      estacao: t.destino,
+      parecer: parecer?.trim() || undefined,
+      decididoPor: decisaoHumana ? autor : undefined,
+      decididoEm: decisaoHumana ? agora.toISOString() : undefined,
+      expiraEm,
+    },
+    {
+      estacao: orc.estacao,
+      tipo: acao,
+      mensagem: parecer?.trim() || MENSAGEM_PADRAO[acao],
+      autor,
+    },
+  );
 
   // Ao APROVAR, envia os arquivos (revisões + .docx) para o OneDrive. Best-effort:
   // se o OneDrive não estiver configurado, não faz nada; se falhar, a aprovação
