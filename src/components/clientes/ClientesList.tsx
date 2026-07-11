@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Badge, EmptyState, SectionCard } from "@/components/ui";
+import { usePaginacao, Paginacao } from "@/components/Paginacao";
 import { SEGMENTOS, UFS, cidadeUf, type Cliente } from "@/lib/clientes/types";
 
 type FormState = {
@@ -75,6 +76,8 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
       return true;
     });
   }, [clientes, busca, fSegmento]);
+
+  const { paginados, controles } = usePaginacao(filtrados);
 
   function abrirNovo() {
     setErro(null);
@@ -288,7 +291,7 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
         {filtrados.length === 0 && (
           <EmptyState>{clientes.length === 0 ? "Nenhum cliente cadastrado ainda." : "Nenhum cliente corresponde aos filtros."}</EmptyState>
         )}
-        {filtrados.map((c) => (
+        {paginados.map((c) => (
           <div key={c.id} className="p-3 card">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -331,7 +334,7 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
                 </td>
               </tr>
             )}
-            {filtrados.map((c) => (
+            {paginados.map((c) => (
               <tr key={c.id}>
                 <td className="px-4 py-2 font-medium text-gta-navy dark:text-slate-100">{c.nome}</td>
                 <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">{c.documento || "—"}</td>
@@ -355,6 +358,8 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
           </tbody>
         </table>
       </div>
+
+      <Paginacao {...controles} />
     </div>
   );
 }

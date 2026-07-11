@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { Badge, EmptyState, type Tone } from "@/components/ui";
+import { usePaginacao, Paginacao } from "@/components/Paginacao";
 import { statusPropostaLabel, STATUS_PROPOSTA, type Proposta } from "@/lib/propostas/types";
 
 const STATUS_TONE: Record<string, Tone> = {
@@ -84,6 +85,8 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
       return true;
     });
   }, [propostas, busca, fServico, fStatus, fCriador]);
+
+  const { paginados, controles } = usePaginacao(filtradas);
 
   async function excluir(p: Proposta) {
     if (!window.confirm(`Excluir a proposta de "${p.cliente}"?`)) return;
@@ -189,7 +192,7 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
         {filtradas.length === 0 && (
           <EmptyState>{propostas.length === 0 ? "Nenhuma proposta gerada ainda." : "Nenhuma proposta corresponde aos filtros."}</EmptyState>
         )}
-        {filtradas.map((p) => {
+        {paginados.map((p) => {
           const podeReabrir = serviceMap.get(p.serviceKey)?.usesConfigurator;
           return (
             <div key={p.id} className={`p-3 ${cardCls}`}>
@@ -261,7 +264,7 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
                 </td>
               </tr>
             )}
-            {filtradas.map((p) => {
+            {paginados.map((p) => {
               const meta = serviceMap.get(p.serviceKey);
               const podeReabrir = meta?.usesConfigurator;
               return (
@@ -317,6 +320,8 @@ export function PropostasList({ podeEnviar }: { podeEnviar: boolean }) {
           </tbody>
         </table>
       </div>
+
+      <Paginacao {...controles} />
     </div>
   );
 }

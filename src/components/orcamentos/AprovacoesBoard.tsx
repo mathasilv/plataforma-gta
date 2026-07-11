@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ESTACOES, estacaoLabel, type Estacao, type Orcamento } from "@/lib/orcamentos/types";
 import { Badge, EmptyState, type Tone } from "@/components/ui";
+import { usePaginacao, Paginacao } from "@/components/Paginacao";
 
 const ESTACAO_TONE: Record<Estacao, Tone> = {
   rascunho: "slate",
@@ -42,6 +43,8 @@ export function AprovacoesBoard() {
     return m;
   }, [lista]);
 
+  const { paginados, controles } = usePaginacao(filtrada);
+
   if (loading) return <p className="subtitle">Carregando orçamentos...</p>;
 
   return (
@@ -76,7 +79,7 @@ export function AprovacoesBoard() {
         </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {filtrada.map((o) => (
+          {paginados.map((o) => (
             <Link key={o.id} href={`/aprovacoes/${o.id}`} className="card block p-4 transition hover:shadow-md">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -93,6 +96,8 @@ export function AprovacoesBoard() {
           ))}
         </div>
       )}
+
+      <Paginacao {...controles} />
     </div>
   );
 }
