@@ -1,0 +1,22 @@
+# CI mínimo: typecheck + testes em cada push/PR.
+# Pega a classe de erro mais provável ANTES do deploy da Vercel — que até aqui
+# era a única validação (e só rodava depois do push).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
