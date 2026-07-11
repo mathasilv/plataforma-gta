@@ -34,10 +34,12 @@ function paraForm(c: Cliente): FormState {
   };
 }
 
-export function ClientesList() {
+export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
 
   const [busca, setBusca] = useState("");
   const [fSegmento, setFSegmento] = useState("");
@@ -121,11 +123,31 @@ export function ClientesList() {
     else setErro("Falha ao excluir.");
   }
 
+  async function importar() {
+    if (!window.confirm("Importar os clientes da pasta Serviços? Quem já existe (mesmo nome) é ignorado.")) return;
+    setErro(null);
+    setAviso(null);
+    setImportando(true);
+    try {
+      const res = await fetch("/api/clientes/importar", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao importar.");
+      setAviso(`Importação concluída: ${data.criados} criado(s), ${data.ignorados} já existente(s).`);
+      const lista = await fetch("/api/clientes").then((r) => r.json());
+      setClientes(lista.clientes ?? []);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao importar.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
   if (loading) return <p className="subtitle">Carregando clientes...</p>;
 
   return (
     <div className="space-y-4">
       {erro && <p className="field-error">{erro}</p>}
+      {aviso && <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">{aviso}</p>}
 
       {/* Barra de ações + filtros */}
       <div className="flex flex-col gap-3 p-3 sm:flex-row sm:flex-wrap sm:items-end sm:p-4 card">
@@ -141,7 +163,14 @@ export function ClientesList() {
           </select>
         </div>
         {editando === null && (
-          <button className="btn-primary whitespace-nowrap" onClick={abrirNovo}>+ Novo cliente</button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <button className="btn-secondary whitespace-nowrap" onClick={importar} disabled={importando} title="Cria os clientes extraídos da pasta Serviços (não duplica os já cadastrados)">
+                {importando ? "Importando..." : "Importar dos Serviços"}
+              </button>
+            )}
+            <button className="btn-primary whitespace-nowrap" onClick={abrirNovo}>+ Novo cliente</button>
+          </div>
         )}
       </div>
 

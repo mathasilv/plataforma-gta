@@ -16,7 +16,7 @@ export default async function ClientesPage() {
             subtitle="Cadastro dos clientes da GTA — dados de contato, endereço e segmento. Usado para agilizar propostas e, no futuro, faturamento e relatórios por cliente."
           />
         </div>
-        <ClientesList />
+        <ClientesList isAdmin={user.role === "admin"} />
       </main>
     </div>
   );
