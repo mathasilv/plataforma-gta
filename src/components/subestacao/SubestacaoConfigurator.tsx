@@ -1,5 +1,6 @@
 "use client";
 
+import { ClienteInput } from "@/components/clientes/ClienteInput";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
@@ -330,7 +331,7 @@ export function SubestacaoConfigurator({ propostaId }: { propostaId?: string }) 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
           <div className="sm:col-span-3">
             <label className="field-label">Nome do cliente *</label>
-            <input className={inputCls} value={form.clienteNome} onChange={(e) => set("clienteNome", e.target.value)} />
+            <ClienteInput className={inputCls} value={form.clienteNome} onNome={(v) => set("clienteNome", v)} onCidadeUf={(v) => set("cidadeUf", v)} />
           </div>
           <div className="sm:col-span-3">
             <label className="field-label">Cidade/UF *</label>

@@ -1,5 +1,6 @@
 "use client";
 
+import { ClienteInput } from "@/components/clientes/ClienteInput";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SERVICOS_SIMPLES } from "./servicos-simples-configs";
@@ -162,7 +163,7 @@ export function ServicoSimplesConfigurator({ serviceKey, propostaId }: { service
       <section className={sec}>
         <h2 className={h2}>Cliente e local</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-6">
-          <div className="sm:col-span-3"><label className="field-label">Nome do cliente *</label><input className={inputCls} value={form.clienteNome} onChange={(e) => set("clienteNome", e.target.value)} /></div>
+          <div className="sm:col-span-3"><label className="field-label">Nome do cliente *</label><ClienteInput className={inputCls} value={form.clienteNome} onNome={(v) => set("clienteNome", v)} onCidadeUf={(v) => set("cidadeUf", v)} /></div>
           <div className="sm:col-span-3"><label className="field-label">Cidade/UF *</label><input className={inputCls} value={form.cidadeUf} onChange={(e) => set("cidadeUf", e.target.value)} placeholder="Ex.: Goiânia/GO" /></div>
           <div className="sm:col-span-3"><label className="field-label">Local / obra</label><input className={inputCls} value={form.localAtividade} onChange={(e) => set("localAtividade", e.target.value)} /></div>
           <div className="sm:col-span-1"><label className="field-label">Validade (dias)</label><input type="number" className={inputCls} value={form.validadeDias} onChange={(e) => set("validadeDias", e.target.value)} /></div>
