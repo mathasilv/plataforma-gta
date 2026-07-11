@@ -1,13 +1,13 @@
 import { NextResponse, after } from "next/server";
 import { getTaskStore } from "@/lib/tasks/store";
 import { createTaskSchema } from "@/lib/tasks/types";
-import { getSessionUser } from "@/lib/session";
+import { getCurrentUser } from "@/lib/session";
 import { notifyTaskAssigned } from "@/lib/email/notifyTask";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const user = await getSessionUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
   const tasks = await getTaskStore().list();
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
   let body: unknown;
