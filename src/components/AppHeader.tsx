@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Moon, Sun } from "lucide-react";
+import { NotificacoesSino } from "./NotificacoesSino";
 
 const NAV = [
   { href: "/", label: "Nova proposta" },
@@ -108,7 +109,9 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
         </div>
 
         {userName && (
-          <div className="relative" ref={menuRef}>
+          <div className="flex items-center gap-2">
+            <NotificacoesSino />
+            <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuAberto((v) => !v)}
               className="flex items-center gap-2 rounded border border-white/25 px-2.5 py-2 text-sm hover:bg-white/10 sm:px-3 sm:py-1.5"
@@ -163,6 +166,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
                 </button>
               </div>
             )}
+            </div>
           </div>
         )}
       </div>

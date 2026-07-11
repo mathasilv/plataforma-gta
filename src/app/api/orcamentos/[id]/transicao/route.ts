@@ -5,6 +5,7 @@ import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
 import { transicaoSchema, type AcaoTransicao, type OrcamentoOneDrive } from "@/lib/orcamentos/types";
 import { permissaoDaAcao, podeTransicionar } from "@/lib/orcamentos/machine";
 import { oneDriveConfigurado, enviarOrcamentoParaOneDrive } from "@/lib/onedrive/orcamento";
+import { notificar } from "@/lib/notificacoes/store";
 import { addDays } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -90,6 +91,22 @@ export async function PATCH(req: Request, ctx: Ctx) {
       resultado = { pasta: "", url: "", arquivos: 0, enviadoEm: new Date().toISOString(), erro: e instanceof Error ? e.message : "Falha ao enviar ao OneDrive." };
     }
     final = (await store.update(id, { oneDrive: resultado })) ?? atualizado;
+  }
+
+  // Notifica o criador (in-app) quando o orçamento é aprovado ou devolvido —
+  // exceto se ele mesmo tomou a decisão. Best-effort: nunca quebra a resposta.
+  const decidiuOProprio = me.email.trim().toLowerCase() === orc.criadoPor.trim().toLowerCase();
+  if (atualizado && !decidiuOProprio && (acao === "aprovar" || acao === "rejeitar")) {
+    const aprovado = acao === "aprovar";
+    await notificar({
+      paraEmail: orc.criadoPor,
+      tipo: aprovado ? "orcamento_aprovado" : "orcamento_rejeitado",
+      titulo: aprovado
+        ? `Orçamento ${orc.referencia} aprovado`
+        : `Orçamento ${orc.referencia} devolvido para ajustes`,
+      mensagem: parecer?.trim() || `${aprovado ? "Aprovado" : "Devolvido"} por ${autor}.`,
+      link: `/aprovacoes/${id}`,
+    });
   }
 
   return NextResponse.json({ orcamento: redigirOrcamento(final) });
