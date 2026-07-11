@@ -82,6 +82,7 @@ export function OrcamentoDetalhe({
   const [anexando, setAnexando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [enviandoOneDrive, setEnviandoOneDrive] = useState(false);
+  const [avisoOneDrive, setAvisoOneDrive] = useState(false);
 
   // painel de parecer
   const [acaoAberta, setAcaoAberta] = useState<AcaoTransicao | null>(null);
@@ -332,13 +333,22 @@ export function OrcamentoDetalhe({
 
       {erro && <p className="field-error">{erro}</p>}
 
-      {/* OneDrive — aparece quando aprovado e a integração está configurada */}
-      {orc.estacao === "aprovado" && oneDriveAtivo && (
+      {/* OneDrive — aparece quando aprovado. Enquanto a integração não estiver
+          configurada (env vars), mostra o estado "Em desenvolvimento": botão
+          visualmente desabilitado que, ao clicar, explica que ainda não está pronto. */}
+      {orc.estacao === "aprovado" && (
         <div className="section-card">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="section-title">OneDrive</h2>
-              {orc.oneDrive?.url ? (
+              <div className="flex items-center gap-2">
+                <h2 className="section-title">OneDrive</h2>
+                {!oneDriveAtivo && <span className="badge badge-amber">Em desenvolvimento</span>}
+              </div>
+              {!oneDriveAtivo ? (
+                <p className="mt-1 subtitle">
+                  Em breve: as revisões e o .docx deste orçamento serão arquivados automaticamente numa pasta no OneDrive.
+                </p>
+              ) : orc.oneDrive?.url ? (
                 <p className="mt-1 subtitle">
                   {orc.oneDrive.arquivos} arquivo(s) na pasta <strong>{orc.oneDrive.pasta}</strong>
                   {orc.oneDrive.enviadoEm ? ` · enviado em ${fmt(orc.oneDrive.enviadoEm)}` : ""}
@@ -351,14 +361,29 @@ export function OrcamentoDetalhe({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {orc.oneDrive?.url && (
+              {oneDriveAtivo && orc.oneDrive?.url && (
                 <a href={orc.oneDrive.url} target="_blank" rel="noopener noreferrer" className="btn-secondary">Abrir pasta</a>
               )}
-              <button className="btn-primary" onClick={enviarOneDrive} disabled={enviandoOneDrive}>
-                {enviandoOneDrive ? "Enviando..." : orc.oneDrive?.url ? "Reenviar" : "Enviar para o OneDrive"}
-              </button>
+              {oneDriveAtivo ? (
+                <button className="btn-primary" onClick={enviarOneDrive} disabled={enviandoOneDrive}>
+                  {enviandoOneDrive ? "Enviando..." : orc.oneDrive?.url ? "Reenviar" : "Enviar para o OneDrive"}
+                </button>
+              ) : (
+                <button
+                  className="btn-secondary cursor-not-allowed opacity-60"
+                  aria-disabled="true"
+                  onClick={() => setAvisoOneDrive(true)}
+                >
+                  Enviar para o OneDrive
+                </button>
+              )}
             </div>
           </div>
+          {!oneDriveAtivo && avisoOneDrive && (
+            <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+              Esta função está em desenvolvimento e ainda não está disponível.
+            </p>
+          )}
         </div>
       )}
 
