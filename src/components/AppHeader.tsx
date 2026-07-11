@@ -8,6 +8,7 @@ import { Moon, Sun } from "lucide-react";
 const NAV = [
   { href: "/", label: "Nova proposta" },
   { href: "/propostas", label: "Propostas" },
+  { href: "/clientes", label: "Clientes" },
   { href: "/aprovacoes", label: "Aprovações" },
   { href: "/tarefas", label: "Tarefas" },
 ];
