@@ -4,6 +4,7 @@ import { getOrcamentoStore, redigirOrcamento } from "@/lib/orcamentos/store";
 import { criarDaPropostaSchema, type OrcamentoMeta } from "@/lib/orcamentos/types";
 import { getPropostaStore } from "@/lib/propostas/store";
 import { getService } from "@/services/registry";
+import { parseNumber } from "@/lib/format";
 
 export const runtime = "nodejs";
 
@@ -39,13 +40,18 @@ export async function POST(req: Request) {
   // Além disso, tenta o texto final da forma de pagamento via mapper (Condições de pagamento).
   let regeneravel = false;
   let formaPagamento = typeof src.formaPagamento === "string" ? src.formaPagamento : undefined;
+  let valor: number | undefined;
   try {
     if (service) {
-      const parsed = service.zodSchema.safeParse(src);
-      regeneravel = parsed.success;
-      if (parsed.success) {
-        const fp = (service.map(parsed.data).data as Record<string, unknown>).formaPagamento;
+      const parsedSrc = service.zodSchema.safeParse(src);
+      regeneravel = parsedSrc.success;
+      if (parsedSrc.success) {
+        const data = service.map(parsedSrc.data).data as Record<string, unknown>;
+        const fp = data.formaPagamento;
         if (typeof fp === "string" && fp.trim()) formaPagamento = fp;
+        // valorTotal vem formatado (ex.: "R$ 1.234,56"); parseNumber devolve o número.
+        const vt = parseNumber(data.valorTotal);
+        if (vt > 0) valor = vt;
       }
     }
   } catch {
@@ -70,6 +76,7 @@ export async function POST(req: Request) {
     propostaId: proposta.id,
     descricao,
     meta,
+    valor,
     expiraEm: null,
     criadoPor: me.email,
     criadoPorNome: me.name || me.email,
