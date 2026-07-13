@@ -5,6 +5,7 @@ import { z } from "zod";
 export const STATUS_TAREFA = [
   { value: "afazer", label: "A Fazer" },
   { value: "andamento", label: "Em Andamento" },
+  { value: "continuo", label: "Contínuo" },
   { value: "concluida", label: "Concluída" },
 ] as const;
 
@@ -62,7 +63,7 @@ export interface Task {
   atualizadoEm: string;
 }
 
-const statusEnum = z.enum(["afazer", "andamento", "concluida"]);
+const statusEnum = z.enum(["afazer", "andamento", "continuo", "concluida"]);
 const prioridadeEnum = z.enum(["baixa", "media", "alta"]);
 
 /** Verifica se yyyy-mm-dd é uma data real do calendário (rejeita 2026-02-31). */

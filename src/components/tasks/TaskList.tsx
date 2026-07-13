@@ -26,6 +26,7 @@ const PRIORIDADE_TONE: Record<Prioridade, Tone> = { alta: "red", media: "amber",
 const STATUS_BADGE: Record<StatusTarefa, string> = {
   afazer: "border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
   andamento: "border-gta-indigo/40 bg-indigo-50 text-gta-indigo dark:bg-indigo-900/40 dark:text-indigo-300",
+  continuo: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   concluida: "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/40 dark:text-green-300",
 };
 
