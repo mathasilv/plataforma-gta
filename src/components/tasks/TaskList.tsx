@@ -6,6 +6,7 @@ import {
   PRIORIDADES,
   STATUS_TAREFA,
   DEMANDANTES,
+  CATEGORIAS_PADRAO_TAREFA,
   demandanteLabel,
   type Demandante,
   type Prioridade,
@@ -81,6 +82,7 @@ interface FormState {
   titulo: string;
   descricao: string;
   cliente: string;
+  categoria: string;
   demandante: Demandante;
   responsavel: string;
   prioridade: Prioridade;
@@ -90,7 +92,7 @@ interface FormState {
   horaOperacional: string;
 }
 
-const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", demandante: "operacional", responsavel: "", prioridade: "media", prazoComercial: "", prazoOperacional: "", horaComercial: "", horaOperacional: "" };
+const FORM_VAZIO: FormState = { titulo: "", descricao: "", cliente: "", categoria: "", demandante: "operacional", responsavel: "", prioridade: "media", prazoComercial: "", prazoOperacional: "", horaComercial: "", horaOperacional: "" };
 
 export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -102,6 +104,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const [fStatus, setFStatus] = useState<string>("ativas");
   const [fResp, setFResp] = useState<string>("todos");
   const [fCliente, setFCliente] = useState<string>("todos");
+  const [fCategoria, setFCategoria] = useState<string>("todos");
   const [fDemandante, setFDemandante] = useState<string>("todos");
   const [busca, setBusca] = useState("");
 
@@ -145,6 +148,14 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [tasks]);
 
+  // categorias: semente padrão + qualquer valor já usado em alguma tarefa —
+  // basta criar uma tarefa com categoria nova para ela aparecer aqui depois.
+  const categorias = useMemo(() => {
+    const set = new Set<string>(CATEGORIAS_PADRAO_TAREFA);
+    tasks.forEach((t) => t.categoria && set.add(t.categoria));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [tasks]);
+
   // responsáveis distintos presentes nas tarefas (nomes importados ou e-mails de usuários)
   const responsaveis = useMemo(() => {
     const set = new Set<string>();
@@ -158,6 +169,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
     else if (fStatus !== "todas") list = list.filter((t) => t.status === fStatus);
     if (fResp !== "todos") list = list.filter((t) => t.responsavel === fResp);
     if (fCliente !== "todos") list = list.filter((t) => t.cliente === fCliente);
+    if (fCategoria !== "todos") list = list.filter((t) => t.categoria === fCategoria);
     if (fDemandante !== "todos") list = list.filter((t) => t.demandante === fDemandante);
     const q = busca.trim().toLowerCase();
     if (q) {
@@ -182,12 +194,12 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
       return PRIORIDADE_PESO[a.prioridade] - PRIORIDADE_PESO[b.prioridade];
     });
     return list;
-  }, [tasks, fStatus, fResp, fCliente, fDemandante, busca]);
+  }, [tasks, fStatus, fResp, fCliente, fCategoria, fDemandante, busca]);
 
   // volta para a 1ª página quando os filtros/busca mudam
   useEffect(() => {
     setPagina(1);
-  }, [fStatus, fResp, fCliente, fDemandante, busca, porPagina]);
+  }, [fStatus, fResp, fCliente, fCategoria, fDemandante, busca, porPagina]);
 
   // fatia a página atual (paginação no cliente sobre a lista já filtrada)
   const totalPaginas = Math.max(1, Math.ceil(visiveis.length / porPagina));
@@ -281,6 +293,9 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
       <datalist id="tarefa-clientes">
         {clientes.map((c) => <option key={c} value={c} />)}
       </datalist>
+      <datalist id="tarefa-categorias">
+        {categorias.map((c) => <option key={c} value={c} />)}
+      </datalist>
 
       {/* toolbar */}
       <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 dark:border-slate-700 dark:bg-slate-800">
@@ -320,6 +335,14 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             ))}
           </select>
         )}
+        <select className="field-input w-full sm:!w-auto" value={fCategoria} onChange={(e) => setFCategoria(e.target.value)}>
+          <option value="todos">Todas as categorias</option>
+          {categorias.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
         <select className="field-input w-full sm:!w-auto" value={fDemandante} onChange={(e) => setFDemandante(e.target.value)}>
           <option value="todos">Todos os demandantes</option>
           {DEMANDANTES.map((d) => (
@@ -357,6 +380,10 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
             <div className="sm:col-span-2">
               <label className="field-label">Cliente</label>
               <input className="field-input" list="tarefa-clientes" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} placeholder="Ex.: CPDF, Fazenda Rio Doce..." />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label">Categoria</label>
+              <input className="field-input" list="tarefa-categorias" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} placeholder="Ex.: Administrativo, Orçamentos..." />
             </div>
             <div className="sm:col-span-2">
               <label className="field-label">Demandante</label>
@@ -420,6 +447,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
               <th>Status</th>
               <th>Tarefa</th>
               <th className="hidden md:table-cell">Cliente</th>
+              <th className="hidden md:table-cell">Categoria</th>
               <th className="hidden md:table-cell">Demandante</th>
               <th className="hidden md:table-cell">Responsável</th>
               <th className="hidden md:table-cell">Prioridade</th>
@@ -431,7 +459,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
           <tbody>
             {visiveis.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                   Nenhuma tarefa encontrada. Crie a primeira com “+ Nova tarefa”.
                 </td>
               </tr>
@@ -530,6 +558,7 @@ function TaskRow({
     titulo: t.titulo,
     descricao: t.descricao,
     cliente: t.cliente ?? "",
+    categoria: t.categoria ?? "",
     demandante: t.demandante || "operacional",
     responsavel: t.responsavel,
     prioridade: t.prioridade,
@@ -578,10 +607,12 @@ function TaskRow({
               </span>
             )}
             {t.cliente && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {t.cliente}</span>}
+            {t.categoria && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {t.categoria}</span>}
             {demandanteLabel(t.demandante) && <span className="text-[11px] text-slate-400 dark:text-slate-500">· {demandanteLabel(t.demandante)}</span>}
           </div>
         </td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.cliente || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
+        <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{t.categoria || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{demandanteLabel(t.demandante) || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
         <td className="hidden px-4 py-2 text-slate-600 md:table-cell dark:text-slate-300">{nomeDe(t.responsavel)}</td>
         <td className="hidden px-4 py-2 md:table-cell">
@@ -603,7 +634,7 @@ function TaskRow({
       </tr>
       {aberta && (
         <tr className="bg-slate-50/60 dark:bg-slate-900/40">
-          <td colSpan={9} className="px-3 py-3 md:px-6 md:py-4">
+          <td colSpan={10} className="px-3 py-3 md:px-6 md:py-4">
             {!editando ? (
               <div className="space-y-3">
                 <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
@@ -636,6 +667,10 @@ function TaskRow({
                 <div className="sm:col-span-2">
                   <label className="field-label">Cliente</label>
                   <input className="field-input" list="tarefa-clientes" value={edit.cliente} onChange={(e) => setEdit({ ...edit, cliente: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="field-label">Categoria</label>
+                  <input className="field-input" list="tarefa-categorias" value={edit.categoria} onChange={(e) => setEdit({ ...edit, categoria: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="field-label">Demandante</label>

@@ -21,6 +21,14 @@ export const DEMANDANTES = [
   { value: "comercial", label: "Comercial" },
 ] as const;
 
+/**
+ * Categorias padrão da tarefa — texto livre (como `cliente`), não um enum fixo:
+ * a lista exibida no dropdown é esta semente + qualquer valor já usado em
+ * alguma tarefa. Basta criar/editar uma tarefa com uma categoria nova para ela
+ * passar a aparecer no dropdown de todo mundo, sem precisar mexer no código.
+ */
+export const CATEGORIAS_PADRAO_TAREFA = ["Administrativo", "Orçamentos", "Projetos"] as const;
+
 export type StatusTarefa = (typeof STATUS_TAREFA)[number]["value"];
 export type Prioridade = (typeof PRIORIDADES)[number]["value"];
 /** "" = ainda não classificado (tarefas antigas). */
@@ -41,6 +49,8 @@ export interface Task {
   descricao: string;
   /** Cliente/obra relacionada à tarefa (texto livre). */
   cliente: string;
+  /** Categoria da tarefa (texto livre — ver CATEGORIAS_PADRAO_TAREFA). */
+  categoria: string;
   /** De onde veio a demanda: operacional ou comercial. */
   demandante: Demandante;
   /** E-mail do responsável (usuário cadastrado na plataforma). */
@@ -93,6 +103,7 @@ export const createTaskSchema = z.object({
   titulo: z.string().trim().min(1, "Informe o título").max(300),
   descricao: z.string().trim().max(4000).default(""),
   cliente: z.string().trim().max(200).default(""),
+  categoria: z.string().trim().max(60).default(""),
   demandante: z.enum(["operacional", "comercial"]).or(z.literal("")).default(""),
   responsavel: z.string().trim().min(1, "Informe o responsável"),
   status: statusEnum.default("afazer"),
