@@ -3,6 +3,7 @@ import { getTaskStore } from "@/lib/tasks/store";
 import { createTaskSchema } from "@/lib/tasks/types";
 import { getCurrentUser } from "@/lib/session";
 import { notifyTaskAssigned } from "@/lib/email/notifyTask";
+import { notificar } from "@/lib/notificacoes/store";
 
 export const runtime = "nodejs";
 
@@ -34,7 +35,20 @@ export async function POST(req: Request) {
   }
 
   const task = await getTaskStore().create({ ...parsed.data, criadoPor: user.email });
-  // Notifica o responsável por e-mail após a resposta (best-effort, não bloqueia).
-  after(() => notifyTaskAssigned(task));
+  // Notifica o responsável — in-app sempre; por e-mail se o Resend estiver
+  // configurado — após a resposta (best-effort, não bloqueia). Sem sentido
+  // notificar quando o criador se atribui a própria tarefa.
+  if (task.responsavel && task.responsavel.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
+    after(() =>
+      notificar({
+        paraEmail: task.responsavel,
+        tipo: "tarefa_atribuida",
+        titulo: `Nova tarefa: ${task.titulo}`,
+        mensagem: `${user.name || user.email} atribuiu esta tarefa a você${task.cliente ? ` — ${task.cliente}` : ""}.`,
+        link: "/tarefas",
+      }),
+    );
+    after(() => notifyTaskAssigned(task));
+  }
   return NextResponse.json({ task }, { status: 201 });
 }
