@@ -141,14 +141,3 @@ select.field-input {
   @apply border-t border-slate-100 transition hover:bg-slate-50/60
          dark:border-slate-700 dark:hover:bg-slate-700/40;
 }
-
-/* Linhas verticais entre colunas (estilo planilha) — só na tabela de Tarefas,
-   que usa esta classe extra; as demais tabelas (.data-table puro) não mudam. */
-.tarefas-grid th,
-.tarefas-grid td {
-  @apply border-r border-slate-200 dark:border-slate-700;
-}
-.tarefas-grid th:last-child,
-.tarefas-grid td:last-child {
-  border-right: none;
-}

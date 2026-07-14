@@ -441,7 +441,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
 
       {/* lista */}
       <div className="overflow-x-auto card">
-        <table className="data-table tarefas-grid">
+        <table className="data-table">
           <thead>
             <tr>
               <th className="text-center">Status</th>
