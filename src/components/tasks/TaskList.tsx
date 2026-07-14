@@ -444,15 +444,15 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         <table className="data-table">
           <thead>
             <tr>
-              <th className="text-center">Status</th>
-              <th className="text-center">Tarefa</th>
-              <th className="hidden text-center md:table-cell">Cliente</th>
-              <th className="hidden text-center md:table-cell">Categoria</th>
-              <th className="hidden text-center md:table-cell">Demandante</th>
-              <th className="hidden text-center md:table-cell">Responsável</th>
-              <th className="hidden text-center md:table-cell">Prioridade</th>
-              <th className="hidden text-center md:table-cell">Prazo comercial</th>
-              <th className="hidden text-center md:table-cell">Prazo operacional</th>
+              <th>Status</th>
+              <th>Tarefa</th>
+              <th className="hidden md:table-cell">Cliente</th>
+              <th className="hidden md:table-cell">Categoria</th>
+              <th className="hidden md:table-cell">Demandante</th>
+              <th className="hidden md:table-cell">Responsável</th>
+              <th className="hidden md:table-cell">Prioridade</th>
+              <th className="hidden md:table-cell">Prazo comercial</th>
+              <th className="hidden md:table-cell">Prazo operacional</th>
               <th className="w-10" />
             </tr>
           </thead>
