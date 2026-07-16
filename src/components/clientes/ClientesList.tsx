@@ -41,6 +41,7 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [importando, setImportando] = useState(false);
+  const [atualizando, setAtualizando] = useState(false);
 
   const [busca, setBusca] = useState("");
   const [fSegmento, setFSegmento] = useState("");
@@ -145,6 +146,25 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
     }
   }
 
+  async function atualizarDosServicos() {
+    if (!window.confirm("Atualizar clientes com dados da pasta Serviços? Só preenche campos vazios dos já cadastrados (nunca sobrescreve o que já está preenchido) e cria os que ainda não existem.")) return;
+    setErro(null);
+    setAviso(null);
+    setAtualizando(true);
+    try {
+      const res = await fetch("/api/clientes/atualizar", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao atualizar.");
+      setAviso(`Atualização concluída: ${data.criados} criado(s), ${data.atualizados} atualizado(s), ${data.semMudanca} sem mudança.`);
+      const lista = await fetch("/api/clientes").then((r) => r.json());
+      setClientes(lista.clientes ?? []);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao atualizar.");
+    } finally {
+      setAtualizando(false);
+    }
+  }
+
   if (loading) return <p className="subtitle">Carregando clientes...</p>;
 
   return (
@@ -170,6 +190,11 @@ export function ClientesList({ isAdmin = false }: { isAdmin?: boolean }) {
             {isAdmin && (
               <button className="btn-secondary whitespace-nowrap" onClick={importar} disabled={importando} title="Cria os clientes extraídos da pasta Serviços (não duplica os já cadastrados)">
                 {importando ? "Importando..." : "Importar dos Serviços"}
+              </button>
+            )}
+            {isAdmin && (
+              <button className="btn-secondary whitespace-nowrap" onClick={atualizarDosServicos} disabled={atualizando} title="Preenche campos vazios (CNPJ, endereço...) dos clientes já cadastrados com dados da pasta Serviços; cria os que faltam. Nunca sobrescreve o que já está preenchido.">
+                {atualizando ? "Atualizando..." : "Atualizar dados dos Serviços"}
               </button>
             )}
             <button className="btn-primary whitespace-nowrap" onClick={abrirNovo}>+ Novo cliente</button>
