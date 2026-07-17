@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Moon, Sun } from "lucide-react";
 import { NotificacoesSino } from "./NotificacoesSino";
+import { Avatar } from "./ui";
 
 const NAV = [
   { href: "/", label: "Nova proposta" },
@@ -20,12 +21,22 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
   const [menuAberto, setMenuAberto] = useState(false);
   const [navAberto, setNavAberto] = useState(false);
   const [dark, setDark] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   // estado inicial do tema (o script no <head> já aplicou a classe)
   useEffect(() => {
     setDark(document.documentElement.classList.contains("dark"));
   }, []);
+
+  // busca a foto de perfil (não vem por prop — evita ter que passar por todas as páginas)
+  useEffect(() => {
+    if (!userName) return;
+    fetch("/api/conta")
+      .then((r) => r.json())
+      .then((d) => setAvatarUrl(d.avatarUrl ?? ""))
+      .catch(() => {});
+  }, [userName]);
 
   // fecha o menu do usuário ao clicar fora
   useEffect(() => {
@@ -118,9 +129,7 @@ export function AppHeader({ userName, isAdmin }: { userName?: string; isAdmin?: 
               aria-haspopup="menu"
               aria-expanded={menuAberto}
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
-                {userName.trim().charAt(0).toUpperCase()}
-              </span>
+              <Avatar src={avatarUrl || undefined} name={userName} size={24} tone="header" />
               <span className="hidden max-w-[160px] truncate sm:inline">{userName}</span>
               <svg className={`h-3 w-3 transition ${menuAberto ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none">
                 <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

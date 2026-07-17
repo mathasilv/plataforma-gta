@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { ChangePasswordForm } from "@/components/users/ChangePasswordForm";
+import { AvatarUpload } from "@/components/users/AvatarUpload";
 import { PageHeader } from "@/components/ui";
 import { requirePageUser } from "@/lib/session";
 import { ROLE_LABEL } from "@/lib/users/types";
@@ -13,6 +14,10 @@ export default async function ContaPage() {
       <AppHeader userName={user.name} isAdmin={user.role === "admin"} />
       <main className="mx-auto max-w-xl px-4 py-8">
         <PageHeader title="Minha conta" />
+
+        <section className="section-card mt-6">
+          <AvatarUpload avatarUrl={user.avatarUrl ?? ""} name={user.name} />
+        </section>
 
         <section className="section-card mt-6">
           <dl className="grid grid-cols-1 gap-y-1 text-sm sm:grid-cols-3 sm:gap-y-2">

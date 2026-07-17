@@ -10,6 +10,25 @@ import { ArrowLeft } from "lucide-react";
  * globals.css; aqui estão os componentes com estrutura/lógica.
  */
 
+/**
+ * Foto de perfil (ou círculo com a inicial do nome quando não há foto).
+ * `tone="header"` = fundo translúcido branco (usado sobre o navy do cabeçalho);
+ * `tone="solid"` = fundo índigo sólido (usado em telas/fundos claros, ex.: Conta).
+ */
+export function Avatar({ src, name, size = 24, tone = "solid" }: { src?: string; name: string; size?: number; tone?: "header" | "solid" }) {
+  const dimStyle = { width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.42)) };
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={name} style={dimStyle} className="rounded-full object-cover" />;
+  }
+  const toneCls = tone === "header" ? "bg-white/20 text-white" : "bg-gta-indigo text-white dark:bg-indigo-600";
+  return (
+    <span style={dimStyle} className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ${toneCls}`}>
+      {(name.trim().charAt(0) || "?").toUpperCase()}
+    </span>
+  );
+}
+
 export type Tone = "slate" | "green" | "amber" | "red" | "indigo";
 const BADGE_TONE: Record<Tone, string> = {
   slate: "badge-slate",

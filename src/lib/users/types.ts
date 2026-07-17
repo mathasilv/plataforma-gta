@@ -15,9 +15,16 @@ export interface User {
   /** Se true, é obrigado a definir nova senha no próximo acesso. */
   mustChangePassword: boolean;
   active: boolean;
+  /** URL da foto de perfil (Vercel Blob em produção; data URL em dev). */
+  avatarUrl?: string;
   criadoEm: string;
   atualizadoEm: string;
 }
+
+/** Tipos de imagem aceitos para foto de perfil. */
+export const AVATAR_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
+/** Teto de tamanho do arquivo de avatar (foto de perfil é pequena; sem necessidade de mais). */
+export const AVATAR_MAX_BYTES = 3 * 1024 * 1024;
 
 /** Usuário sem o hash de senha — seguro para enviar ao cliente. */
 export type PublicUser = Omit<User, "passwordHash">;

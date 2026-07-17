@@ -32,7 +32,7 @@ export interface NewUser {
 }
 
 /** `cargoId: null` limpa o cargo; ausente = não altera. */
-export type UserPatch = Partial<Pick<User, "name" | "role" | "active">> & { cargoId?: string | null };
+export type UserPatch = Partial<Pick<User, "name" | "role" | "active" | "avatarUrl">> & { cargoId?: string | null };
 
 export interface UserStore {
   list(): Promise<User[]>;
@@ -139,6 +139,7 @@ interface Row {
   cargo_id: string | null;
   must_change_password: boolean;
   active: boolean;
+  avatar_url: string | null;
   criado_em: string;
   atualizado_em: string;
 }
@@ -151,6 +152,7 @@ const rowToUser = (r: Row): User => ({
   cargoId: r.cargo_id ?? undefined,
   mustChangePassword: r.must_change_password,
   active: r.active,
+  avatarUrl: r.avatar_url ?? undefined,
   criadoEm: new Date(r.criado_em).toISOString(),
   atualizadoEm: new Date(r.atualizado_em).toISOString(),
 });
@@ -172,12 +174,14 @@ class PostgresUserStore implements UserStore {
           role text NOT NULL DEFAULT 'member',
           must_change_password boolean NOT NULL DEFAULT false,
           active boolean NOT NULL DEFAULT true,
+          avatar_url text,
           criado_em timestamptz NOT NULL,
           atualizado_em timestamptz NOT NULL
         )
       `
         // Garante a coluna cargo_id em tabelas criadas antes do RBAC por cargos
         .then(() => this.pool.sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS cargo_id text`)
+        .then(() => this.pool.sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url text`)
         .then(() => undefined);
     }
     return this.ready;
@@ -227,7 +231,7 @@ class PostgresUserStore implements UserStore {
     const atualizadoEm = new Date().toISOString();
     await this.pool.sql`
       UPDATE users SET name = ${merged.name}, role = ${merged.role}, cargo_id = ${cargoId},
-        active = ${merged.active}, atualizado_em = ${atualizadoEm}
+        active = ${merged.active}, avatar_url = ${merged.avatarUrl ?? null}, atualizado_em = ${atualizadoEm}
       WHERE id = ${id}
     `;
     return { ...cur, ...patch, cargoId: cargoId ?? undefined, atualizadoEm };
