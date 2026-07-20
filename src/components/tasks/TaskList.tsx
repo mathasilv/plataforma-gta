@@ -166,6 +166,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const visiveis = useMemo(() => {
     let list = [...tasks];
     if (fStatus === "ativas") list = list.filter((t) => t.status !== "concluida");
+    else if (fStatus === "atrasadas") list = list.filter((t) => algumAtrasado(t));
     else if (fStatus !== "todas") list = list.filter((t) => t.status === fStatus);
     if (fResp !== "todos") list = list.filter((t) => t.responsavel === fResp);
     if (fCliente !== "todos") list = list.filter((t) => t.cliente === fCliente);
@@ -311,6 +312,7 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         <select className="field-input w-full sm:!w-auto" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
           <option value="ativas">Ativas (padrão)</option>
           <option value="todas">Todas</option>
+          <option value="atrasadas">Em atraso</option>
           {STATUS_TAREFA.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
