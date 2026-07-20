@@ -27,6 +27,7 @@ const PRIORIDADE_TONE: Record<Prioridade, Tone> = { alta: "red", media: "amber",
 const STATUS_BADGE: Record<StatusTarefa, string> = {
   afazer: "border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
   andamento: "border-gta-indigo/40 bg-indigo-50 text-gta-indigo dark:bg-indigo-900/40 dark:text-indigo-300",
+  atraso: "border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/40 dark:text-red-300",
   continuo: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   concluida: "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/40 dark:text-green-300",
 };
@@ -166,7 +167,6 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
   const visiveis = useMemo(() => {
     let list = [...tasks];
     if (fStatus === "ativas") list = list.filter((t) => t.status !== "concluida");
-    else if (fStatus === "atrasadas") list = list.filter((t) => algumAtrasado(t));
     else if (fStatus !== "todas") list = list.filter((t) => t.status === fStatus);
     if (fResp !== "todos") list = list.filter((t) => t.responsavel === fResp);
     if (fCliente !== "todos") list = list.filter((t) => t.cliente === fCliente);
@@ -312,7 +312,6 @@ export function TaskList({ currentUserEmail }: { currentUserEmail: string }) {
         <select className="field-input w-full sm:!w-auto" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
           <option value="ativas">Ativas (padrão)</option>
           <option value="todas">Todas</option>
-          <option value="atrasadas">Em atraso</option>
           {STATUS_TAREFA.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
