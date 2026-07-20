@@ -25,6 +25,12 @@ export const NOVIDADES: Novidade[] = [
     mensagem: "Agora você pode adicionar (ou trocar) sua foto de perfil em Minha conta.",
     link: "/conta",
   },
+  {
+    slug: "tarefas-filtro-atraso-2026-07",
+    titulo: "Novidade: filtro Em atraso nas Tarefas",
+    mensagem: "Agora dá pra filtrar as tarefas com prazo vencido direto no dropdown de status.",
+    link: "/tarefas",
+  },
 ];
 
 interface NovidadeStore {
